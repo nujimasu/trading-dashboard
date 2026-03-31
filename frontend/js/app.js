@@ -33,6 +33,19 @@ document.addEventListener("DOMContentLoaded", () => {
   buildSections();
   loadPipelineStatus();
   navigate("market-health");
+
+  // ── ハンバーガーメニュー ───────────────────────────────────────────────
+  const toggle  = document.getElementById("menu-toggle");
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebar-overlay");
+
+  function openMenu()  { sidebar.classList.add("open");  overlay.classList.add("visible"); }
+  function closeMenu() { sidebar.classList.remove("open"); overlay.classList.remove("visible"); }
+
+  toggle.addEventListener("click", () =>
+    sidebar.classList.contains("open") ? closeMenu() : openMenu()
+  );
+  overlay.addEventListener("click", closeMenu);
 });
 
 function buildSidebar() {
@@ -58,7 +71,12 @@ function buildSidebar() {
   });
   sidebar.innerHTML = html;
   sidebar.querySelectorAll(".nav-item").forEach(el => {
-    el.addEventListener("click", () => navigate(el.dataset.section));
+    el.addEventListener("click", () => {
+      navigate(el.dataset.section);
+      // モバイルではメニューを閉じる
+      sidebar.classList.remove("open");
+      document.getElementById("sidebar-overlay").classList.remove("visible");
+    });
   });
 }
 

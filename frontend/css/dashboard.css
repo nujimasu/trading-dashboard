@@ -966,3 +966,101 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .mh-idx-30d    { font-size: .72rem; font-weight: 600; }
 .mh-idx-30d.up { color: var(--green); }
 .mh-idx-30d.dn { color: var(--red);   }
+
+/* ═══════════════════════════════════════════════════════════
+   ハンバーガーメニュー & モバイル対応
+   ═══════════════════════════════════════════════════════════ */
+
+/* ハンバーガーボタン — デスクトップでは非表示 */
+#header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+#menu-toggle:hover { background: var(--bg-hover); }
+
+/* オーバーレイ（タップで閉じる背景） */
+#sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 99;
+}
+#sidebar-overlay.visible { display: block; }
+
+/* ── モバイル（768px以下） ────────────────────────────── */
+@media (max-width: 768px) {
+  /* ボディのoverflow解除 */
+  body { overflow: auto; height: auto; min-height: 100vh; }
+
+  /* ハンバーガー表示 */
+  #menu-toggle { display: block; }
+
+  /* ヘッダー */
+  #header { padding: 10px 14px; }
+  #header h1 { font-size: .9rem; }
+  #pipeline-status { font-size: .68rem; max-width: 130px; text-align: right; }
+
+  /* レイアウト */
+  #layout { flex-direction: column; overflow: visible; }
+
+  /* サイドバー — 左からスライドするドロワー */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100%;
+    width: 240px;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    padding-top: 56px;
+    overflow-y: auto;
+  }
+  #sidebar.open { transform: translateX(0); }
+
+  /* メインコンテンツ — 全幅 */
+  #main { padding: 12px; overflow: visible; }
+
+  /* グリッドを1カラムに */
+  .health-main               { grid-template-columns: 1fr !important; }
+  .mh-top-grid               { grid-template-columns: 1fr !important; }
+  .mh-index-row              { grid-template-columns: 1fr !important; }
+  .mh-sector-grid            { grid-template-columns: repeat(2, 1fr) !important; }
+  .detail-grid               { grid-template-columns: 1fr !important; }
+  .cards-grid-2,
+  .cards-grid-3              { grid-template-columns: 1fr !important; }
+
+  /* センチメント */
+  .mh-sentiment-row { flex-direction: column; }
+
+  /* テーブル — 小さいフォント & 横スクロール */
+  table { font-size: .78rem; }
+  thead th { padding: 8px 8px; font-size: .68rem; }
+  tbody td  { padding: 8px 8px; }
+
+  /* トレードプラン行 — 縦積み */
+  .trade-plan-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .tp-sep { display: none; }
+  .tp-arrow { display: none; }
+
+  /* info banner — 縦積み */
+  .pib-divider { display: none; }
+  .picks-info-banner { flex-direction: column; gap: 10px; padding: 12px; }
+
+  /* 検索バー */
+  .search-bar { flex-direction: column; }
+  .search-input { max-width: 100%; }
+}
