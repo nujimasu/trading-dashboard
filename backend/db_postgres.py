@@ -7,12 +7,17 @@ DATABASE_URL 環境変数が設定された場合のみ使用される。
 import os
 import re
 import json
+import time
 from contextlib import contextmanager
 import psycopg2
 import psycopg2.extras
 
 
 DATABASE_URL = os.environ["DATABASE_URL"]
+
+# sslmode が未指定なら require を付加（Supabase pooler 必須）
+if "sslmode" not in DATABASE_URL:
+    DATABASE_URL += "?sslmode=require" if "?" not in DATABASE_URL else "&sslmode=require"
 
 
 class CompatRow(dict):
@@ -86,9 +91,16 @@ class CompatConnection:
         return cur
 
 
-def get_connection() -> CompatConnection:
-    conn = psycopg2.connect(DATABASE_URL)
-    return CompatConnection(conn)
+def get_connection(retries: int = 3) -> CompatConnection:
+    for attempt in range(retries):
+        try:
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            return CompatConnection(conn)
+        except psycopg2.OperationalError:
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # 1s, 2s
+            else:
+                raise
 
 
 @contextmanager
