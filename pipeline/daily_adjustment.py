@@ -82,7 +82,7 @@ def run():
             cur2 = get_connection().cursor()
             cur2.execute("SELECT entry_price FROM weekly_picks WHERE ticker = ?", (ticker,))
             row = cur2.fetchone()
-            pivot = float(row[0]) if row else price
+            pivot = float(row["entry_price"]) if row else price
             cur2.connection.close()
 
             # LONG: price breaks above pivot / SHORT: price breaks below pivot

@@ -280,7 +280,7 @@ if __name__ == "__main__":
     conn = gc()
     cur  = conn.cursor()
     cur.execute("SELECT DISTINCT ticker FROM price_data LIMIT 200")
-    tickers = [row[0] for row in cur.fetchall()]
+    tickers = [row["ticker"] for row in cur.fetchall()]
     conn.close()
     result = run(tickers)
     print(f"Longs: {result['longs'][:5]}  Shorts: {result['shorts'][:5]}")

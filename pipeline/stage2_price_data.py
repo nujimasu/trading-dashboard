@@ -102,6 +102,6 @@ if __name__ == "__main__":
     conn = gc()
     cur  = conn.cursor()
     cur.execute("SELECT ticker FROM universe LIMIT 20")
-    tickers = [row[0] for row in cur.fetchall()]
+    tickers = [row["ticker"] for row in cur.fetchall()]
     conn.close()
     run(tickers)

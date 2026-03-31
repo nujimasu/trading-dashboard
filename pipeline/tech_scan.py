@@ -461,7 +461,7 @@ def run():
         HAVING cnt >= ?
         ORDER BY ticker
     """, (MIN_BARS,))
-    tickers = [r[0] for r in cur.fetchall()]
+    tickers = [r["ticker"] for r in cur.fetchall()]
     print(f"[TechScan] 対象銘柄数: {len(tickers)}")
 
     results = []

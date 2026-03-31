@@ -102,7 +102,7 @@ def enrich_sectors(tickers: list[str], max_workers: int = 15):
         f"SELECT ticker FROM universe WHERE ticker IN ({placeholders}) AND (sector = '' OR sector IS NULL)",
         tickers,
     )
-    missing = [r[0] for r in cur.fetchall()]
+    missing = [r["ticker"] for r in cur.fetchall()]
     conn.close()
 
     if not missing:

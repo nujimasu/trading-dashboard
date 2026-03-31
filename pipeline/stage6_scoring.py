@@ -136,9 +136,9 @@ def compute_market_health(conn, today: str):
     """, (today,))
     sector_scores = {}
     for row in cur.fetchall():
-        sector  = row[0]
-        total   = row[1]
-        bullish = row[2] or 0
+        sector  = row["sector"]
+        total   = row["total"]
+        bullish = row["bullish"] or 0
         if total > 0:
             display = SECTOR_DISPLAY.get(sector, sector)
             sector_scores[display] = round(bullish / total * 100, 1)
@@ -156,8 +156,8 @@ def compute_market_health(conn, today: str):
             WHERE scan_date = ? AND ticker IN ({placeholders})
         """, (today, *members))
         row = cur.fetchone()
-        total   = row[0] or 0
-        bullish = row[1] or 0
+        total   = row["total"] or 0
+        bullish = row["bullish"] or 0
         if total > 0:
             theme_scores[theme] = round(bullish / total * 100, 1)
 
