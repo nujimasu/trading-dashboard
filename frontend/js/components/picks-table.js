@@ -1,0 +1,311 @@
+/**
+ * Shared picks table renderer — used by weekly-picks and daily-picks.
+ */
+import { renderCandlestick } from "../utils/charts.js";
+
+let openDetailRow = null;  // track currently expanded row
+
+export function renderPicksTable(container, picks, title, mode = "weekly") {
+  if (!picks.length) {
+    const emptyMsg = mode === "daily"
+      ? "本日の候補なし — 毎朝7:00に自動更新されます（手動: <code>python3 pipeline/run_pipeline.py --daily-only</code>）"
+      : "候補銘柄なし — パイプラインを実行してください。";
+    container.innerHTML = `
+      <div class="section-title">${title}</div>
+      <div class="empty-state">${emptyMsg}</div>`;
+    return;
+  }
+
+  const headerExtra = mode === "daily"
+    ? `<th>現在値</th><th>判定RR</th><th>ブレイク</th><th>出来高</th>`
+    : ``;
+
+  const rows = picks.map((p, i) => {
+    const verdictText  = verdictLabel(mode === "daily" ? p.daily_verdict : p.verdict);
+    const verdictClass = verdictCss(mode === "daily"   ? p.daily_verdict : p.verdict);
+    const tierBadge    = p.tier === "Tier1"
+      ? `<span class="tier-badge tier-t1">T1</span>`
+      : `<span class="tier-badge tier-t2">T2</span>`;
+    const dirBadge = p.direction === "SHORT"
+      ? `<span class="dir-badge dir-short">▼SHORT</span>`
+      : `<span class="dir-badge dir-long">▲LONG</span>`;
+
+    const rr = mode === "daily" ? (p.adjusted_rr ?? p.weekly_rr) : p.risk_reward;
+
+    const dailyExtra = mode === "daily" ? `
+      <td>$${fmt(p.current_price)}</td>
+      <td>${fmt(p.adjusted_rr)}</td>
+      <td>${p.breakout_triggered ? "✅" : "—"}</td>
+      <td>${p.volume_confirmation ? "✅" : "—"}</td>
+    ` : ``;
+
+    const score = p.composite_score ?? "—";
+    const holdBadge = _holdingBadge(p.holding_days_est);
+
+    return `
+      <tr data-idx="${i}" class="pick-row">
+        <td class="ticker-cell">${p.ticker}</td>
+        <td class="tier-dir-cell">${tierBadge}${dirBadge}</td>
+        <td class="${verdictClass}">${verdictText}</td>
+        <td>${fmt(rr)}</td>
+        <td>$${fmt(p.entry_price)}</td>
+        <td>$${fmt(p.stop_price)}</td>
+        <td>$${fmt(p.tp1_price)}</td>
+        <td>$${fmt(p.target_price)}</td>
+        <td>${holdBadge}</td>
+        <td>${p.sector || "—"}</td>
+        <td>${score}</td>
+        ${dailyExtra}
+      </tr>
+      <tr class="detail-row" id="detail-${i}" style="display:none">
+        <td colspan="100">${buildDetailPanel(p, i)}</td>
+      </tr>`;
+  }).join("");
+
+  const infoBanner = mode === "weekly" ? `
+    <div class="picks-info-banner">
+      <div class="pib-item">
+        <span class="pib-icon">🎯</span>
+        <div>
+          <div class="pib-label">週次推奨銘柄とは</div>
+          <div class="pib-desc">フルパイプライン（週1回実行）でテクニカルフィルタ・RR計算を通過した今週のウォッチリスト。
+          エントリータイミングはまだ来ていない銘柄も含む。</div>
+        </div>
+      </div>
+      <div class="pib-divider"></div>
+      <div class="pib-item">
+        <span class="pib-icon">📋</span>
+        <div>
+          <div class="pib-label">判定の見方</div>
+          <div class="pib-desc">
+            <span class="verdict-buy pib-badge">買い</span> T1 推奨 &nbsp;
+            <span class="verdict-watch pib-badge">様子見</span> T2 候補 &nbsp;
+            <span class="verdict-short pib-badge">売り</span> ショート推奨
+          </div>
+        </div>
+      </div>
+      <div class="pib-divider"></div>
+      <div class="pib-item">
+        <span class="pib-icon">🔄</span>
+        <div>
+          <div class="pib-label">更新タイミング</div>
+          <div class="pib-desc">週次パイプライン実行時に更新。<br>エントリー判断は「本日のエントリー」タブを参照。</div>
+        </div>
+      </div>
+    </div>` : `
+    <div class="picks-info-banner picks-info-banner--daily">
+      <div class="pib-item">
+        <span class="pib-icon">⚡</span>
+        <div>
+          <div class="pib-label">本日のエントリーとは</div>
+          <div class="pib-desc">週次推奨銘柄の<strong>当日の最新価格</strong>でRRを再計算し、ブレイクアウト条件を確認した結果。
+          毎朝7:00に自動更新。</div>
+        </div>
+      </div>
+      <div class="pib-divider"></div>
+      <div class="pib-item">
+        <span class="pib-icon">📋</span>
+        <div>
+          <div class="pib-label">判定の見方</div>
+          <div class="pib-desc">
+            <span class="verdict-entry pib-badge">今日エントリー</span> ピボット突破+出来高+RR≥2.0 &nbsp;
+            <span class="verdict-watch pib-badge">様子見</span> 条件一部未達 &nbsp;
+            <span class="verdict-wait pib-badge">待機</span> ブレイク前 &nbsp;
+            <span class="verdict-passed pib-badge">通過済</span> RR低下
+          </div>
+        </div>
+      </div>
+      <div class="pib-divider"></div>
+      <div class="pib-item">
+        <span class="pib-icon">🔄</span>
+        <div>
+          <div class="pib-label">更新タイミング</div>
+          <div class="pib-desc">毎朝7:00に自動更新（Mac起動中のみ）。<br>手動更新: <code>python3 pipeline/run_pipeline.py --daily-only</code></div>
+        </div>
+      </div>
+    </div>`;
+
+  container.innerHTML = `
+    <div class="section-title">${title}</div>
+    ${infoBanner}
+    <div class="picks-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>銘柄</th><th>Tier</th><th>判定</th>
+            <th>RR</th><th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
+            <th>保有期間</th><th>セクター</th><th>スコア</th>
+            ${mode === "daily" ? "<th>現在値</th><th>現RR</th><th>ブレイク</th><th>出来高</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  // Row click → expand/collapse detail
+  container.querySelectorAll(".pick-row").forEach(row => {
+    row.addEventListener("click", () => {
+      const idx    = row.dataset.idx;
+      const detail = container.querySelector(`#detail-${idx}`);
+      const isOpen = detail.style.display !== "none";
+
+      // Close any open panel
+      container.querySelectorAll(".detail-row").forEach(r => r.style.display = "none");
+
+      if (!isOpen) {
+        detail.style.display = "table-row";
+        // Render chart for search result stored in pick
+        const pick = picks[idx];
+        if (pick.chart_data) {
+          setTimeout(() => renderCandlestick(
+            `chart-${idx}`,
+            pick.chart_data,
+            { entry: pick.entry_price, stop: pick.stop_price, target: pick.target_price }
+          ), 50);
+        }
+      }
+    });
+  });
+}
+
+function buildDetailPanel(p, idx) {
+  const ts = p.technical_summary   || {};
+  const fs = p.fundamental_summary || {};
+
+  const reasons = (ts.entry_reasons || []).map(r =>
+    `<li>${escHtml(r)}</li>`).join("");
+  const risks   = (ts.risk_factors  || []).map(r =>
+    `<li>${escHtml(r)}</li>`).join("");
+
+  const fvClass = { "強気": "verdict-buy", "やや強気": "verdict-watch",
+                    "中立": "verdict-passed", "やや弱気": "verdict-short-watch",
+                    "弱気": "verdict-short", "データなし": "" }[p.fundamental_verdict] || "";
+  const fvBadge = p.fundamental_verdict
+    ? `<span class="${fvClass}" style="font-size:.8rem;font-weight:700">${p.fundamental_verdict}</span>`
+    : "";
+
+  const fundBlock = fs.available ? `
+    <div class="detail-block">
+      <h4>ファンダメンタル ${fvBadge}</h4>
+      ${kv("セクター",      fs.sector)}
+      ${kv("時価総額",      fs.market_cap_b ? `$${fs.market_cap_b}B` : "—")}
+      ${kv("P/E",           fs.pe_ratio     ? fs.pe_ratio.toFixed(1) : "—")}
+      ${kv("EPS成長(YoY)",  fs.eps_growth_yoy != null ? `${fs.eps_growth_yoy}%` : "—")}
+      ${kv("売上成長(YoY)", fs.revenue_growth_yoy != null ? `${fs.revenue_growth_yoy}%` : "—")}
+      ${kv("決算サプライズ", fs.earnings_surprise_pct != null ? `${fs.earnings_surprise_pct}%` : "—")}
+      ${fs.description ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:8px">${escHtml(fs.description)}</div>` : ""}
+    </div>
+  ` : `<div class="detail-block"><h4>ファンダメンタル</h4><div style="color:var(--text-muted);font-size:.8rem">データなし</div></div>`;
+
+  const chartDiv = p.chart_data
+    ? `<div id="chart-${idx}" id="chart-container" style="height:280px;background:#0f172a;border-radius:6px;margin-top:12px"></div>`
+    : "";
+
+  const dir    = p.direction || "LONG";
+  const isShort = dir === "SHORT";
+  const rr1   = p.entry_price && p.stop_price && p.tp1_price
+    ? Math.abs((p.tp1_price - p.entry_price) / (p.entry_price - p.stop_price) * (isShort ? -1 : 1)).toFixed(2)
+    : "1.50";
+  const rr2   = p.risk_reward ? Number(p.risk_reward).toFixed(2) : "—";
+
+  return `
+    <div class="detail-panel">
+
+      <!-- Trade plan row -->
+      <div class="trade-plan-row">
+        <div class="tp-box tp-entry">
+          <div class="tp-label">エントリー</div>
+          <div class="tp-val">$${fmt(p.entry_price)}</div>
+        </div>
+        <div class="tp-arrow">${isShort ? "▼" : "▲"}</div>
+        <div class="tp-box tp-sl">
+          <div class="tp-label">SL（損切り）</div>
+          <div class="tp-val tp-val-red">$${fmt(p.stop_price)}</div>
+          <div class="tp-sub">${isShort ? "+" : "-"}${p.entry_price && p.stop_price ? Math.abs(p.entry_price - p.stop_price).toFixed(2) : "—"}</div>
+        </div>
+        <div class="tp-arrow">→</div>
+        <div class="tp-box tp-tp1">
+          <div class="tp-label">TP1（半決済）</div>
+          <div class="tp-val tp-val-green">$${fmt(p.tp1_price)}</div>
+          <div class="tp-sub">RR ${rr1}R</div>
+        </div>
+        <div class="tp-arrow">→</div>
+        <div class="tp-box tp-tp2">
+          <div class="tp-label">TP2（ランナー）</div>
+          <div class="tp-val tp-val-green">$${fmt(p.target_price)}</div>
+          <div class="tp-sub">RR ${rr2}R</div>
+        </div>
+        <div class="tp-sep"></div>
+        <div class="tp-box tp-hold">
+          <div class="tp-label">推定保有期間</div>
+          <div class="tp-val">${_holdingBadge(p.holding_days_est)}</div>
+          <div class="tp-sub">${_holdingNote(p.holding_days_est)}</div>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-block">
+          <h4>テクニカル指標</h4>
+          ${kv("RSI",           ts.rsi        ? ts.rsi.toFixed(1) : "—")}
+          ${kv("MACD>Signal",   ts.macd_above_sig ? "✅" : "❌")}
+          ${kv("52w高値比",     ts.pct_from_high != null ? `${ts.pct_from_high.toFixed(1)}%` : "—")}
+          ${p.direction === "SHORT"
+            ? kv("ショート勢い指標", ts.short_momentum != null ? `${ts.short_momentum}/100` : "—")
+            : kv("VCPスコア",       ts.vcp_score != null ? ts.vcp_score : "—")}
+          ${p.direction !== "SHORT" ? kv("収縮ウェーブ", ts.contraction_count ?? "—") : ""}
+          ${kv("出来高比率",    ts.volume_ratio ? `${ts.volume_ratio.toFixed(2)}x` : "—")}
+          ${kv("Stage2",        ts.stage2_uptrend ? "✅" : "❌")}
+        </div>
+
+        <div class="detail-block">
+          <h4>エントリー根拠</h4>
+          <ul class="reason-list">${reasons || "<li>データなし</li>"}</ul>
+          <h4 style="margin-top:12px">リスク要因</h4>
+          <ul class="reason-list risks">${risks || "<li>特になし</li>"}</ul>
+        </div>
+
+        ${fundBlock}
+      </div>
+      ${chartDiv}
+      </div>
+    </div>`;
+}
+
+// ── helpers ────────────────────────────────────────────────
+
+function _holdingBadge(days) {
+  if (!days) return '<span class="hold-badge hold-unknown">—</span>';
+  if (days <= 10) return `<span class="hold-badge hold-short">短期 ~${days}日</span>`;
+  if (days <= 25) return `<span class="hold-badge hold-mid">中期 ~${days}日</span>`;
+  return `<span class="hold-badge hold-long">ポジション ~${days}日</span>`;
+}
+
+function _holdingNote(days) {
+  if (!days) return "";
+  if (days <= 10) return "1〜2週間スウィング";
+  if (days <= 25) return "2〜5週間スウィング";
+  return "1〜2ヶ月ポジション";
+}
+
+function kv(label, value) {
+  return `<div class="kv-row"><span class="kv-key">${label}</span><span class="kv-val">${value ?? "—"}</span></div>`;
+}
+function fmt(v) { return v != null ? Number(v).toFixed(2) : "—"; }
+function escHtml(s) { return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function verdictLabel(v) {
+  const map = {
+    BUY: "買い", WATCH: "様子見", "NO-BUY": "見送り",
+    ENTRY_NOW: "今日エントリー", WAIT: "待機", PASSED: "通過済",
+    SHORT_SELL: "売り", SHORT_WATCH: "ショート様子見",
+  };
+  return map[v] || v || "—";
+}
+function verdictCss(v) {
+  const map = {
+    BUY: "verdict-buy", WATCH: "verdict-watch", "NO-BUY": "verdict-nobuy",
+    ENTRY_NOW: "verdict-entry", WAIT: "verdict-wait", PASSED: "verdict-passed",
+    SHORT_SELL: "verdict-short", SHORT_WATCH: "verdict-short-watch",
+  };
+  return map[v] || "";
+}

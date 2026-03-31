@@ -1,0 +1,59 @@
+[Daily] Running daily adjustment — 09:49
+[DB] Initialized: /Users/junusami/Documents/Claudeプライベート/trading-dashboard/data/trading.db
+[Daily] Adjusting picks for 2026-03-31...
+  BIIB   | $187.57 | RR=2.05 | WAIT
+  INVA   | $22.91 | RR=2.17 | WAIT
+  SEE    | $41.95 | RR=9.50 | WAIT
+  ALB    | $177.22 | RR=1.56 | WAIT
+  AVA    | $40.46 | RR=1.70 | WAIT
+  CRUS   | $138.33 | RR=1.57 | WAIT
+  MRVL   | $87.81 | RR=1.56 | WAIT
+  MGNI   | $11.57 | RR=3.02 | WAIT
+  PSTG   | $56.99 | RR=4.30 | WAIT
+  HOOD   | $65.16 | RR=4.87 | WAIT
+  PLTR   | $137.55 | RR=5.70 | WAIT
+  VST    | $147.54 | RR=3.44 | WAIT
+  WYNN   | $96.77 | RR=4.42 | WAIT
+  RCL    | $261.37 | RR=4.31 | WAIT
+  SHOP   | $111.77 | RR=3.59 | WAIT
+  DDOG   | $115.81 | RR=2.68 | WAIT
+  NRG    | $141.23 | RR=4.34 | WAIT
+  NTES   | $110.03 | RR=5.02 | WAIT
+  URBN   | $60.93 | RR=3.86 | WAIT
+  VKTX   | $29.92 | RR=2.89 | WAIT
+  APTV   | $66.64 | RR=4.45 | WAIT
+  IDXX   | $557.09 | RR=6.33 | WAIT
+  NDAQ   | $83.52 | RR=4.72 | WAIT
+  FLYW   | $11.49 | RR=2.76 | WAIT
+  AMBA   | $48.65 | RR=2.15 | WAIT
+  SNOW   | $153.67 | RR=2.13 | WAIT
+  CRWD   | $380.06 | RR=2.25 | WAIT
+  COLD   | $11.46 | RR=1.50 | WAIT
+  OKTA   | $75.47 | RR=1.50 | WAIT
+  ZS     | $137.26 | RR=1.50 | PASSED
+  BOX    | $23.32 | RR=1.50 | PASSED
+  XPEV   | $16.72 | RR=1.49 | PASSED
+  BROS   | $47.99 | RR=1.50 | WAIT
+  CRM    | $185.03 | RR=1.50 | WAIT
+  DT     | $37.13 | RR=1.50 | PASSED
+  NOW    | $104.97 | RR=1.50 | PASSED
+  MOS    | $25.00 | RR=1.50 | WAIT
+  CI     | $258.08 | RR=1.50 | WAIT
+  TOST   | $26.06 | RR=1.50 | PASSED
+  GRAB   | $3.53 | RR=1.50 | PASSED
+  BKNG   | $4117.51 | RR=1.50 | PASSED
+  SHAK   | $83.53 | RR=1.50 | WAIT
+  CARR   | $54.36 | RR=1.50 | WAIT
+  DXCM   | $61.90 | RR=1.50 | WAIT
+  TRMB   | $62.54 | RR=1.50 | WAIT
+  CDNS   | $270.88 | RR=1.50 | WAIT
+  MCO    | $432.05 | RR=1.50 | WAIT
+  FTNT   | $79.05 | RR=1.50 | WAIT
+  XYL    | $116.18 | RR=1.50 | WAIT
+  MTCH   | $30.15 | RR=1.50 | WAIT
+  DHI    | $132.53 | RR=1.50 | PASSED
+  RPT    | $13.44 | RR=1.50 | PASSED
+  ICE    | $156.94 | RR=1.50 | WAIT
+  WRB    | $66.25 | RR=1.50 | WAIT
+[Daily] Done. 54 tickers updated.
+[Daily] OK: Daily picks updated (3.3s)

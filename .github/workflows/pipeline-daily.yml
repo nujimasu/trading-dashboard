@@ -1,0 +1,27 @@
+name: Daily Pipeline (Adjustment)
+
+on:
+  schedule:
+    - cron: '30 22 * * 0-4'   # UTC 22:30 日〜木 = JST 7:30 月〜金
+  workflow_dispatch:
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily adjustment
+        run: python pipeline/run_pipeline.py --daily-only
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
