@@ -2,6 +2,7 @@
  * Tech picks table — signal-scanner-v5 ロジック由来のテクニカル重視ビュー
  */
 import { renderCandlestick } from "../utils/charts.js";
+import { apiFetch } from "../utils/api.js";
 
 const STAGE_LABEL = {
   0: { text: "不明",               css: "stage-0" },
@@ -162,11 +163,17 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
       container.querySelectorAll(".detail-row").forEach(r => r.style.display = "none");
       if (!isOpen) {
         detail.style.display = "table-row";
-        if (picks[idx].chart_data) {
-          const p = picks[idx];
-          setTimeout(() => renderCandlestick(`tchart-${idx}`, p.chart_data,
-            { entry: p.entry_price, stop: p.stop_price, target: p.target_price }), 50);
-        }
+        const p = picks[idx];
+        apiFetch(`/api/chart/${p.ticker}?days=180`).then(chartResp => {
+          if (chartResp && chartResp.data && chartResp.data.length > 0) {
+            renderCandlestick(`tchart-${idx}`, chartResp.data, {
+              entry:  p.entry_price,
+              stop:   p.stop_price,
+              tp1:    p.tp1_price,
+              target: p.target_price,
+            });
+          }
+        }).catch(() => {});
       }
     });
   });
@@ -193,9 +200,7 @@ function _buildDetailPanel(p, idx) {
   const activeSignals = (p.active_signals || []).map(s =>
     `<span class="sig-tag sig-tag--active">${s}</span>`).join("") || "—";
 
-  const chartDiv = p.chart_data
-    ? `<div id="tchart-${idx}" style="height:280px;background:#0f172a;border-radius:6px;margin-top:12px"></div>`
-    : "";
+  const chartDiv = `<div id="tchart-${idx}" class="pick-chart-container"></div>`;
 
   return `
 <div class="detail-panel">

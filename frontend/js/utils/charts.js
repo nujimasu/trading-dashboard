@@ -56,6 +56,10 @@ export function renderCandlestick(containerId, chartData, levels = {}) {
     const series = chart.addLineSeries({ color: "#ef4444", lineWidth: 1, lineStyle: 2 });
     series.setData(chartData.map(d => ({ time: d.time, value: levels.stop })));
   }
+  if (levels.tp1) {
+    const series = chart.addLineSeries({ color: "#f97316", lineWidth: 1, lineStyle: 2 });
+    series.setData(chartData.map(d => ({ time: d.time, value: levels.tp1 })));
+  }
   if (levels.target) {
     const series = chart.addLineSeries({ color: "#22c55e", lineWidth: 1, lineStyle: 2 });
     series.setData(chartData.map(d => ({ time: d.time, value: levels.target })));

@@ -154,8 +154,60 @@ def _fred_get_csv(series_id: str) -> list[dict]:
         return []
 
 
+def _fetch_fmp_next_releases() -> dict[str, str]:
+    """FMP /stable/economic-calendar から今後60日の経済指標発表日を取得。
+    Returns dict mapping FRED indicator name → next release date string."""
+    from config import FMP_API_KEY, FMP_BASE_URL
+    if not FMP_API_KEY:
+        return {}
+
+    # FRED指標名 → FMP event名のマッピング
+    FMP_EVENT_MAP = {
+        "CPI（消費者物価指数）":          "CPI",
+        "失業率":                          "Unemployment Rate",
+        "FF金利（政策金利）":              "Fed Interest Rate Decision",
+        "10年国債利回り":                  None,  # FMPカレンダーなし
+        "期待インフレ率（10年）":          None,
+        "非農業部門雇用者数（NFP）":       "Nonfarm Payrolls",
+        "GDP（名目・季節調整済み年率）":   "GDP",
+    }
+
+    try:
+        from_date = date.today().isoformat()
+        to_date   = (date.today() + timedelta(days=60)).isoformat()
+        r = requests.get(
+            f"{FMP_BASE_URL}/economic-calendar",
+            params={"from": from_date, "to": to_date, "apikey": FMP_API_KEY},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return {}
+        events = r.json()
+    except Exception as e:
+        print(f"[FMP calendar] error: {e}")
+        return {}
+
+    # Build lookup: fmp_event_name → earliest upcoming date
+    fmp_lookup: dict[str, str] = {}
+    for ev in events:
+        event_name = ev.get("event", "")
+        event_date = ev.get("date", "")[:10]
+        if not event_name or not event_date:
+            continue
+        if event_name not in fmp_lookup:
+            fmp_lookup[event_name] = event_date
+
+    result: dict[str, str] = {}
+    for fred_name, fmp_name in FMP_EVENT_MAP.items():
+        if fmp_name and fmp_name in fmp_lookup:
+            result[fred_name] = fmp_lookup[fmp_name]
+
+    return result
+
+
 def fetch_fred_indicators() -> list[dict]:
     rows = []
+    next_releases = _fetch_fmp_next_releases()
 
     for series_id, meta in FRED_SERIES.items():
         # APIキーあり → JSON API、なし → 公開CSVフォールバック
@@ -206,6 +258,8 @@ def fetch_fred_indicators() -> list[dict]:
             "affected_sectors": json.dumps(meta["affected_sectors"], ensure_ascii=False),
             "affected_tickers": "[]",
             "source":           f"FRED ({series_id})",
+            "url":          "",
+            "next_release": next_releases.get(meta["name"], ""),
         })
 
     print(f"[FRED] {len(rows)} indicators fetched.")
@@ -255,6 +309,7 @@ def fetch_polygon_news(limit: int = 20) -> list[dict]:
                 "affected_sectors": json.dumps(sectors, ensure_ascii=False),
                 "affected_tickers": json.dumps(tickers[:5], ensure_ascii=False),
                 "source":           publisher,
+                "url":              item.get("article_url", ""),
             })
         print(f"[Polygon] {len(rows)} news fetched.")
         return rows
@@ -294,6 +349,7 @@ def fetch_yfinance_news(limit: int = 15) -> list[dict]:
                     "affected_sectors": json.dumps(sectors, ensure_ascii=False),
                     "affected_tickers": json.dumps([sym]),
                     "source":           provider,
+                    "url":              url,
                 })
 
                 if len(rows) >= limit:
@@ -396,11 +452,12 @@ def run():
             cur.execute("""
                 INSERT INTO news_events
                     (date, category, title, description, impact,
-                     affected_sectors, affected_tickers, source)
-                VALUES (?,?,?,?,?,?,?,?)
+                     affected_sectors, affected_tickers, source, url, next_release)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
             """, (
                 r["date"], r["category"], r["title"], r["description"],
                 r["impact"], r["affected_sectors"], r["affected_tickers"], r["source"],
+                r.get("url", ""), r.get("next_release", ""),
             ))
 
     eco   = sum(1 for r in all_rows if r["category"] == "economic")

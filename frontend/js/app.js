@@ -1,8 +1,8 @@
-import { renderMarketHealth }       from "./components/market-health.js?v=6";
-import { renderEvents }             from "./components/events.js?v=2";
-import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=1";
-import { renderPicksTable }         from "./components/picks-table.js?v=8";
-import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=1";
+import { renderMarketHealth }       from "./components/market-health.js?v=7";
+import { renderEvents }             from "./components/events.js?v=3";
+import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
+import { renderPicksTable }         from "./components/picks-table.js?v=9";
+import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=2";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
 import { renderTechStrategyGuide } from "./components/tech-strategy-guide.js?v=1";

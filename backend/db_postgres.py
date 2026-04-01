@@ -271,7 +271,9 @@ def init_db():
             impact              TEXT,
             affected_sectors    TEXT,
             affected_tickers    TEXT,
-            source              TEXT
+            source              TEXT,
+            url                 TEXT DEFAULT '',
+            next_release        TEXT DEFAULT ''
         )
         """,
         """
@@ -324,6 +326,17 @@ def init_db():
 
     for stmt in statements:
         cur.execute(stmt)
+
+    # Column migrations for existing tables
+    pg_migrations = [
+        "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''",
+        "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS next_release TEXT DEFAULT ''",
+    ]
+    for m in pg_migrations:
+        try:
+            cur.execute(m)
+        except Exception:
+            conn.rollback()
 
     conn.commit()
     conn.close()

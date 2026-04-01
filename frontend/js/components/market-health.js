@@ -22,6 +22,14 @@ export async function renderMarketHealth(container) {
     if (vixEl) vixEl.outerHTML = _buildSentimentSection(s);
   }).catch(() => {});
 
+  // Fetch sector ETF performance in parallel (non-blocking)
+  apiFetch("/api/economic-dashboard").then(econ => {
+    const el = document.getElementById("mh-sector-etf-section");
+    if (el && econ.sector_performance) {
+      el.outerHTML = _buildSectorETFSection(econ.sector_performance);
+    }
+  }).catch(() => {});
+
   if (!_data.date) {
     container.innerHTML = `<div class="empty-state">📊 データなし<br><br><code>python pipeline/run_pipeline.py</code> を実行してください。</div>`;
     return;
@@ -115,6 +123,10 @@ function _buildLayout(d) {
 
   <!-- Section 2: Trend chart -->
   <div class="mh-sec-label">アップトレンド比率の推移</div>
+  ${_allHistory.length < 5 ? `
+  <div class="chart-insufficient">
+    データ蓄積中（現在 ${_allHistory.length} 回分）— パイプラインを5回以上実行するとグラフが表示されます
+  </div>` : `
   <div class="mh-chart-controls">
     <div class="mh-btn-grp">
       ${[30, 90, 180].map(days =>
@@ -131,7 +143,7 @@ function _buildLayout(d) {
     <span class="mh-leg leg-green">● 65%+ フルエクスポージャー</span>
     <span class="mh-leg leg-yellow">● 35〜65% 中立</span>
     <span class="mh-leg leg-orange">● 35%未満 ディフェンシブ</span>
-  </div>
+  </div>`}
 
   <!-- Section 3: Major indices -->
   <div class="mh-sec-label">主要指数（直近30日）</div>
@@ -150,7 +162,13 @@ function _buildLayout(d) {
   <!-- Section 6: Sector grid -->
   <div class="mh-sec-label">セクター別アップトレンド比率（現在）</div>
   <div class="mh-sector-grid">
-    ${_sectorCards(d.sector_scores || {}, d.sector_ma || {}, d.prev_sector_scores || {}, d.sector_history || {})}
+    ${_sectorCards(d.sector_scores || {}, d.sector_ma || {}, d.prev_sector_scores || {}, d.sector_history || {}, d.sector_etf_sparkline || {})}
+  </div>
+
+  <!-- Section 7: Sector ETF performance (loaded async) -->
+  <div id="mh-sector-etf-section">
+    <div class="mh-sec-label">セクターETF 騰落率（前日比 / 年初来）</div>
+    <div class="mh-sent-loading">セクターETFデータ取得中...</div>
   </div>
 
 </div>`;
@@ -254,7 +272,7 @@ function _indexCards(indices) {
 
 // ── Sector cards ────────────────────────────────────────────────────────────
 
-function _sectorCards(scores, maMap, prevScores, sectorHistory) {
+function _sectorCards(scores, maMap, prevScores, sectorHistory, etfSparklines = {}) {
   const sorted = Object.entries(scores).sort((a, b) => b[1] - a[1]);
   if (sorted.length === 0) return `<div class="gauge-label" style="padding:20px">セクターデータなし</div>`;
 
@@ -297,11 +315,13 @@ function _sectorCards(scores, maMap, prevScores, sectorHistory) {
                      : score >= 20 ? "var(--yellow)"
                      : "var(--red)";
 
-    // Sparkline from sector history
-    const sparkVals = history && history.length >= 2 ? history.map(h => h.score) : null;
+    // Sparkline: prefer pipeline score history, fall back to ETF price history
+    const sparkVals = history && history.length >= 2
+      ? history.map(h => h.score)
+      : (etfSparklines[sector] || null);
     const sparkHtml = sparkVals
       ? `<div class="mh-sspark">${_sparkline(sparkVals, 120, 48)}</div>`
-      : '';
+      : `<div class="mh-sspark mh-sspark--empty" style="font-size:.65rem;color:var(--text-muted);padding:4px 0">スパークライン蓄積中</div>`;
 
     return `
 <div class="mh-scard" style="--sc:${borderColor}">
@@ -461,6 +481,51 @@ function _sentimentSummary(vix, fg) {
     ${lines.map(l => `<li>${l}</li>`).join("")}
   </ul>
 </div>`;
+}
+
+// ── Sector ETF performance section ──────────────────────────────────────────
+
+function _buildSectorETFSection(sectors) {
+  const entries = Object.entries(sectors).sort((a, b) => b[1].change_ytd - a[1].change_ytd);
+  if (!entries.length) return `<div id="mh-sector-etf-section"></div>`;
+
+  const max1d = Math.max(...entries.map(([, v]) => Math.abs(v.change_1d)), 3);
+
+  const rows = entries.map(([name, v]) => {
+    const cls1d  = v.change_1d  >= 0 ? "econ-pos" : "econ-neg";
+    const clsYtd = v.change_ytd >= 0 ? "econ-pos" : "econ-neg";
+    const sign1d  = v.change_1d  >= 0 ? "+" : "";
+    const signYtd = v.change_ytd >= 0 ? "+" : "";
+    const barPct  = Math.min(Math.abs(v.change_1d) / max1d * 100, 100).toFixed(1);
+    const barCls  = v.change_1d >= 0 ? "econ-bar-pos" : "econ-bar-neg";
+
+    return `
+      <div class="econ-sector-row">
+        <div class="econ-sector-name">
+          <span class="econ-sector-lbl">${_esc(name)}</span>
+          <span class="econ-sector-ticker">${v.ticker}</span>
+        </div>
+        <div class="econ-sector-bar-wrap">
+          <div class="econ-sector-bar ${barCls}" style="width:${barPct}%"></div>
+        </div>
+        <div class="econ-sector-nums">
+          <span class="econ-sector-1d ${cls1d}">${sign1d}${v.change_1d.toFixed(2)}%</span>
+          <span class="econ-sector-sep">|</span>
+          <span class="econ-sector-ytd ${clsYtd}">YTD ${signYtd}${v.change_ytd.toFixed(1)}%</span>
+          <span class="econ-sector-price">$${v.price.toFixed(2)}</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  return `
+<div id="mh-sector-etf-section">
+  <div class="mh-sec-label">セクターETF 騰落率（前日比 / 年初来）</div>
+  <div class="econ-sector-list">${rows}</div>
+</div>`;
+}
+
+function _esc(s) {
+  return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // ── Trend chart (lightweight-charts) ───────────────────────────────────────

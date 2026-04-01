@@ -92,7 +92,7 @@ def get_economic_dashboard():
 
     # FRED indicators — latest per indicator name
     cur.execute("""
-        SELECT title, description, impact, source, date, affected_sectors
+        SELECT title, description, impact, source, date, affected_sectors, next_release
         FROM news_events
         WHERE category = 'economic'
         ORDER BY date DESC
@@ -111,6 +111,7 @@ def get_economic_dashboard():
                 "source":           r["source"],
                 "date":             r["date"],
                 "affected_sectors": json.loads(r["affected_sectors"] or "[]"),
+                "next_release":     r["next_release"] or "",
             }
 
     return {

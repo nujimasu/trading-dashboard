@@ -166,14 +166,17 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
         detail.style.display = "table-row";
         const pick = picks[idx];
 
-        // Render chart
-        if (pick.chart_data) {
-          setTimeout(() => renderCandlestick(
-            `chart-${idx}`,
-            pick.chart_data,
-            { entry: pick.entry_price, stop: pick.stop_price, target: pick.target_price }
-          ), 50);
-        }
+        // Render chart from /api/chart endpoint
+        apiFetch(`/api/chart/${pick.ticker}?days=180`).then(chartResp => {
+          if (chartResp && chartResp.data && chartResp.data.length > 0) {
+            renderCandlestick(`chart-${idx}`, chartResp.data, {
+              entry:  pick.entry_price,
+              stop:   pick.stop_price,
+              tp1:    pick.tp1_price,
+              target: pick.target_price,
+            });
+          }
+        }).catch(() => {});
 
         // Inject sector trend block asynchronously
         const sectorSlot = detail.querySelector(`#sector-slot-${idx}`);
@@ -244,9 +247,7 @@ function buildDetailPanel(p, idx) {
     </div>
   ` : `<div class="detail-block"><h4>ファンダメンタル</h4><div style="color:var(--text-muted);font-size:.8rem">データなし</div></div>`;
 
-  const chartDiv = p.chart_data
-    ? `<div id="chart-${idx}" id="chart-container" style="height:280px;background:#0f172a;border-radius:6px;margin-top:12px"></div>`
-    : "";
+  const chartDiv = `<div id="chart-${idx}" class="pick-chart-container"></div>`;
 
   const dir    = p.direction || "LONG";
   const isShort = dir === "SHORT";

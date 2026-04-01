@@ -12,7 +12,7 @@ def get_news(limit: int = 20):
     cur  = conn.cursor()
     cur.execute("""
         SELECT id, date, title, description, impact,
-               affected_sectors, affected_tickers, source
+               affected_sectors, affected_tickers, source, url
         FROM news_events
         WHERE category = 'news'
         ORDER BY date DESC
@@ -31,6 +31,7 @@ def get_news(limit: int = 20):
             "affected_sectors": json.loads(r["affected_sectors"] or "[]"),
             "affected_tickers": json.loads(r["affected_tickers"] or "[]"),
             "source":           r["source"],
+            "url":              r["url"] or "",
         }
         for r in rows
     ]

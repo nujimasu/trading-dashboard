@@ -33,11 +33,15 @@ export async function renderEvents(container, endpoint, title) {
     const tickers = (item.affected_tickers || []).filter(Boolean).map(t =>
       `<span class="badge badge-gray">${t}</span>`).join(" ");
 
+    const titleHtml = item.url
+      ? `<a class="event-title event-title--link" href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escHtml(item.title)}</a>`
+      : `<div class="event-title">${escHtml(item.title)}</div>`;
+
     return `
       <div class="event-card">
         <div class="event-impact ${item.impact}"></div>
         <div class="event-body">
-          <div class="event-title">${escHtml(item.title)}</div>
+          ${titleHtml}
           ${item.description ? `<div class="event-desc">${escHtml(item.description)}</div>` : ""}
           <div class="event-meta">
             <span class="event-date">${item.date}</span>

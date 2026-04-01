@@ -74,6 +74,30 @@ def get_market_health():
     # Previous sector scores (for arrow direction)
     prev_sector_scores = json.loads(rows[-2]["sector_scores"] or "{}") if n >= 2 else {}
 
+    # Sector ETF price sparklines (last 30 days from price_data)
+    SECTOR_ETF_MAP = {
+        "テクノロジー":   "XLK",
+        "金融":           "XLF",
+        "エネルギー":     "XLE",
+        "ヘルスケア":     "XLV",
+        "資本財":         "XLI",
+        "一般消費財":     "XLY",
+        "生活必需品":     "XLP",
+        "公益":           "XLU",
+        "不動産":         "XLRE",
+        "素材":           "XLB",
+        "通信・メディア": "XLC",
+    }
+    sector_etf_sparkline = {}
+    for sector_name, etf_ticker in SECTOR_ETF_MAP.items():
+        cur.execute("""
+            SELECT close FROM price_data
+            WHERE ticker = ? ORDER BY date ASC
+        """, (etf_ticker,))
+        etf_rows = cur.fetchall()
+        if len(etf_rows) >= 2:
+            sector_etf_sparkline[sector_name] = [r["close"] for r in etf_rows[-30:]]
+
     # Major index ETF data (SPY=S&P500, QQQ=NASDAQ, IWM=Russell2000)
     INDEX_MAP = {"SPY": "S&P 500", "QQQ": "NASDAQ 100", "IWM": "Russell 2000"}
     indices = {}
@@ -112,8 +136,9 @@ def get_market_health():
         "sector_ma":          sector_ma,
         "sector_history":     sector_history,
         "prev_sector_scores": prev_sector_scores,
-        "change_5d":          change_5d,
-        "recent5_avg":        recent5_avg,
-        "prev5_avg":          prev5_avg,
-        "indices":            indices,
+        "change_5d":             change_5d,
+        "recent5_avg":           recent5_avg,
+        "prev5_avg":             prev5_avg,
+        "indices":               indices,
+        "sector_etf_sparkline":  sector_etf_sparkline,
     }

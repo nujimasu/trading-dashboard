@@ -218,6 +218,8 @@ else:
             ("weekly_picks",      "fundamental_verdict TEXT DEFAULT 'データなし'"),
             ("weekly_picks",      "tp1_price REAL"),
             ("weekly_picks",      "holding_days_est INTEGER DEFAULT 20"),
+            ("news_events",       "url TEXT DEFAULT ''"),
+            ("news_events",       "next_release TEXT DEFAULT ''"),
         ]
         for tbl, col_def in migrations:
             try:

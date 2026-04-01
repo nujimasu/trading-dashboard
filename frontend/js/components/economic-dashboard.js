@@ -14,15 +14,13 @@ export async function renderEconomicDashboard(container) {
     return;
   }
 
-  const fred   = data.fred_indicators    || [];
-  const sector = data.sector_performance || {};
+  const fred = data.fred_indicators || [];
 
   container.innerHTML = `
     <div class="econ-wrapper">
       <div class="section-title">📈 経済指標ダッシュボード</div>
 
       ${_fredSection(fred)}
-      ${_sectorSection(sector)}
     </div>`;
 }
 
@@ -53,6 +51,10 @@ function _fredSection(items) {
                       : "→ 中立";
     const dateStr = item.date ? item.date.slice(0, 7) : ""; // YYYY-MM
 
+    const nextStr = item.next_release
+      ? `<div class="econ-tile-next">次回: ${esc(item.next_release)}</div>`
+      : "";
+
     return `
       <div class="econ-tile">
         <div class="econ-tile-name">${esc(item.name)}</div>
@@ -60,6 +62,7 @@ function _fredSection(items) {
         ${prev ? `<div class="econ-tile-prev">前回: ${esc(prev)}</div>` : ""}
         <div class="econ-tile-impact ${impactCls}">${impactLabel}</div>
         <div class="econ-tile-date">${dateStr}</div>
+        ${nextStr}
       </div>`;
   }).join("");
 
