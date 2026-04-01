@@ -24,13 +24,17 @@ from backend.services.indicators import (
 
 
 def load_price_df(ticker: str, conn) -> pd.DataFrame | None:
-    df = pd.read_sql_query(
+    cur = conn.cursor()
+    cur.execute(
         "SELECT date, open, high, low, close, volume FROM price_data WHERE ticker = ? ORDER BY date",
-        conn,
-        params=(ticker,),
-        parse_dates=["date"],
-        index_col="date",
+        (ticker,),
     )
+    rows = cur.fetchall()
+    if not rows:
+        return None
+    df = pd.DataFrame(rows, columns=["date", "open", "high", "low", "close", "volume"])
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date")
     df.columns = [c.capitalize() for c in df.columns]
     return df if len(df) >= 60 else None
 

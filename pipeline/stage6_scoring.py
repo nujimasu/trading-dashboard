@@ -106,15 +106,15 @@ def compute_market_health(conn, today: str):
     """Compute sector + theme health scores and update market_health table."""
     # Count universe tickers with price data
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(DISTINCT ticker) FROM price_data")
-    total_screened = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(DISTINCT ticker) as cnt FROM price_data")
+    total_screened = cur.fetchone()["cnt"]
 
     # Stage 2 uptrend count from today's technical screen
     cur.execute("""
-        SELECT COUNT(*) FROM technical_screen
+        SELECT COUNT(*) as cnt FROM technical_screen
         WHERE scan_date = ? AND stage2_uptrend = 1
     """, (today,))
-    stage2_count = cur.fetchone()[0]
+    stage2_count = cur.fetchone()["cnt"]
 
     overall_score  = round((stage2_count / total_screened * 100), 1) if total_screened > 0 else 0
     if overall_score >= HEALTH_BULLISH_THRESHOLD:
