@@ -79,11 +79,12 @@ def run():
             adj_rr = (reward / risk) if risk > 0 else 0
 
             # Check breakout: price vs weekly entry price
-            cur2 = get_connection().cursor()
+            conn2 = get_connection()
+            cur2 = conn2.cursor()
             cur2.execute("SELECT entry_price FROM weekly_picks WHERE ticker = ?", (ticker,))
             row = cur2.fetchone()
             pivot = float(row["entry_price"]) if row else price
-            cur2.connection.close()
+            conn2.close()
 
             # LONG: price breaks above pivot / SHORT: price breaks below pivot
             if direction == "SHORT":
