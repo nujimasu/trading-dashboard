@@ -1,6 +1,7 @@
-import { renderMarketHealth }     from "./components/market-health.js?v=5";
-import { renderEvents }            from "./components/events.js?v=2";
-import { renderPicksTable }        from "./components/picks-table.js?v=7";
+import { renderMarketHealth }       from "./components/market-health.js?v=6";
+import { renderEvents }             from "./components/events.js?v=2";
+import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=1";
+import { renderPicksTable }         from "./components/picks-table.js?v=8";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=1";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
@@ -115,7 +116,7 @@ async function loadMarketHealth(container) {
 }
 
 async function loadEconomic(container) {
-  await renderEvents(container, "/api/economic-indicators", "📈 経済指標");
+  await renderEconomicDashboard(container);
 }
 
 async function loadNews(container) {

@@ -2,6 +2,16 @@
  * Shared picks table renderer — used by weekly-picks and daily-picks.
  */
 import { renderCandlestick } from "../utils/charts.js";
+import { apiFetch } from "../utils/api.js";
+
+// ── Market health cache (shared across all detail panels) ───────────────────
+let _mhCache = null;
+async function _getMarketHealth() {
+  if (!_mhCache) {
+    try { _mhCache = await apiFetch("/api/market-health"); } catch { _mhCache = {}; }
+  }
+  return _mhCache;
+}
 
 let openDetailRow = null;  // track currently expanded row
 
@@ -154,14 +164,41 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
 
       if (!isOpen) {
         detail.style.display = "table-row";
-        // Render chart for search result stored in pick
         const pick = picks[idx];
+
+        // Render chart
         if (pick.chart_data) {
           setTimeout(() => renderCandlestick(
             `chart-${idx}`,
             pick.chart_data,
             { entry: pick.entry_price, stop: pick.stop_price, target: pick.target_price }
           ), 50);
+        }
+
+        // Inject sector trend block asynchronously
+        const sectorSlot = detail.querySelector(`#sector-slot-${idx}`);
+        if (sectorSlot) {
+          _getMarketHealth().then(mh => {
+            const sectorName = (pick.fundamental_summary?.sector) || pick.sector;
+            if (!sectorName || !mh.sector_scores) return;
+            const score   = mh.sector_scores[sectorName];
+            const history = mh.sector_history?.[sectorName] || [];
+            const ma      = mh.sector_ma?.[sectorName];
+            if (score == null) return;
+            const color = score >= 50 ? "var(--green)" : score >= 20 ? "var(--yellow)" : "var(--red)";
+            const spark = _sectorSparkline(history.map(h => h.score));
+            const maDiff = ma != null ? (score - ma).toFixed(1) : null;
+            const maHtml = maDiff != null
+              ? `<span style="color:${parseFloat(maDiff) >= 0 ? 'var(--green)' : 'var(--red)'}">MA比 ${parseFloat(maDiff) >= 0 ? "+" : ""}${maDiff}pp</span>`
+              : "";
+            sectorSlot.innerHTML = `
+              <div class="kv-row">
+                <span class="kv-key">アップトレンド比率</span>
+                <span class="kv-val" style="color:${color}">${score.toFixed(1)}%</span>
+              </div>
+              ${maDiff != null ? `<div class="kv-row"><span class="kv-key">20日MA比</span><span class="kv-val">${maHtml}</span></div>` : ""}
+              ${spark ? `<div style="margin-top:6px">${spark}</div>` : ""}`;
+          });
         }
       }
     });
@@ -183,6 +220,16 @@ function buildDetailPanel(p, idx) {
   const fvBadge = p.fundamental_verdict
     ? `<span class="${fvClass}" style="font-size:.8rem;font-weight:700">${p.fundamental_verdict}</span>`
     : "";
+
+  const sectorName = fs.sector || p.sector || null;
+  const sectorBlock = sectorName ? `
+    <div class="detail-block">
+      <h4>セクター動向 — ${escHtml(sectorName)}</h4>
+      <div id="sector-slot-${idx}" style="min-height:40px">
+        <div style="color:var(--text-muted);font-size:.78rem">読み込み中...</div>
+      </div>
+    </div>
+  ` : "";
 
   const fundBlock = fs.available ? `
     <div class="detail-block">
@@ -243,7 +290,7 @@ function buildDetailPanel(p, idx) {
         </div>
       </div>
 
-      <div class="detail-grid">
+      <div class="detail-grid detail-grid-4">
         <div class="detail-block">
           <h4>テクニカル指標</h4>
           ${kv("RSI",           ts.rsi        ? ts.rsi.toFixed(1) : "—")}
@@ -265,6 +312,7 @@ function buildDetailPanel(p, idx) {
         </div>
 
         ${fundBlock}
+        ${sectorBlock}
       </div>
       ${chartDiv}
       </div>
@@ -308,4 +356,20 @@ function verdictCss(v) {
     SHORT_SELL: "verdict-short", SHORT_WATCH: "verdict-short-watch",
   };
   return map[v] || "";
+}
+
+function _sectorSparkline(values, w = 120, h = 40) {
+  if (!values || values.length < 2) return "";
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) => {
+    const x = ((i / (values.length - 1)) * (w - 6) + 3).toFixed(1);
+    const y = (h - 4 - ((v - min) / range) * (h - 8) + 2).toFixed(1);
+    return `${x},${y}`;
+  }).join(" ");
+  const rising = values[values.length - 1] >= values[0];
+  const color  = rising ? "#22c55e" : "#ef4444";
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px;display:block" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
 }

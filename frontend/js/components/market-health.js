@@ -87,7 +87,11 @@ function _buildLayout(d) {
   </div>
 
   <!-- Section 1: Overall score -->
-  <div class="mh-sec-label">全体アップトレンド比率</div>
+  <div class="mh-sec-label">全体アップトレンド比率
+    <span class="mh-def-tooltip" title="スクリーニング対象銘柄のうち「Close &gt; SMA50 &gt; SMA200（Stage2上昇トレンド）」を満たす銘柄の割合。65%以上でフルエクスポージャー、35%未満でディフェンシブ推奨。">
+      <span class="mh-def-icon">?</span>
+    </span>
+  </div>
   <div class="mh-top-grid">
 
     <div class="mh-score-card card">
@@ -294,8 +298,9 @@ function _sectorCards(scores, maMap, prevScores, sectorHistory) {
                      : "var(--red)";
 
     // Sparkline from sector history
-    const sparkHtml = history && history.length >= 2
-      ? `<div class="mh-sspark">${_sparkline(history.map(h => h.score))}</div>`
+    const sparkVals = history && history.length >= 2 ? history.map(h => h.score) : null;
+    const sparkHtml = sparkVals
+      ? `<div class="mh-sspark">${_sparkline(sparkVals, 120, 48)}</div>`
       : '';
 
     return `

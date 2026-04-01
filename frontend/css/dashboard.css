@@ -265,6 +265,9 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   gap: 16px;
   margin-bottom: 16px;
 }
+.detail-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 .detail-block h4 {
   font-size: .75rem;
   color: var(--text-muted);
@@ -937,7 +940,31 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .mh-sstatus.normal     { color: var(--text-muted); }
 
 /* Sector sparkline */
-.mh-sspark { margin-top: 6px; }
+.mh-sspark { margin-top: 8px; }
+.mh-sspark svg { display: block; width: 100%; }
+.mh-scard { min-height: 140px; }   /* ensure room for sparkline */
+
+/* アップトレンド比率 定義ツールチップ */
+.mh-def-tooltip {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: help;
+}
+.mh-def-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(148,163,184,.25);
+  color: var(--text-muted);
+  font-size: .68rem;
+  font-weight: 700;
+  font-style: normal;
+}
 .mh-spark  { width: 100%; height: 28px; display: block; }
 
 /* Major index cards row */
@@ -966,6 +993,95 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .mh-idx-30d    { font-size: .72rem; font-weight: 600; }
 .mh-idx-30d.up { color: var(--green); }
 .mh-idx-30d.dn { color: var(--red);   }
+
+/* ═══════════════════════════════════════════════════════════
+   経済指標ダッシュボード
+   ═══════════════════════════════════════════════════════════ */
+.econ-wrapper { max-width: 1100px; }
+.econ-sec-label {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-muted);
+  margin: 22px 0 10px;
+}
+.econ-empty {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+.econ-empty code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 4px; }
+
+/* FRED indicator tiles */
+.econ-tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.econ-tile {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.econ-tile-name  { font-size: .72rem; color: var(--text-muted); line-height: 1.3; }
+.econ-tile-val   { font-size: 1.6rem; font-weight: 800; line-height: 1.1; margin: 4px 0; }
+.econ-tile-prev  { font-size: .72rem; color: var(--text-muted); }
+.econ-tile-date  { font-size: .65rem; color: var(--text-muted); margin-top: 2px; }
+.econ-tile-impact { font-size: .72rem; font-weight: 700; margin-top: 4px; }
+.econ-pos { color: var(--green); }
+.econ-neg { color: var(--red); }
+.econ-neu { color: var(--text-muted); }
+
+/* Sector ETF rows */
+.econ-sector-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
+.econ-sector-row {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.econ-sector-name { display: flex; flex-direction: column; gap: 2px; }
+.econ-sector-lbl  { font-size: .82rem; font-weight: 600; }
+.econ-sector-ticker { font-size: .68rem; color: var(--text-muted); }
+.econ-sector-bar-wrap {
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.econ-sector-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+.econ-bar-pos { background: var(--green); }
+.econ-bar-neg { background: var(--red); }
+.econ-sector-nums {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .8rem;
+  white-space: nowrap;
+  min-width: 200px;
+  justify-content: flex-end;
+}
+.econ-sector-1d  { font-weight: 700; }
+.econ-sector-sep { color: var(--border); }
+.econ-sector-ytd { font-size: .75rem; }
+.econ-sector-price { color: var(--text-muted); font-size: .72rem; }
 
 /* ═══════════════════════════════════════════════════════════
    ハンバーガーメニュー & モバイル対応
@@ -1055,6 +1171,25 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   .trade-plan-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   .tp-sep { display: none; }
   .tp-arrow { display: none; }
+  .tp-box { min-width: 0; width: 100%; }
+
+  /* 詳細パネルをビューポート幅に固定（横スクロール防止） */
+  .detail-row td {
+    position: sticky;
+    left: 0;
+    max-width: calc(100vw - 24px);
+    overflow-x: hidden;
+    box-sizing: border-box;
+  }
+  .detail-panel {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    overflow-x: hidden;
+    box-sizing: border-box;
+    padding: 14px;
+  }
+  .detail-grid,
+  .detail-grid-4 { grid-template-columns: 1fr !important; }
 
   /* info banner — 縦積み */
   .pib-divider { display: none; }

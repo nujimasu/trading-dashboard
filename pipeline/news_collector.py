@@ -131,20 +131,43 @@ def _fred_get(endpoint: str, params: dict) -> dict | None:
         return None
 
 
+def _fred_get_csv(series_id: str) -> list[dict]:
+    """FRED 公開 CSV（APIキー不要）から最新2件を取得。"""
+    try:
+        r = requests.get(
+            "https://fred.stlouisfed.org/graph/fredgraph.csv",
+            params={"id": series_id},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return []
+        lines = r.text.strip().split("\n")[1:]   # ヘッダー除去
+        valid = []
+        for line in lines:
+            parts = line.strip().split(",")
+            if len(parts) == 2 and parts[1].strip() not in (".", ""):
+                valid.append({"date": parts[0].strip(), "value": parts[1].strip()})
+        # 最新2件を「最新が先頭」で返す（APIと同じ順序）
+        return list(reversed(valid[-2:])) if valid else []
+    except Exception as e:
+        print(f"[FRED CSV] {series_id}: {e}")
+        return []
+
+
 def fetch_fred_indicators() -> list[dict]:
-    today = date.today().isoformat()
-    rows  = []
+    rows = []
 
     for series_id, meta in FRED_SERIES.items():
-        data = _fred_get("/series/observations", {
-            "series_id":  series_id,
-            "limit":      2,
-            "sort_order": "desc",
-        })
-        if not data:
-            continue
-
-        obs = data.get("observations", [])
+        # APIキーあり → JSON API、なし → 公開CSVフォールバック
+        obs = []
+        if FRED_API_KEY:
+            data = _fred_get("/series/observations", {
+                "series_id": series_id, "limit": 2, "sort_order": "desc",
+            })
+            if data:
+                obs = data.get("observations", [])
+        if not obs:
+            obs = _fred_get_csv(series_id)
         if not obs:
             continue
 
