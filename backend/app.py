@@ -45,8 +45,8 @@ async def lifespan(app: FastAPI):
     try:
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM weekly_picks")
-        count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) as cnt FROM weekly_picks")
+        count = cur.fetchone()["cnt"]
         conn.close()
         if count > 0:
             t = threading.Thread(target=_run_daily_in_background, daemon=True)

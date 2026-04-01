@@ -142,11 +142,11 @@ def get_pipeline_status():
     """)
     logs = [dict(r) for r in cur.fetchall()]
 
-    cur.execute("SELECT COUNT(*) FROM weekly_picks")
-    picks_count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) as cnt FROM weekly_picks")
+    picks_count = cur.fetchone()["cnt"]
 
-    cur.execute("SELECT COUNT(DISTINCT ticker) FROM price_data")
-    price_count = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(DISTINCT ticker) as cnt FROM price_data")
+    price_count = cur.fetchone()["cnt"]
 
     cur.execute("SELECT date, overall_signal FROM market_health ORDER BY date DESC LIMIT 1")
     mh = cur.fetchone()
