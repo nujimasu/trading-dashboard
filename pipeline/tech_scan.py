@@ -458,7 +458,7 @@ def run():
         SELECT ticker, COUNT(*) as cnt
         FROM price_data
         GROUP BY ticker
-        HAVING cnt >= ?
+        HAVING COUNT(*) >= ?
         ORDER BY ticker
     """, (MIN_BARS,))
     tickers = [r["ticker"] for r in cur.fetchall()]

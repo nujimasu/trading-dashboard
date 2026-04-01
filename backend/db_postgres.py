@@ -25,6 +25,19 @@ class CompatRow(dict):
     pass
 
 
+def _sanitize_params(params):
+    """numpy スカラー型を Python ネイティブ型に変換（psycopg2 が np.float64 等を扱えないため）。"""
+    if params is None:
+        return None
+    import numpy as np
+    def _fix(v):
+        if isinstance(v, (np.integer,)):  return int(v)
+        if isinstance(v, (np.floating,)): return float(v)
+        if isinstance(v, (np.bool_,)):    return bool(v)
+        return v
+    return tuple(_fix(v) for v in params)
+
+
 class CompatCursor:
     """`?` を `%s` に自動変換するカーソルラッパー。"""
 
@@ -36,12 +49,12 @@ class CompatCursor:
 
     def execute(self, sql: str, params=None):
         sql = self._convert(sql)
-        self._cur.execute(sql, params)
+        self._cur.execute(sql, _sanitize_params(params))
         return self
 
     def executemany(self, sql: str, seq):
         sql = self._convert(sql)
-        self._cur.executemany(sql, seq)
+        self._cur.executemany(sql, [_sanitize_params(p) for p in seq])
         return self
 
     def _make_row(self, raw_row) -> CompatRow | None:
