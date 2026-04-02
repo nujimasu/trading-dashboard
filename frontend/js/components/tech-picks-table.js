@@ -108,6 +108,9 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
     const sigList  = (p.signals || []).slice(0, 3).map(s =>
       `<span class="sig-tag">${s.label}</span>`).join("");
 
+    // 保有期間バッジ
+    const holdBadge = _holdingBadge(p.holding_days_est);
+
     // 日次モード用の判定列（現在値・現RR は削除）
     const verdictCell = mode === "daily" ? `
       <td class="${_verdictCss(p.daily_verdict)}">${_verdictLabel(p.daily_verdict)}</td>` : ``;
@@ -130,6 +133,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         <td>$${fmt(p.tp1_price)}</td>
         <td>$${fmt(p.target_price)}</td>
         <td class="sig-tags-cell">${sigList}</td>
+        <td>${holdBadge}</td>
         ${verdictCell}
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
@@ -152,6 +156,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
             <th>信頼度</th><th>勝率</th><th>RR</th>
             <th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
             <th>シグナル</th>
+            <th>保有期間</th>
             ${dailyHeaders}
           </tr>
         </thead>
@@ -316,6 +321,13 @@ function _buildDetailPanel(p, idx) {
 
 
 // ── helpers ────────────────────────────────────────────────
+
+function _holdingBadge(days) {
+  if (!days) return '<span class="hold-badge hold-unknown">—</span>';
+  if (days <= 10) return `<span class="hold-badge hold-short">短期 ~${days}日</span>`;
+  if (days <= 25) return `<span class="hold-badge hold-mid">中期 ~${days}日</span>`;
+  return `<span class="hold-badge hold-long">ポジション ~${days}日</span>`;
+}
 
 function _sectorSparkline(scores) {
   if (!scores || scores.length < 2) return "";

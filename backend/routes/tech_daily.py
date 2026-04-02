@@ -4,6 +4,15 @@ from datetime import date
 from fastapi import APIRouter
 from backend.db import get_connection
 
+
+def _calc_holding_days(entry, target, atr_pct):
+    if not entry or not target or not atr_pct:
+        return 20
+    atr = entry * atr_pct / 100
+    if atr <= 0:
+        return 20
+    return max(3, round(abs(target - entry) / (atr * 0.5)))
+
 router = APIRouter()
 
 VERDICT_LABEL = {
@@ -92,7 +101,9 @@ def get_tech_daily_picks():
             "composite_score": round((r["confidence"] or 0) * 100, 1),
             "sector":          r.get("sector"),
             "risk_reward":     r["adjusted_rr"],
-            "holding_days_est": None,
+            "holding_days_est": _calc_holding_days(
+                r.get("entry_price"), r.get("target_price"), r.get("atr_pct")
+            ),
             "fundamental_verdict": "テクニカルのみ",
             "technical_summary": {
                 "rsi":           r["rsi"],

@@ -10,8 +10,23 @@ STAGE_LABEL = {0: "ステージ不明", 1: "ステージ1 ベース形成",
                4: "ステージ4 下降トレンド"}
 
 
+def _calc_holding_days(entry, target, atr_pct, direction="LONG"):
+    """ファンダパイプラインと同じ式: max(3, round((tp2-entry)/(atr*0.5)))"""
+    if not entry or not target or not atr_pct:
+        return 20
+    atr = entry * atr_pct / 100
+    if atr <= 0:
+        return 20
+    dist = abs(target - entry)
+    return max(3, round(dist / (atr * 0.5)))
+
+
 def _fmt(p: dict) -> dict:
     signals = json.loads(p["signals_json"] or "[]")
+    holding = _calc_holding_days(
+        p.get("entry_price"), p.get("target_price"),
+        p.get("atr_pct"), p.get("direction") or "LONG"
+    )
     return {
         "ticker":        p["ticker"],
         "direction":     p["direction"] or "LONG",
@@ -34,7 +49,7 @@ def _fmt(p: dict) -> dict:
         "tier":          "Tier1" if (p["confidence"] or 0) >= 0.72 else "Tier2",
         "composite_score": round((p["confidence"] or 0) * 100, 1),
         "sector":        p.get("sector"),
-        "holding_days_est": None,
+        "holding_days_est": holding,
         "fundamental_verdict": "テクニカルのみ",
         "technical_summary": {
             "rsi":            p["rsi"],
