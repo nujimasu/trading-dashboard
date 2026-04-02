@@ -6,7 +6,7 @@ import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=2";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
 import { renderTechStrategyGuide }  from "./components/tech-strategy-guide.js?v=1";
-import { renderEntryCandidates }   from "./components/entry-candidates.js?v=1";
+import { renderEntryCandidates }   from "./components/entry-candidates.js?v=2";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
