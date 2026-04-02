@@ -9,6 +9,7 @@ import re
 import json
 import time
 from contextlib import contextmanager
+from typing import Optional
 import psycopg2
 import psycopg2.extras
 
@@ -57,13 +58,13 @@ class CompatCursor:
         self._cur.executemany(sql, [_sanitize_params(p) for p in seq])
         return self
 
-    def _make_row(self, raw_row) -> CompatRow | None:
+    def _make_row(self, raw_row) -> Optional[CompatRow]:
         if raw_row is None:
             return None
         cols = [desc[0] for desc in self._cur.description]
         return CompatRow(zip(cols, raw_row))
 
-    def fetchone(self) -> CompatRow | None:
+    def fetchone(self) -> Optional[CompatRow]:
         return self._make_row(self._cur.fetchone())
 
     def fetchall(self) -> list[CompatRow]:
