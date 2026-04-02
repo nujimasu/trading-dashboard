@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Stage 4: Detailed technical analysis — LONG and SHORT candidates.
 

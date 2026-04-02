@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Technical indicator calculations.
 Extracted and extended from scripts/fetch_trading_data.py and analyze_rr.py.

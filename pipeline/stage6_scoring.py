@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Stage 6: Composite scoring and weekly_picks generation.
 Combines technical + fundamental signals into a final ranked list.

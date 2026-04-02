@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 yfinance を使ったファンダメンタルズ取得（FMP不要・APIキー不要）
 """

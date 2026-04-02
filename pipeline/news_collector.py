@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 News & Economic Data Collector
 - 経済指標: FRED API（米連邦準備制度、完全無料）

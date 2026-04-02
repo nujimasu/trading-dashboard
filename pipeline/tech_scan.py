@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Tech Scan Pipeline — Pure Technical Analysis
 signal-scanner-v5 のロジックをPythonに移植。

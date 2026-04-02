@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Stage 3: Fast technical screening — both LONG and SHORT candidates.
 
