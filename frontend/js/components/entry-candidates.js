@@ -4,7 +4,7 @@
  * スコア降順ソート、行クリックで詳細展開
  */
 import { apiFetch } from "../utils/api.js?v=2";
-import { renderCandlestick } from "../utils/chart.js?v=1";
+import { renderCandlestick } from "../utils/charts.js?v=1";
 
 const SOURCE_META = {
   daily_funda:  { label: "日次FA", color: "#3b82f6" },
