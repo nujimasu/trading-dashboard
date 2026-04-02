@@ -220,6 +220,7 @@ else:
             ("weekly_picks",      "holding_days_est INTEGER DEFAULT 20"),
             ("news_events",       "url TEXT DEFAULT ''"),
             ("news_events",       "next_release TEXT DEFAULT ''"),
+            ("tech_daily_picks",  "stage_b_signals_json TEXT DEFAULT '[]'"),
         ]
         for tbl, col_def in migrations:
             try:

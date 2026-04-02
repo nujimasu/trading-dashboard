@@ -266,6 +266,136 @@ def _fire(sig_id: str, ind: dict, i: int) -> bool:
     return False
 
 
+# ── Stage B: 転換確認シグナル ─────────────────────────────────────────────────
+# Stage A（準備）があった銘柄に対し、当日の価格データで「転換確定」を判断する。
+# LONG系: 陽線包み足, ハンマー, 三川明けの明星, 高値3日切り上げ, リテスト完了
+# SHORT系: 陰線包み足, シューティングスター, 三川宵の明星, 安値3日切り下げ, リテスト完了
+# 共通: 出来高急増（確認パターンと同時に出た場合のみ追加）
+
+STAGE_B_LABELS = {
+    "BULLISH_ENGULFING": "陽線包み足",
+    "HAMMER":            "ハンマー足",
+    "MORNING_STAR":      "三川明けの明星",
+    "HIGHER_HIGHS_3D":   "高値3日切り上げ",
+    "RETEST_COMPLETE":   "リテスト完了",
+    "BEARISH_ENGULFING": "陰線包み足",
+    "SHOOTING_STAR":     "シューティングスター",
+    "EVENING_STAR":      "三川宵の明星",
+    "LOWER_LOWS_3D":     "安値3日切り下げ",
+    "VOLUME_SURGE":      "出来高急増",
+}
+
+
+def _detect_stage_b(ind: dict, i: int, direction: str, orig_entry: float) -> list:
+    """Stage B 転換確認シグナルを検出。direction は 'LONG' or 'SHORT'。"""
+    if i < 3:
+        return []
+
+    confirmed = []
+    c, h, l, o, v = ind["c"], ind["h"], ind["l"], ind["o"], ind["v"]
+    vm = ind["vol_ma"][i]
+    if np.isnan(vm) or vm == 0:
+        vm = float(np.nanmean(v[max(0, i-20):i])) or 1.0
+
+    if direction == "LONG":
+        # ① Bullish Engulfing（陽線包み足）
+        if (c[i-1] < o[i-1]             # 前日陰線
+                and c[i] > o[i]          # 当日陽線
+                and c[i] > o[i-1]        # 当日終値 > 前日始値
+                and o[i] < c[i-1]):      # 当日始値 < 前日終値
+            confirmed.append("BULLISH_ENGULFING")
+
+        # ② Hammer（ハンマー足）- 下ヒゲが実体の2倍以上、上ヒゲ小さい
+        body = abs(c[i] - o[i])
+        rng  = h[i] - l[i]
+        if rng > 0:
+            lower_shadow = min(c[i], o[i]) - l[i]
+            upper_shadow = h[i] - max(c[i], o[i])
+            if (lower_shadow / rng > 0.55
+                    and body / rng < 0.35
+                    and upper_shadow / rng < 0.15
+                    and c[i] >= o[i]):
+                confirmed.append("HAMMER")
+
+        # ③ Morning Star（三川明けの明星）
+        pp, mid = i - 2, i - 1
+        pp_body  = abs(c[pp]  - o[pp])
+        pp_rng   = (h[pp]  - l[pp])  or 1
+        mid_body = abs(c[mid] - o[mid])
+        mid_rng  = (h[mid] - l[mid]) or 1
+        if (c[pp] < o[pp]                           # 1本目 大陰線
+                and pp_body / pp_rng > 0.50          # 実体大きい
+                and mid_body / mid_rng < 0.25        # 2本目 小実体（コマ/十字）
+                and c[i] > o[i]                      # 3本目 陽線
+                and c[i] > (o[pp] + c[pp]) / 2):     # 1本目中値超え
+            confirmed.append("MORNING_STAR")
+
+        # ④ 高値3日連続切り上げ
+        if h[i] > h[i-1] > h[i-2]:
+            confirmed.append("HIGHER_HIGHS_3D")
+
+        # ⑤ リテスト完了（orig_entry ±2% まで引き付け、当日再上昇）
+        if orig_entry > 0:
+            touched_low = any(
+                abs(l[j] / orig_entry - 1) < 0.025
+                for j in range(max(0, i - 4), i)
+            )
+            if touched_low and c[i] > orig_entry * 0.990:
+                confirmed.append("RETEST_COMPLETE")
+
+    elif direction == "SHORT":
+        # ① Bearish Engulfing（陰線包み足）
+        if (c[i-1] > o[i-1]
+                and c[i] < o[i]
+                and c[i] < o[i-1]
+                and o[i] > c[i-1]):
+            confirmed.append("BEARISH_ENGULFING")
+
+        # ② Shooting Star（シューティングスター）
+        body = abs(c[i] - o[i])
+        rng  = h[i] - l[i]
+        if rng > 0:
+            upper_shadow = h[i] - max(c[i], o[i])
+            lower_shadow = min(c[i], o[i]) - l[i]
+            if (upper_shadow / rng > 0.55
+                    and body / rng < 0.35
+                    and lower_shadow / rng < 0.15
+                    and c[i] <= o[i]):
+                confirmed.append("SHOOTING_STAR")
+
+        # ③ Evening Star（三川宵の明星）
+        pp, mid = i - 2, i - 1
+        pp_body  = abs(c[pp]  - o[pp])
+        pp_rng   = (h[pp]  - l[pp])  or 1
+        mid_body = abs(c[mid] - o[mid])
+        mid_rng  = (h[mid] - l[mid]) or 1
+        if (c[pp] > o[pp]
+                and pp_body / pp_rng > 0.50
+                and mid_body / mid_rng < 0.25
+                and c[i] < o[i]
+                and c[i] < (o[pp] + c[pp]) / 2):
+            confirmed.append("EVENING_STAR")
+
+        # ④ 安値3日連続切り下げ
+        if l[i] < l[i-1] < l[i-2]:
+            confirmed.append("LOWER_LOWS_3D")
+
+        # ⑤ リテスト完了（ショート: orig_entry まで戻り再下落）
+        if orig_entry > 0:
+            touched_hi = any(
+                abs(h[j] / orig_entry - 1) < 0.025
+                for j in range(max(0, i - 4), i)
+            )
+            if touched_hi and c[i] < orig_entry * 1.010:
+                confirmed.append("RETEST_COMPLETE")
+
+    # 共通: 出来高急増（他の確認パターンと同時発生のみ）
+    if confirmed and v[i] >= vm * 1.5:
+        confirmed.append("VOLUME_SURGE")
+
+    return confirmed
+
+
 # ── バックテスト ───────────────────────────────────────────────────────────────
 def _backtest(sig_id: str, ind: dict, direction: str, hold_days: int) -> dict | None:
     n        = len(ind["c"])
@@ -556,7 +686,7 @@ def run_daily():
             p    = pick_map[ticker]
             price = float(ind["c"][i])
 
-            # 当日アクティブなシグナルを再チェック
+            # ── Stage A: 当日アクティブなシグナルを再チェック ──
             active = []
             for sig_id, label, direction, _, _ in SIGNALS:
                 if _fire(sig_id, ind, i):
@@ -566,6 +696,7 @@ def run_daily():
             direction = "UP" if p["direction"] == "LONG" else "DOWN"
             orig_stop   = float(p["stop_price"])
             orig_target = float(p["target_price"])
+            orig_entry  = float(p["entry_price"])
             if direction == "UP":
                 risk   = price - orig_stop
                 reward = orig_target - price
@@ -574,14 +705,31 @@ def run_daily():
                 reward = price - orig_target
             adj_rr = round(reward / risk, 2) if risk > 0 else 0
 
-            # 判定
-            has_active = len(active) > 0
-            if adj_rr >= 2.0 and has_active and p["confidence"] >= 0.70:
-                verdict = "STRONG_BUY" if p["direction"] == "LONG" else "STRONG_SELL"
-            elif adj_rr >= 1.5 and has_active:
-                verdict = "BUY" if p["direction"] == "LONG" else "SELL"
-            elif adj_rr >= 1.5:
+            # ── Stage B: 転換確認シグナル検出 ──
+            stage_b = _detect_stage_b(ind, i, p["direction"], orig_entry)
+
+            has_stage_a = len(active) > 0
+            has_stage_b = len(stage_b) > 0
+
+            # ── 2段階判定 ──
+            # Stage A + Stage B 両方あり → エントリー
+            if has_stage_a and has_stage_b:
+                if adj_rr >= 2.0 and p["confidence"] >= 0.70:
+                    verdict = "STRONG_BUY" if p["direction"] == "LONG" else "STRONG_SELL"
+                elif adj_rr >= 1.5:
+                    verdict = "BUY" if p["direction"] == "LONG" else "SELL"
+                else:
+                    verdict = "WATCH"  # RR不足
+
+            # Stage A のみ（確認待ち） → 様子見
+            elif has_stage_a and not has_stage_b:
                 verdict = "WATCH"
+
+            # Stage B のみ（準備シグナルなし） → 待機
+            elif not has_stage_a and has_stage_b and adj_rr >= 1.5:
+                verdict = "WATCH"  # B単独はWATCH扱い
+
+            # どちらもなし
             elif adj_rr >= 1.0:
                 verdict = "WAIT"
             else:
@@ -589,13 +737,18 @@ def run_daily():
 
             cur.execute("""
                 INSERT INTO tech_daily_picks
-                    (ticker, date, current_price, adjusted_rr, daily_verdict, active_signals_json)
-                VALUES (?,?,?,?,?,?)
+                    (ticker, date, current_price, adjusted_rr, daily_verdict,
+                     active_signals_json, stage_b_signals_json)
+                VALUES (?,?,?,?,?,?,?)
                 ON CONFLICT (ticker, date) DO UPDATE SET
-                    current_price=EXCLUDED.current_price, adjusted_rr=EXCLUDED.adjusted_rr,
-                    daily_verdict=EXCLUDED.daily_verdict, active_signals_json=EXCLUDED.active_signals_json
+                    current_price=EXCLUDED.current_price,
+                    adjusted_rr=EXCLUDED.adjusted_rr,
+                    daily_verdict=EXCLUDED.daily_verdict,
+                    active_signals_json=EXCLUDED.active_signals_json,
+                    stage_b_signals_json=EXCLUDED.stage_b_signals_json
             """, (ticker, today, price, adj_rr, verdict,
-                  json.dumps(active, ensure_ascii=False)))
+                  json.dumps(active, ensure_ascii=False),
+                  json.dumps(stage_b, ensure_ascii=False)))
         except Exception as e:
             print(f"[TechDaily] {ticker} エラー: {e}")
 

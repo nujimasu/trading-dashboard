@@ -566,6 +566,8 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 }
 .sig-tag--lg { font-size: .72rem; padding: 2px 7px; }
 .sig-tag--active { background: rgba(16,185,129,.2); color: #34d399; border-color: rgba(16,185,129,.4); }
+.sig-tag--stageb { background: rgba(245,158,11,.15); color: #fbbf24; border-color: rgba(245,158,11,.35); }
+.sig-tag--stageb-confirm { background: rgba(59,130,246,.18); color: #60a5fa; border-color: rgba(59,130,246,.4); font-weight: 700; }
 
 /* Signal detail rows */
 .tech-sig-row {

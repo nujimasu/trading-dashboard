@@ -272,11 +272,34 @@ function _buildDetailPanel(p, idx) {
   <div class="detail-grid">
     <!-- シグナル詳細 -->
     <div class="detail-block" style="flex:2;min-width:260px">
-      <h4>検出シグナル（バックテスト勝率付き）</h4>
+      <h4>Stage A — 準備シグナル（バックテスト勝率付き）</h4>
       ${sigRows || "<div style='color:var(--text-muted)'>シグナルなし</div>"}
-      ${p.active_signals ? `
-      <h4 style="margin-top:14px">本日アクティブなシグナル</h4>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${activeSignals}</div>` : ""}
+      ${p.active_signals && p.active_signals.length ? `
+      <h4 style="margin-top:14px">本日アクティブ <span style="font-size:.75rem;color:var(--text-muted)">（Stage A継続中）</span></h4>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${activeSignals}</div>` : `
+      <div style="margin-top:10px;font-size:.78rem;color:var(--text-muted)">本日 Stage A シグナルなし（様子見）</div>`}
+
+      ${(() => {
+        const stageB = p.stage_b_signals || [];
+        if (!stageB.length) return `
+          <h4 style="margin-top:14px">Stage B — 転換確認 <span style="font-size:.75rem;color:var(--text-muted)">（待機中）</span></h4>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:6px">確認シグナル未検出 — リテスト完了・ローソク転換パターン待ち</div>`;
+        const STAGE_B_LABELS = {
+          BULLISH_ENGULFING: "陽線包み足", HAMMER: "ハンマー足",
+          MORNING_STAR: "三川明けの明星", HIGHER_HIGHS_3D: "高値3日切り上げ",
+          RETEST_COMPLETE: "リテスト完了", BEARISH_ENGULFING: "陰線包み足",
+          SHOOTING_STAR: "シューティングスター", EVENING_STAR: "三川宵の明星",
+          LOWER_LOWS_3D: "安値3日切り下げ", VOLUME_SURGE: "出来高急増",
+        };
+        const badges = stageB.map(s => {
+          const lbl = STAGE_B_LABELS[s] || s;
+          const isConfirm = s !== "VOLUME_SURGE";
+          return `<span class="sig-tag sig-tag--stageb${isConfirm ? ' sig-tag--stageb-confirm' : ''}">${lbl}</span>`;
+        }).join("");
+        return `
+          <h4 style="margin-top:14px">Stage B — 転換確認 ✅ <span style="font-size:.75rem;color:var(--green)">（エントリー条件充足）</span></h4>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">${badges}</div>`;
+      })()}
     </div>
 
     <!-- テクニカル指標 -->

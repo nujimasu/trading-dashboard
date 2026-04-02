@@ -44,7 +44,7 @@ def get_tech_daily_picks():
     cur.execute("""
         SELECT
             d.ticker, d.date, d.current_price, d.adjusted_rr,
-            d.daily_verdict, d.active_signals_json,
+            d.daily_verdict, d.active_signals_json, d.stage_b_signals_json,
             w.direction, w.stage, w.confidence, w.avg_win_rate,
             w.risk_reward AS weekly_rr,
             w.entry_price, w.stop_price, w.tp1_price, w.target_price,
@@ -73,6 +73,7 @@ def get_tech_daily_picks():
     for r in rows:
         verdict   = r["daily_verdict"] or "WAIT"
         active    = json.loads(r["active_signals_json"] or "[]")
+        stage_b   = json.loads(r.get("stage_b_signals_json") or "[]")
         all_sigs  = json.loads(r["signals_json"] or "[]")
         result.append({
             "ticker":          r["ticker"],
@@ -83,6 +84,7 @@ def get_tech_daily_picks():
             "verdict_label":   VERDICT_LABEL.get(verdict, verdict),
             "verdict_css":     VERDICT_CSS.get(verdict, ""),
             "active_signals":  active,
+            "stage_b_signals": stage_b,
             "direction":       r["direction"] or "LONG",
             "stage":           r["stage"] or 0,
             "confidence":      r["confidence"],
