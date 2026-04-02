@@ -24,10 +24,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run daily adjustment
+      - name: Run daily full filter (incremental DL + Stage3-6 re-filter)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FMP_API_KEY:  ${{ secrets.FMP_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
-        run: python pipeline/run_pipeline.py --daily-only
+        run: python pipeline/run_pipeline.py --daily-full

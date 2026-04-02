@@ -96,6 +96,40 @@ def run(tickers: list[str]) -> list[str]:
     return successful
 
 
+def run_incremental(tickers: list[str], days: int = 10) -> list[str]:
+    """直近N日分のみ差分ダウンロードしてprice_dataを更新。日次フルフィルタ用。"""
+    period = f"{days}d"
+    print(f"[Stage2] Incremental download ({period}) for {len(tickers)} tickers...")
+    successful = []
+    batches = [tickers[i:i + DOWNLOAD_BATCH_SIZE] for i in range(0, len(tickers), DOWNLOAD_BATCH_SIZE)]
+
+    for i, batch in enumerate(batches):
+        batch_str = " ".join(batch)
+        print(f"[Stage2] Batch {i+1}/{len(batches)} ({len(batch)} tickers)...", end=" ", flush=True)
+        try:
+            df = yf.download(
+                batch_str,
+                period=period,
+                auto_adjust=True,
+                progress=False,
+                threads=True,
+            )
+            if df.empty:
+                print("empty")
+                continue
+            n = save_price_batch(df, batch)
+            successful.extend(batch)
+            print(f"saved {n}")
+        except Exception as e:
+            print(f"error: {e}")
+
+        if i < len(batches) - 1:
+            time.sleep(0.3)
+
+    print(f"[Stage2] Incremental done. {len(successful)}/{len(tickers)} tickers updated.")
+    return successful
+
+
 if __name__ == "__main__":
     from backend.db import init_db, get_connection as gc
     init_db()

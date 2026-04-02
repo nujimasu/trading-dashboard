@@ -150,6 +150,103 @@ def run_daily():
         print(f"[WARN] Tech daily adjustment failed: {e}")
 
 
+def run_daily_full():
+    """日次フルフィルタ: 差分DL → Stage3〜6再実行 → weekly_picks/tech_picks を毎日更新。"""
+    print(f"[DailyFull] 日次フルフィルタ — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    init_db()
+
+    # ── ユニバース取得（DBから、FMP呼び出しなし）──────────────────────────────
+    from backend.db import get_connection
+    conn = get_connection()
+    cur  = conn.cursor()
+    cur.execute("SELECT ticker FROM universe")
+    tickers = [r["ticker"] for r in cur.fetchall()]
+    conn.close()
+
+    if not tickers:
+        print("[DailyFull] universe が空。先に週次パイプラインを実行してください。")
+        return
+
+    # ── Stage 2: 差分DL（直近10日分）─────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.stage2_price_data import run_incremental
+        run_incremental(tickers, days=10)
+        log_stage("DailyFull-Stage2", "OK", f"{len(tickers)} tickers incremental update", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Stage2", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] 差分DL失敗: {e}、既存データで続行...")
+
+    # ── Stage 3: テクニカルフィルター ─────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.stage3_technical_filter import run as stage3_run
+        survivors_s3 = stage3_run(tickers)
+        longs  = len(survivors_s3.get("longs",  []))
+        shorts = len(survivors_s3.get("shorts", []))
+        log_stage("DailyFull-Stage3", "OK", f"{longs} long + {shorts} short", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Stage3", "ERROR", str(e), time.time() - t0)
+        print(f"[FATAL] Stage3 失敗: {e}")
+        return
+
+    if not longs and not shorts:
+        print("[DailyFull] Stage3通過銘柄なし。終了。")
+        return
+
+    # ── Stage 4: RR計算 ───────────────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.stage4_detailed_analysis import run as stage4_run
+        survivors_s4 = stage4_run(survivors_s3)
+        log_stage("DailyFull-Stage4", "OK", f"{len(survivors_s4)} passed RR filter", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Stage4", "ERROR", str(e), time.time() - t0)
+        print(f"[FATAL] Stage4 失敗: {e}")
+        return
+
+    # ── Stage 5: ファンダメンタルズ（キャッシュ優先・API追加呼び出し最小）─────
+    t0 = time.time()
+    try:
+        from pipeline.stage5_fundamentals import run as stage5_run
+        enriched = stage5_run(survivors_s4)
+        log_stage("DailyFull-Stage5", "OK", f"{len(enriched)} enriched", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Stage5", "ERROR", str(e), time.time() - t0)
+        enriched = survivors_s4
+
+    # ── Stage 6: スコアリング → weekly_picks 更新 ─────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.stage6_scoring import run as stage6_run
+        final_picks = stage6_run(enriched)
+        log_stage("DailyFull-Stage6", "OK", f"{len(final_picks)} picks updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Stage6", "ERROR", str(e), time.time() - t0)
+        print(f"[FATAL] Stage6 失敗: {e}")
+        return
+
+    # ── 日次調整（当日価格・verdict 更新）────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.daily_adjustment import run as daily_run
+        daily_run()
+        log_stage("DailyFull-Daily", "OK", "daily_picks updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Daily", "ERROR", str(e), time.time() - t0)
+
+    # ── テクニカルスキャン（日次）────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.tech_scan import run_daily as tech_daily_run
+        tech_daily_run()
+        log_stage("DailyFull-TechDaily", "OK", "tech daily updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-TechDaily", "ERROR", str(e), time.time() - t0)
+
+    print(f"[DailyFull] 完了。{len(final_picks)} picks、daily_picks 更新済み。")
+
+
 def run_tech_weekly():
     print(f"[TechWeekly] Pure technical scan — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     init_db()
@@ -166,6 +263,7 @@ def run_tech_weekly():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Trading Dashboard Pipeline")
     parser.add_argument("--daily-only",    action="store_true", help="Run daily adjustment only")
+    parser.add_argument("--daily-full",    action="store_true", help="Run incremental DL + full Stage3-6 re-filter daily")
     parser.add_argument("--skip-download", action="store_true", help="Skip price data download")
     parser.add_argument("--tech-weekly",   action="store_true", help="Run pure-technical weekly scan")
     parser.add_argument("--tech-daily",    action="store_true", help="Run tech daily adjustment only")
@@ -173,6 +271,8 @@ if __name__ == "__main__":
 
     if args.daily_only:
         run_daily()
+    elif args.daily_full:
+        run_daily_full()
     elif args.tech_weekly:
         run_tech_weekly()
     elif args.tech_daily:
