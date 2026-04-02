@@ -5,11 +5,13 @@ import { renderPicksTable }         from "./components/picks-table.js?v=9";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=2";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
-import { renderTechStrategyGuide } from "./components/tech-strategy-guide.js?v=1";
+import { renderTechStrategyGuide }  from "./components/tech-strategy-guide.js?v=1";
+import { renderEntryCandidates }   from "./components/entry-candidates.js?v=1";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
 const SECTIONS = [
+  { id: "entry-candidates", label: "今すぐエントリー",       icon: "🚀", load: loadEntryCandidates },
   { id: "market-health",    label: "市場ヘルス",             icon: "📊", load: loadMarketHealth },
   { id: "economic",         label: "経済指標",               icon: "📈", load: loadEconomic },
   { id: "news",             label: "ビッグニュース",         icon: "📰", load: loadNews },
@@ -33,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
   buildSidebar();
   buildSections();
   loadPipelineStatus();
-  navigate("market-health");
+  navigate("entry-candidates");
 
   // ── ハンバーガーメニュー ───────────────────────────────────────────────
   const toggle  = document.getElementById("menu-toggle");
@@ -111,6 +113,10 @@ function navigate(id) {
 }
 
 // ── Section loaders ───────────────────────────────────────────────────────
+async function loadEntryCandidates(container) {
+  await renderEntryCandidates(container);
+}
+
 async function loadMarketHealth(container) {
   await renderMarketHealth(container);
 }
