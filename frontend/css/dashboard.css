@@ -1278,7 +1278,16 @@ a.event-title--link:hover { color: var(--blue); text-decoration: underline; }
 .ec-ticker { font-weight: 700; font-size: .95rem; letter-spacing: .03em; color: var(--blue); }
 .ec-sources { white-space: nowrap; }
 .ec-rr { font-weight: 600; color: var(--green); }
-.ec-sector { font-size: .78rem; color: var(--text-muted); max-width: 160px; }
+.ec-sector { font-size: .78rem; color: var(--text-muted); max-width: 200px; }
+.ec-sector-perf { display: flex; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
+.ec-chg {
+  font-size: .7rem; font-weight: 700;
+  padding: 1px 5px; border-radius: 3px;
+  display: inline-flex; align-items: center; gap: 2px;
+}
+.ec-chg--up { color: var(--green); background: #22c55e18; }
+.ec-chg--dn { color: var(--red);   background: #ef444418; }
+.ec-chg-lbl { font-weight: 400; font-size: .65rem; opacity: .7; }
 
 .ec-badge {
   display: inline-block;

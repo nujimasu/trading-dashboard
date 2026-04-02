@@ -33,7 +33,7 @@ def _fmt(p: dict) -> dict:
         "verdict":       "BUY" if p["direction"] == "LONG" else "SHORT_SELL",
         "tier":          "Tier1" if (p["confidence"] or 0) >= 0.72 else "Tier2",
         "composite_score": round((p["confidence"] or 0) * 100, 1),
-        "sector":        None,
+        "sector":        p.get("sector"),
         "holding_days_est": None,
         "fundamental_verdict": "テクニカルのみ",
         "technical_summary": {
@@ -57,10 +57,12 @@ def get_tech_weekly_picks():
     conn = get_connection()
     cur  = conn.cursor()
     cur.execute("""
-        SELECT * FROM tech_weekly_picks
+        SELECT t.*, wp.sector
+        FROM tech_weekly_picks t
+        LEFT JOIN weekly_picks wp ON wp.ticker = t.ticker
         ORDER BY
-            CASE direction WHEN 'LONG' THEN 0 ELSE 1 END,
-            confidence DESC
+            CASE t.direction WHEN 'LONG' THEN 0 ELSE 1 END,
+            t.confidence DESC
     """)
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()

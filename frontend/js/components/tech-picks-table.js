@@ -4,6 +4,13 @@
 import { renderCandlestick } from "../utils/charts.js";
 import { apiFetch } from "../utils/api.js";
 
+// market health cache（セクター動向表示用）
+let _mhCache = null;
+function _getMarketHealth() {
+  if (!_mhCache) _mhCache = apiFetch("/api/market-health");
+  return _mhCache;
+}
+
 const STAGE_LABEL = {
   0: { text: "不明",               css: "stage-0" },
   1: { text: "S1 ベース形成",       css: "stage-1" },
@@ -101,11 +108,9 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
     const sigList  = (p.signals || []).slice(0, 3).map(s =>
       `<span class="sig-tag">${s.label}</span>`).join("");
 
-    // 日次モード用の判定列
+    // 日次モード用の判定列（現在値・現RR は削除）
     const verdictCell = mode === "daily" ? `
-      <td>$${fmt(p.current_price)}</td>
-      <td class="${_verdictCss(p.daily_verdict)}">${_verdictLabel(p.daily_verdict)}</td>
-      <td>${fmt(p.adjusted_rr)}</td>` : ``;
+      <td class="${_verdictCss(p.daily_verdict)}">${_verdictLabel(p.daily_verdict)}</td>` : ``;
 
     return `
       <tr data-idx="${i}" class="pick-row">
@@ -132,8 +137,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
       </tr>`;
   }).join("");
 
-  const dailyHeaders = mode === "daily"
-    ? `<th>現在値</th><th>判定</th><th>現RR</th>` : ``;
+  const dailyHeaders = mode === "daily" ? `<th>判定</th>` : ``;
 
   container.innerHTML = `
     <div class="section-title">${title}
@@ -164,6 +168,8 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
       if (!isOpen) {
         detail.style.display = "table-row";
         const p = picks[idx];
+
+        // チャート
         apiFetch(`/api/chart/${p.ticker}?days=180`).then(chartResp => {
           if (chartResp && chartResp.data && chartResp.data.length > 0) {
             renderCandlestick(`tchart-${idx}`, chartResp.data, {
@@ -174,6 +180,28 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
             });
           }
         }).catch(() => {});
+
+        // セクター動向
+        const sectorSlot = detail.querySelector(`#tsector-slot-${idx}`);
+        if (sectorSlot && p.sector) {
+          _getMarketHealth().then(mh => {
+            if (!mh.sector_scores) return;
+            const score   = mh.sector_scores[p.sector];
+            const history = mh.sector_history?.[p.sector] || [];
+            const ma      = mh.sector_ma?.[p.sector];
+            if (score == null) return;
+            const color  = score >= 50 ? "var(--green)" : score >= 20 ? "var(--yellow)" : "var(--red)";
+            const maDiff = ma != null ? (score - ma).toFixed(1) : null;
+            const spark  = _sectorSparkline(history.map(h => h.score));
+            const maHtml = maDiff != null
+              ? `<div class="kv-row"><span class="kv-key">20日MA比</span><span class="kv-val" style="color:${parseFloat(maDiff)>=0?'var(--green)':'var(--red)'}">${parseFloat(maDiff)>=0?"+":""}${maDiff}pp</span></div>`
+              : "";
+            sectorSlot.innerHTML = `
+              <div class="kv-row"><span class="kv-key">アップトレンド比率</span><span class="kv-val" style="color:${color}">${score.toFixed(1)}%</span></div>
+              ${maHtml}
+              ${spark ? `<div style="margin-top:6px">${spark}</div>` : ""}`;
+          }).catch(() => {});
+        }
       }
     });
   });
@@ -257,6 +285,15 @@ function _buildDetailPanel(p, idx) {
       ${kv("ATRボラ",   p.atr_pct ? p.atr_pct.toFixed(2)+"%" : "—")}
     </div>
 
+    <!-- セクター動向 -->
+    ${p.sector ? `
+    <div class="detail-block">
+      <h4>セクター動向 — ${p.sector}</h4>
+      <div id="tsector-slot-${idx}" style="min-height:40px">
+        <div style="color:var(--text-muted);font-size:.78rem">読み込み中...</div>
+      </div>
+    </div>` : ""}
+
     <!-- スコア説明 -->
     <div class="detail-block">
       <h4>スコア算出ロジック</h4>
@@ -279,6 +316,21 @@ function _buildDetailPanel(p, idx) {
 
 
 // ── helpers ────────────────────────────────────────────────
+
+function _sectorSparkline(scores) {
+  if (!scores || scores.length < 2) return "";
+  const w = 120, h = 28;
+  const min = Math.min(...scores), max = Math.max(...scores);
+  const range = max - min || 1;
+  const pts = scores.map((v, i) => {
+    const x = (i / (scores.length - 1)) * w;
+    const y = h - ((v - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  return `<svg width="${w}" height="${h}" style="display:block">
+    <polyline points="${pts}" fill="none" stroke="var(--blue)" stroke-width="1.5" opacity=".7"/>
+  </svg>`;
+}
 
 function _verdictLabel(v) {
   const map = {

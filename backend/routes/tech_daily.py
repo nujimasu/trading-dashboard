@@ -39,9 +39,11 @@ def get_tech_daily_picks():
             w.direction, w.stage, w.confidence, w.avg_win_rate,
             w.risk_reward AS weekly_rr,
             w.entry_price, w.stop_price, w.tp1_price, w.target_price,
-            w.atr_pct, w.rsi, w.signals_json
+            w.atr_pct, w.rsi, w.signals_json,
+            fp.sector
         FROM tech_daily_picks d
         LEFT JOIN tech_weekly_picks w ON w.ticker = d.ticker
+        LEFT JOIN weekly_picks fp ON fp.ticker = d.ticker
         WHERE d.date = ?
         ORDER BY
             CASE d.daily_verdict
@@ -88,7 +90,7 @@ def get_tech_daily_picks():
             "verdict":         verdict,
             "tier":            "Tier1" if (r["confidence"] or 0) >= 0.72 else "Tier2",
             "composite_score": round((r["confidence"] or 0) * 100, 1),
-            "sector":          None,
+            "sector":          r.get("sector"),
             "risk_reward":     r["adjusted_rr"],
             "holding_days_est": None,
             "fundamental_verdict": "テクニカルのみ",

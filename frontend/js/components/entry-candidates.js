@@ -14,13 +14,19 @@ const SOURCE_META = {
 };
 
 let _cachedPicks = [];
+let _sectorPerf  = {};   // { sectorName: { change1d, change1w } }
 
 export async function renderEntryCandidates(container) {
   container.innerHTML = `<div class="loading"><div class="spinner"></div><span>エントリー候補を集計中...</span></div>`;
 
   let picks;
   try {
-    picks = await apiFetch("/api/entry-candidates");
+    [picks] = await Promise.all([
+      apiFetch("/api/entry-candidates"),
+      apiFetch("/api/market-health").then(mh => {
+        _sectorPerf = _buildSectorPerf(mh.sector_etf_sparkline || {});
+      }).catch(() => {}),
+    ]);
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
     return;
@@ -98,6 +104,16 @@ function _row(p, i) {
   const rr       = p.best_rr != null ? p.best_rr.toFixed(2) : "—";
   const sector   = p.sector  || "—";
 
+  // セクター変動率
+  const sp    = _sectorPerf[sector] || {};
+  const c1d   = sp.change1d != null ? sp.change1d : null;
+  const c1w   = sp.change1w != null ? sp.change1w : null;
+  const perfHtml = (c1d != null || c1w != null) ? `
+    <div class="ec-sector-perf">
+      ${c1d != null ? `<span class="ec-chg ${c1d >= 0 ? 'ec-chg--up' : 'ec-chg--dn'}">${c1d >= 0 ? "+" : ""}${c1d.toFixed(1)}%<span class="ec-chg-lbl">1d</span></span>` : ""}
+      ${c1w != null ? `<span class="ec-chg ${c1w >= 0 ? 'ec-chg--up' : 'ec-chg--dn'}">${c1w >= 0 ? "+" : ""}${c1w.toFixed(1)}%<span class="ec-chg-lbl">1w</span></span>` : ""}
+    </div>` : "";
+
   const sourceBadges = p.sources.map(s => {
     const m = SOURCE_META[s] || { label: s, color: "#888" };
     return `<span class="ec-badge" style="background:${m.color}20;color:${m.color};border-color:${m.color}40">${m.label}</span>`;
@@ -118,7 +134,7 @@ function _row(p, i) {
       <td><span class="ec-dir ${dirCss}">${dirLabel}</span></td>
       <td class="ec-sources">${sourceBadges}</td>
       <td class="ec-rr">${rr}</td>
-      <td class="ec-sector">${_escHtml(sector)}</td>
+      <td class="ec-sector">${_escHtml(sector)}${perfHtml}</td>
       <td class="ec-score-cell">${scoreHtml}</td>
     </tr>
     <tr class="ec-detail-row" id="ec-detail-${i}" style="display:none">
@@ -211,6 +227,26 @@ function _detailPanel(p, idx) {
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * sector_etf_sparkline: { sectorName: [close, close, ...] }
+ * から 1日・1週間の変動率を計算して返す
+ */
+function _buildSectorPerf(sparklines) {
+  const result = {};
+  for (const [sector, prices] of Object.entries(sparklines)) {
+    if (!prices || prices.length < 2) continue;
+    const last   = prices[prices.length - 1];
+    const prev1  = prices[prices.length - 2];
+    const prev5  = prices.length >= 6 ? prices[prices.length - 6] : prices[0];
+    result[sector] = {
+      change1d: prev1 > 0 ? Math.round((last / prev1 - 1) * 1000) / 10 : null,
+      change1w: prev5 > 0 ? Math.round((last / prev5 - 1) * 1000) / 10 : null,
+    };
+  }
+  return result;
+}
+
 function _fmt(v) { return v != null ? Number(v).toFixed(2) : "—"; }
 function _escHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
