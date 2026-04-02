@@ -1,4 +1,5 @@
 services:
+  # ── ダッシュボード本体（常時起動） ──────────────────────────────────────
   - type: web
     name: trading-dashboard
     env: python
@@ -8,4 +9,44 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FMP_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: POLYGON_API_KEY
+        sync: false
+
+  # ── 週次フルパイプライン ─────────────────────────────────────────────────
+  # 日曜 22:30 UTC = 月曜 7:30 JST（金曜終値取得後、週初めに銘柄選定）
+  - type: cron
+    name: weekly-pipeline
+    env: python
+    schedule: "30 22 * * 0"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python pipeline/run_pipeline.py && python pipeline/run_pipeline.py --tech-weekly
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: POLYGON_API_KEY
+        sync: false
+
+  # ── 日次調整（月〜金） ───────────────────────────────────────────────────
+  # 月〜金 22:30 UTC = 翌朝 7:30 JST（米国市場クローズ後の最新値に更新）
+  - type: cron
+    name: daily-pipeline
+    env: python
+    schedule: "30 22 * * 1-5"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python pipeline/run_pipeline.py --daily-only
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FMP_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: POLYGON_API_KEY
         sync: false
