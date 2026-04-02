@@ -332,6 +332,7 @@ def init_db():
     pg_migrations = [
         "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''",
         "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS next_release TEXT DEFAULT ''",
+        "ALTER TABLE tech_daily_picks ADD COLUMN IF NOT EXISTS stage_b_signals_json TEXT DEFAULT '[]'",
     ]
     for m in pg_migrations:
         try:
