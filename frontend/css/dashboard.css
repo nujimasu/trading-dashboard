@@ -521,9 +521,9 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 /* Stage badges */
 .stage-badge {
   display: inline-block;
-  font-size: .68rem;
+  font-size: .60rem;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 2px 5px;
   border-radius: 4px;
   white-space: nowrap;
 }
@@ -535,7 +535,7 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 
 /* Confidence bar */
 .conf-bar-wrap {
-  width: 60px; height: 5px;
+  width: 50px; height: 5px;
   background: rgba(255,255,255,.1);
   border-radius: 3px;
   display: inline-block;
@@ -555,11 +555,11 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .sig-tags-cell { max-width: 200px; }
 .sig-tag {
   display: inline-block;
-  font-size: .63rem;
+  font-size: .60rem;
   background: rgba(99,102,241,.18);
   color: #a5b4fc;
   border: 1px solid rgba(99,102,241,.3);
-  padding: 1px 5px;
+  padding: 1px 4px;
   border-radius: 3px;
   margin: 1px 2px;
   white-space: nowrap;
@@ -1169,11 +1169,11 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   thead th { padding: 8px 8px; font-size: .68rem; }
   tbody td  { padding: 8px 8px; }
 
-  /* トレードプラン行 — 縦積み */
-  .trade-plan-row { flex-direction: column; align-items: flex-start; gap: 6px; }
+  /* トレードプラン行 — 横スクロール対応 */
+  .trade-plan-row { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
   .tp-sep { display: none; }
   .tp-arrow { display: none; }
-  .tp-box { min-width: 0; width: 100%; }
+  .tp-box { min-width: auto; flex-shrink: 0; }
 
   /* 詳細パネルをビューポート幅に固定（横スクロール防止） */
   .detail-row td {
