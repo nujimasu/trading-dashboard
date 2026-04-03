@@ -504,6 +504,31 @@ def _confidence(hits: list, rr: float, stage: int, direction: str) -> float:
     return round(float(raw * sample_adj), 4)
 
 
+# ── Stage遷移検出 ─────────────────────────────────────────────────────────────
+def _has_stage_transition(ind: dict, direction: str) -> bool:
+    """Stage 1→2 or 4→3 への遷移を検出"""
+    i = len(ind["c"]) - 1
+    if i < 30:
+        return False
+
+    current_stage = _classify_stage(ind, i)
+
+    # UP方向: Stage 2（上昇トレンド）への遷移を検出
+    if direction == "UP" and current_stage == 2:
+        # 過去21バー以内でステージが低かったかチェック
+        for j in range(max(0, i - 20), i):
+            if _classify_stage(ind, j) < 2:
+                return True
+
+    # DOWN方向: Stage 4（下降トレンド）への遷移を検出
+    elif direction == "DOWN" and current_stage == 4:
+        for j in range(max(0, i - 20), i):
+            if _classify_stage(ind, j) > 2:
+                return True
+
+    return False
+
+
 # ── メイン分析 ─────────────────────────────────────────────────────────────────
 def _analyze_ticker(ticker: str, df: pd.DataFrame) -> dict | None:
     ind = _compute_indicators(df)
@@ -543,6 +568,11 @@ def _analyze_ticker(ticker: str, df: pd.DataFrame) -> dict | None:
         return None
 
     conf = _confidence(hits, rr_result["rr"], stage, direction)
+
+    # Stage遷移ボーナス：より信頼度の高い状況を加点
+    if _has_stage_transition(ind, direction):
+        conf = round(conf + 0.05, 4)
+
     if conf < CONFIDENCE_THRESH:
         return None
 
