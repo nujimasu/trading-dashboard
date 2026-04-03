@@ -19,6 +19,14 @@ def get_daily_picks():
     conn  = get_connection()
     cur   = conn.cursor()
 
+    # 当日データを優先、なければ最新日のデータを返す
+    cur.execute("""
+        SELECT MAX(date) as latest_date FROM daily_picks
+        WHERE date <= ?
+    """, (today,))
+    result = cur.fetchone()
+    query_date = result["latest_date"] if result and result["latest_date"] else today
+
     # Join daily_picks with weekly_picks for full context
     cur.execute("""
         SELECT
@@ -56,7 +64,7 @@ def get_daily_picks():
                 ELSE 4
             END,
             w.composite_score DESC
-    """, (today,))
+    """, (query_date,))
 
     rows = cur.fetchall()
     conn.close()
