@@ -8,7 +8,7 @@ import json
 import sys
 import numpy as np
 import pandas as pd
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -654,11 +654,18 @@ def run():
     return results
 
 
+# ── JST 日付取得 ─────────────────────────────────────────────────────────────────
+def _get_jst_date():
+    """Get today's date in JST (Asia/Tokyo)"""
+    jst = timezone(timedelta(hours=9))
+    return datetime.now(jst).date().isoformat()
+
+
 # ── 日次調整（tech_weekly_picks → tech_daily_picks） ────────────────────────────
 def run_daily():
     """既存のtech_weekly_picksに対して当日の最新価格で再チェック。"""
     print("[TechDaily] 日次テクニカル調整開始...")
-    today = date.today().isoformat()
+    today = _get_jst_date()
     conn  = get_connection()
     cur   = conn.cursor()
 

@@ -1,15 +1,21 @@
 """GET /api/daily-picks"""
 import json
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from fastapi import APIRouter
 from backend.db import get_connection
 
 router = APIRouter()
 
 
+def _get_jst_date():
+    """Get today's date in JST (Asia/Tokyo)"""
+    jst = timezone(timedelta(hours=9))
+    return datetime.now(jst).date().isoformat()
+
+
 @router.get("/api/daily-picks")
 def get_daily_picks():
-    today = date.today().isoformat()
+    today = _get_jst_date()
     conn  = get_connection()
     cur   = conn.cursor()
 

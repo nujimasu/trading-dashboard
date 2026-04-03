@@ -4,7 +4,7 @@ Runs in < 1 minute. No FMP calls needed.
 """
 import sys
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
 
 import yfinance as yf
@@ -16,8 +16,14 @@ from backend.services.indicators import calculate_indicators
 from config import ATR_MULT, STOP_WINDOW, TARGET_WINDOW, MIN_RR_TIER2
 
 
+def _get_jst_date():
+    """Get today's date in JST (Asia/Tokyo)"""
+    jst = timezone(timedelta(hours=9))
+    return datetime.now(jst).date().isoformat()
+
+
 def run():
-    today = date.today().isoformat()
+    today = _get_jst_date()
     print(f"[Daily] Adjusting picks for {today}...")
 
     conn = get_connection()
