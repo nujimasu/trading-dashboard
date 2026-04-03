@@ -443,7 +443,7 @@ def _backtest(sig_id: str, ind: dict, direction: str, hold_days: int) -> dict | 
     return {"win_rate": wins / total, "n": total, "wins": wins, "losses": losses}
 
 
-# ── ATRベースRR計算 ────────────────────────────────────────────────────────────
+# ── RR計算（サポート/レジスタンスベース） ──────────────────────────────────────
 def _calc_rr(ind: dict, direction: str) -> dict | None:
     i     = len(ind["c"]) - 1
     entry = ind["c"][i]
@@ -451,20 +451,37 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
     if np.isnan(atr_i) or atr_i == 0:
         return None
 
-    if direction == "UP":
-        stop   = entry - ATR_STOP_MULT   * atr_i
-        tp1    = entry + ATR_STOP_MULT   * atr_i * 1.5
-        target = entry + ATR_TARGET_MULT * atr_i
-    else:
-        stop   = entry + ATR_STOP_MULT   * atr_i
-        tp1    = entry - ATR_STOP_MULT   * atr_i * 1.5
-        target = entry - ATR_TARGET_MULT * atr_i
+    c, h, l = ind["c"], ind["h"], ind["l"]
 
-    rr = ATR_TARGET_MULT / ATR_STOP_MULT  # = 2.0
+    if direction == "UP":
+        # Support: 直近20バーの最安値
+        support = float(np.min(l[max(0, i - 20):i]))
+        # Stop: support より下（ATR × 1.5）
+        stop = support - atr_i * 1.5
+        # リスク = エントリー - ストップ
+        risk = entry - stop
+        # ターゲット: リスク×2（RR=2.0）またはATR×4.0 の大きい方
+        target = max(entry + risk * 2.0, entry + atr_i * ATR_TARGET_MULT)
+        # TP1: リスク×1.5（RR=1.5）
+        tp1 = entry + risk * 1.5
+        rr = risk / abs(target - entry) if target != entry else 2.0
+    else:  # SHORT
+        # Resistance: 直近20バーの最高値
+        resistance = float(np.max(h[max(0, i - 20):i]))
+        # Stop: resistance より上（ATR × 1.5）
+        stop = resistance + atr_i * 1.5
+        # リスク = ストップ - エントリー
+        risk = stop - entry
+        # ターゲット: リスク×2 またはATR×4.0 の小さい方
+        target = min(entry - risk * 2.0, entry - atr_i * ATR_TARGET_MULT)
+        # TP1: リスク×1.5
+        tp1 = entry - risk * 1.5
+        rr = risk / abs(entry - target) if entry != target else 2.0
+
     return {
         "entry": round(entry, 2), "stop": round(stop, 2),
         "tp1": round(tp1, 2), "target": round(target, 2),
-        "rr": rr, "atr_pct": round(atr_i / entry * 100, 2),
+        "rr": round(rr, 2), "atr_pct": round(atr_i / entry * 100, 2),
     }
 
 
