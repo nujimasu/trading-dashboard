@@ -135,17 +135,21 @@ export function renderTechStrategyGuide(container) {
             &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.25</span> × min(RR / 3.0, 1.0)<br>
             &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.10</span> × 合流ボーナス<br>
             &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.05</span> × Stage整合係数<br><br>
-            <span style="color:#94a3b8">// サンプル数補正</span><br>
-            adj = 0.70 + 0.30 × √(N / 30)<br><br>
+            <span style="color:#94a3b8">// Stage遷移ボーナス（新規）</span><br>
+            if (Stage 1→2 転換) conf += <span style="color:#34d399">0.05</span><br><br>
+            <span style="color:#94a3b8">// サンプル数補正（厳格化）</span><br>
+            if (N < 10) adj = 0.50<br>
+            else if (N < 20) adj = 0.70 + 0.245 × (N-10) / 10<br>
+            else adj = 0.70 + 0.30 × √(N / 30)<br><br>
             <span style="color:#22c55e">信頼度 = raw × adj</span>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px">
           ${scoreRow("平均勝率（60%）", "過去のバックテストで算出した勝率の平均。最低52%以上のシグナルのみ採用。", "#60a5fa")}
-          ${scoreRow("RR品質（25%）", "ATRベースのRR（目標4×ATR / ストップ2×ATR = 2.0固定）。最大3.0で満点。", "#60a5fa")}
+          ${scoreRow("RR品質（25%）", "動的RR計算：直近20バーのサポート/レジスタンスレベルを基準に計算。市場環境に応じてRRは1.8～2.5で変動。", "#60a5fa")}
           ${scoreRow("合流ボーナス（10%）", "1シグナル=50pt / 2シグナル=75pt / 3以上=100pt。複数シグナルが同時に発火するほど信頼度UP。", "#a78bfa")}
-          ${scoreRow("Stage整合（5%）", "LONG×Stage2=1.0 / SHORT×Stage4=1.0。逆方向は0.1〜0.4。", "#34d399")}
-          ${scoreRow("サンプル補正（乗数）", "バックテストのサンプル数が少ないほど割引。N≥30で補正なし（×1.0）。", "#f97316")}
+          ${scoreRow("Stage整合（5%）", "LONG×Stage2=1.0 / SHORT×Stage4=1.0。逆方向は0.1〜0.4。 + Stage遷移で+0.05ボーナス。", "#34d399")}
+          ${scoreRow("サンプル補正（乗数）", "N<10で50%割引（非常に保守的） / 10≤N<20で線形遷移 / N≥20でsqrt補正。小サンプルに厳しいペナルティ。", "#f97316")}
         </div>
       </div>
     </div>
@@ -155,9 +159,9 @@ export function renderTechStrategyGuide(container) {
       <h3 style="font-size:.95rem;font-weight:700;margin-bottom:16px">⚗️ バックテストの仕組み（Stage A）</h3>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
         ${btCard("① シグナル検出", "過去データ（150バー以上）を全て走査し、各バーでシグナルが発火したかを記録。")}
-        ${btCard("② エントリー想定", "シグナル発火バーの終値をエントリー価格とする。ATR×2.0をストップロス、ATR×4.0を目標価格に設定。")}
+        ${btCard("② エントリー想定", "シグナル発火バーの終値をエントリー価格とする。直近20バーのサポート/レジスタンスレベルを基準にストップロス・ターゲットを計算。")}
         ${btCard("③ 勝敗判定", "エントリー後10〜20日間、日中にストップ価格をタッチ → 負け / 目標価格をタッチ → 勝ち。期限内未決着は終値で判定。")}
-        ${btCard("④ 勝率計算", "ヒット数が5件以上のシグナルのみ採用。勝率 = 勝ち数 ÷ 総ヒット数。52%未満は採用なし。")}
+        ${btCard("④ 勝率計算", "ヒット数が5件以上のシグナルのみ採用。勝率 = 勝ち数 ÷ 総ヒット数。52%未満は採用なし。ただしサンプル数が少ない場合は信頼度で大幅割引。")}
         ${btCard("⑤ ウェイト付け", "VCP・ブルフラッグ・ダブル系はウェイト5〜6（重要度高）、クロス系はウェイト3〜4。")}
         ${btCard("⑥ 方向決定", "UPシグナルの加重合計 vs DOWNシグナルの加重合計を比較。大きい方向を採用。引き分けは除外。")}
       </div>
