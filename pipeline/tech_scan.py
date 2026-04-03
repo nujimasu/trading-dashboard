@@ -16,7 +16,7 @@ from backend.db import get_connection
 
 # ── パラメータ ────────────────────────────────────────────────────────────────
 MIN_BARS          = 150      # 最低限必要なバー数
-MIN_BACKTEST_HITS = 5        # バックテスト最低サンプル数
+MIN_BACKTEST_HITS = 10       # バックテスト最低サンプル数
 WIN_RATE_THRESH   = 0.52     # シグナル採用の最低勝率
 CONFIDENCE_THRESH = 0.58     # picks に載せる最低信頼度
 RR_MIN            = 1.8      # 最低 Risk/Reward
