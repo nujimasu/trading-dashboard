@@ -66,10 +66,6 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         </td>
         <td class="wr-cell">${wrPct}%</td>
         <td>${fmt(p.risk_reward)}</td>
-        <td>$${fmt(p.entry_price)}</td>
-        <td>$${fmt(p.stop_price)}</td>
-        <td>$${fmt(p.tp1_price)}</td>
-        <td>$${fmt(p.target_price)}</td>
         <td class="sig-tags-cell">${sigList}</td>
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
@@ -89,7 +85,6 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
           <tr>
             <th>銘柄</th><th>方向</th>${dailyHeaders}<th>保有期間</th><th>Stage</th>
             <th>信頼度</th><th>勝率</th><th>RR</th>
-            <th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
             <th>シグナル</th>
           </tr>
         </thead>
