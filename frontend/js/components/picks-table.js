@@ -72,72 +72,8 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
       </tr>`;
   }).join("");
 
-  const infoBanner = mode === "weekly" ? `
-    <div class="picks-info-banner">
-      <div class="pib-item">
-        <span class="pib-icon">🎯</span>
-        <div>
-          <div class="pib-label">週次推奨銘柄とは</div>
-          <div class="pib-desc">フルパイプライン（週1回実行）でテクニカルフィルタ・RR計算を通過した今週のウォッチリスト。
-          エントリータイミングはまだ来ていない銘柄も含む。</div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">📋</span>
-        <div>
-          <div class="pib-label">判定の見方</div>
-          <div class="pib-desc">
-            <span class="verdict-buy pib-badge">買い</span> T1 推奨 &nbsp;
-            <span class="verdict-watch pib-badge">様子見</span> T2 候補 &nbsp;
-            <span class="verdict-short pib-badge">売り</span> ショート推奨
-          </div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">🔄</span>
-        <div>
-          <div class="pib-label">更新タイミング</div>
-          <div class="pib-desc">週次パイプライン実行時に更新。<br>エントリー判断は「本日のエントリー」タブを参照。</div>
-        </div>
-      </div>
-    </div>` : `
-    <div class="picks-info-banner picks-info-banner--daily">
-      <div class="pib-item">
-        <span class="pib-icon">⚡</span>
-        <div>
-          <div class="pib-label">本日のエントリーとは</div>
-          <div class="pib-desc">週次推奨銘柄の<strong>当日の最新価格</strong>でRRを再計算し、ブレイクアウト条件を確認した結果。
-          毎朝7:00に自動更新。</div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">📋</span>
-        <div>
-          <div class="pib-label">判定の見方</div>
-          <div class="pib-desc">
-            <span class="verdict-entry pib-badge">今日エントリー</span> ピボット突破+出来高+RR≥2.0 &nbsp;
-            <span class="verdict-watch pib-badge">様子見</span> 条件一部未達 &nbsp;
-            <span class="verdict-wait pib-badge">待機</span> ブレイク前 &nbsp;
-            <span class="verdict-passed pib-badge">通過済</span> RR低下
-          </div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">🔄</span>
-        <div>
-          <div class="pib-label">更新タイミング</div>
-          <div class="pib-desc">毎朝7:00に自動更新（Mac起動中のみ）。<br>手動更新: <code>python3 pipeline/run_pipeline.py --daily-only</code></div>
-        </div>
-      </div>
-    </div>`;
-
   container.innerHTML = `
     <div class="section-title">${title}</div>
-    ${infoBanner}
     <div class="picks-table-wrap">
       <table>
         <thead>

@@ -20,76 +20,12 @@ const STAGE_LABEL = {
 };
 
 export function renderTechPicksTable(container, picks, title, mode = "weekly") {
-  const infoBanner = mode === "weekly" ? `
-    <div class="picks-info-banner picks-info-banner--tech">
-      <div class="pib-item">
-        <span class="pib-icon">📡</span>
-        <div>
-          <div class="pib-label">週次テクニカルスキャンとは</div>
-          <div class="pib-desc">16種のテクニカルシグナルをバックテストで検証し、<strong>勝率×信頼度</strong>でランキング。
-          ファンダは考慮せず純粋な値動き・パターンのみで判定。</div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">🔢</span>
-        <div>
-          <div class="pib-label">スコアの見方</div>
-          <div class="pib-desc">
-            <strong>信頼度</strong> = 勝率60% + RR25% + シグナル合流10% + Stage整合5%<br>
-            <strong>平均勝率</strong> = 過去シグナルのバックテスト実績
-          </div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">🔄</span>
-        <div>
-          <div class="pib-label">更新タイミング</div>
-          <div class="pib-desc">手動実行: <code>python3 pipeline/run_pipeline.py --tech-weekly</code><br>
-          既存の価格データを使用（追加API不要・約5〜10分）</div>
-        </div>
-      </div>
-    </div>` : `
-    <div class="picks-info-banner picks-info-banner--tech-daily">
-      <div class="pib-item">
-        <span class="pib-icon">🔬</span>
-        <div>
-          <div class="pib-label">日次テクニカルとは</div>
-          <div class="pib-desc">週次テクニカルピックの銘柄について<strong>当日の最新価格</strong>でシグナルを再確認。
-          アクティブなシグナルが継続しているかを毎朝チェック。</div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">📋</span>
-        <div>
-          <div class="pib-label">判定の見方</div>
-          <div class="pib-desc">
-            <span class="verdict-entry pib-badge">今日エントリー★</span> シグナル継続+RR≥2.0+信頼度高 &nbsp;
-            <span class="verdict-buy pib-badge">エントリー</span> シグナル継続+RR≥1.5 &nbsp;
-            <span class="verdict-watch pib-badge">様子見</span> RR維持だが当日シグナルなし
-          </div>
-        </div>
-      </div>
-      <div class="pib-divider"></div>
-      <div class="pib-item">
-        <span class="pib-icon">🔄</span>
-        <div>
-          <div class="pib-label">更新タイミング</div>
-          <div class="pib-desc">毎朝7:00自動更新（--daily-only と同時実行）<br>
-          手動: <code>python3 pipeline/run_pipeline.py --tech-daily</code></div>
-        </div>
-      </div>
-    </div>`;
-
   if (!picks.length) {
     const msg = mode === "weekly"
       ? `テクニカルスキャン未実行 — <code>python3 pipeline/run_pipeline.py --tech-weekly</code> を実行してください`
       : `本日のテクニカルデータなし — 毎朝7:00に自動更新されます`;
     container.innerHTML = `
       <div class="section-title">${title}</div>
-      ${infoBanner}
       <div class="empty-state">${msg}</div>`;
     return;
   }
@@ -147,7 +83,6 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
     <div class="section-title">${title}
       <span class="tech-count-badge">${picks.length}件</span>
     </div>
-    ${infoBanner}
     <div class="picks-table-wrap">
       <table>
         <thead>
