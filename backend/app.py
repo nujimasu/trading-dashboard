@@ -34,8 +34,11 @@ def _run_daily_in_background():
     """サーバー起動時にバックグラウンドで日次調整を実行する。"""
     try:
         from pipeline.daily_adjustment import run as daily_run
+        from pipeline.tech_scan import run_daily as tech_daily_run
         print("[Startup] 日次調整をバックグラウンドで実行中...")
         daily_run()
+        print("[Startup] テクニカル日次調整をバックグラウンドで実行中...")
+        tech_daily_run()
     except Exception as e:
         print(f"[Startup] 日次調整エラー: {e}")
 
