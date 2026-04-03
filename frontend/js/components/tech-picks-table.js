@@ -55,6 +55,8 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
       <tr data-idx="${i}" class="pick-row">
         <td class="ticker-cell">${p.ticker}</td>
         <td>${dirBadge}</td>
+        ${verdictCell}
+        <td>${holdBadge}</td>
         <td><span class="stage-badge ${stageMeta.css}">${stageMeta.text}</span></td>
         <td>
           <div class="conf-bar-wrap">
@@ -69,8 +71,6 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         <td>$${fmt(p.tp1_price)}</td>
         <td>$${fmt(p.target_price)}</td>
         <td class="sig-tags-cell">${sigList}</td>
-        <td>${holdBadge}</td>
-        ${verdictCell}
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
         <td colspan="100">${_buildDetailPanel(p, i)}</td>
@@ -87,12 +87,10 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
       <table>
         <thead>
           <tr>
-            <th>銘柄</th><th>方向</th><th>Stage</th>
+            <th>銘柄</th><th>方向</th>${dailyHeaders}<th>保有期間</th><th>Stage</th>
             <th>信頼度</th><th>勝率</th><th>RR</th>
             <th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
             <th>シグナル</th>
-            <th>保有期間</th>
-            ${dailyHeaders}
           </tr>
         </thead>
         <tbody>${rows}</tbody>

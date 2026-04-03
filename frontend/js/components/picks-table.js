@@ -42,12 +42,10 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
 
     const rr = mode === "daily" ? (p.adjusted_rr ?? p.weekly_rr) : p.risk_reward;
 
-    const dailyExtra = mode === "daily" ? `
-      <td>$${fmt(p.current_price)}</td>
-      <td>${fmt(p.adjusted_rr)}</td>
-      <td>${p.breakout_triggered ? "✅" : "—"}</td>
-      <td>${p.volume_confirmation ? "✅" : "—"}</td>
-    ` : ``;
+    const dailyBreakout = mode === "daily" ? `<td>${p.breakout_triggered ? "✅" : "—"}</td>` : ``;
+    const dailyVolume = mode === "daily" ? `<td>${p.volume_confirmation ? "✅" : "—"}</td>` : ``;
+    const dailyPrice = mode === "daily" ? `<td>$${fmt(p.current_price)}</td>` : ``;
+    const dailyAdjRr = mode === "daily" ? `<td>${fmt(p.adjusted_rr)}</td>` : ``;
 
     const score = p.composite_score ?? "—";
     const holdBadge = _holdingBadge(p.holding_days_est);
@@ -55,17 +53,21 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
     return `
       <tr data-idx="${i}" class="pick-row">
         <td class="ticker-cell">${p.ticker}</td>
-        <td class="tier-dir-cell">${tierBadge}${dirBadge}</td>
+        <td>${tierBadge}</td>
+        <td>${score}</td>
         <td class="${verdictClass}">${verdictText}</td>
+        ${dailyBreakout}
+        ${dailyVolume}
+        <td>${holdBadge}</td>
+        <td>${dirBadge}</td>
         <td>${fmt(rr)}</td>
         <td>$${fmt(p.entry_price)}</td>
         <td>$${fmt(p.stop_price)}</td>
         <td>$${fmt(p.tp1_price)}</td>
         <td>$${fmt(p.target_price)}</td>
-        <td>${holdBadge}</td>
         <td>${p.sector || "—"}</td>
-        <td>${score}</td>
-        ${dailyExtra}
+        ${dailyPrice}
+        ${dailyAdjRr}
       </tr>
       <tr class="detail-row" id="detail-${i}" style="display:none">
         <td colspan="100">${buildDetailPanel(p, i)}</td>
@@ -78,10 +80,12 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
       <table>
         <thead>
           <tr>
-            <th>銘柄</th><th>Tier</th><th>判定</th>
+            <th>銘柄</th><th>Tier</th><th>スコア</th><th>判定</th>
+            ${mode === "daily" ? "<th>ブレイク</th><th>出来高</th>" : ""}
+            <th>保有期間</th><th>方向</th>
             <th>RR</th><th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
-            <th>保有期間</th><th>セクター</th><th>スコア</th>
-            ${mode === "daily" ? "<th>現在値</th><th>現RR</th><th>ブレイク</th><th>出来高</th>" : ""}
+            <th>セクター</th>
+            ${mode === "daily" ? "<th>現在値</th><th>現RR</th>" : ""}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
