@@ -491,8 +491,15 @@ def _confidence(hits: list, rr: float, stage: int, direction: str) -> float:
            + 0.10 * conf_factor
            + 0.05 * stage_f)
 
-    # サンプルサイズ割引
-    sample_adj = 0.70 + 0.30 * np.sqrt(min(avg_n, 30) / 30)
+    # サンプルサイズ割引（小サンプルに厳しいペナルティ）
+    if avg_n < 10:
+        sample_adj = 0.50  # N < 10: 50%割引（非常に保守的）
+    elif avg_n < 20:
+        # N=10で70%, N=20で94.5%へ線形遷移
+        sample_adj = 0.70 + 0.245 * (avg_n - 10) / 10
+    else:
+        # N >= 20: sqrt ベース
+        sample_adj = 0.70 + 0.30 * np.sqrt(min(avg_n, 30) / 30)
 
     return round(float(raw * sample_adj), 4)
 
