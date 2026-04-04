@@ -13,8 +13,19 @@ export function renderTechStrategyGuide(container) {
       <div style="font-size:.82rem;color:#94a3b8;line-height:1.7">
         ファンダメンタルズを一切使わず、<strong style="color:#e2e8f0">値動きのパターン・モメンタムのみ</strong>でエントリーを判断する純テクニカルエンジン。<br>
         「準備ができている」と「転換が確定した」を<strong style="color:#e2e8f0">2段階に分けて判定</strong>することで、ダマシを減らし精度を高める。<br>
-        各シグナルは過去データで<strong style="color:#e2e8f0">バックテスト済み</strong>。統計的に勝率52%以上のシグナルのみ採用。
+        各シグナルは過去データで<strong style="color:#e2e8f0">バックテスト済み</strong>（翌日始値+スリッページ考慮）。統計的に勝率<strong style="color:#e2e8f0">58%以上</strong>のシグナルのみ採用。<br>
+        市場ブレッドス（全銘柄の健康度）と決算スケジュールも加味した<strong style="color:#e2e8f0">市場文脈適応型</strong>フィルタリングを実装。
       </div>
+    </div>
+
+    <!-- 改善サマリー -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:20px">
+      ${improvCard("🔧 RR計算修正", "#ef4444", "reward÷risk（正式）に修正。以前は逆（risk÷reward）で全RR値が誤っていた。")}
+      ${improvCard("📊 閾値強化", "#f59e0b", "勝率閾値52→58% / サンプル最低数10→20 / 信頼度閾値0.58→0.62 / RR下限1.8→2.0")}
+      ${improvCard("🔀 矛盾検出", "#8b5cf6", "LONG/SHORTシグナルが同時発火した場合、弱い方を除去。差10%以内なら両方除去。")}
+      ${improvCard("📈 市場文脈", "#10b981", "市場ブレッドスCSVを自動取得。スコア<20ならLONG却下、<40なら閾値厳格化。")}
+      ${improvCard("💹 決算回避", "#06b6d4", "FMP APIで±3営業日以内の決算をチェック。接近時はエントリーを WATCH に格下げ。")}
+      ${improvCard("🎯 VCP強化", "#6366f1", "収縮回数・深さ・出来高ドライアップ・ピボット精度の4指標で品質スコア化。60点以上のみ採用。")}
     </div>
 
     <!-- 2段階フロー図 -->
@@ -23,11 +34,11 @@ export function renderTechStrategyGuide(container) {
       <div style="display:flex;align-items:stretch;gap:0;flex-wrap:wrap">
         ${flowBox("① 週次スキャン", "#6366f1",
           "毎週日曜夜に全銘柄をスキャン",
-          ["16種のテクニカルシグナルを検出", "各シグナルをバックテストで検証", "信頼度スコア 0.58 以上のみ採用", "tech_weekly_picks として保存"])}
+          ["市場ブレッドスを取得し文脈スコア算出", "16種のテクニカルシグナルを検出", "翌日始値+スリッページでバックテスト", "信頼度スコア 0.62 以上のみ採用", "tech_weekly_picks として保存"])}
         <div style="display:flex;align-items:center;padding:0 8px;font-size:1.5rem;color:#475569;align-self:center">→</div>
         ${flowBox("② 日次 Stage A 確認", "#3b82f6",
           "毎朝、週次ピック銘柄を再チェック",
-          ["週次で検出したシグナルが今日も継続しているか", "当日の価格でRRを再計算", "Stage A アクティブ → 「WATCH（様子見）」", "Stage A 消滅 → 「WAIT / PASSED」"])}
+          ["決算±3営業日の銘柄を WATCH に格下げ", "週次で検出したシグナルが今日も継続しているか", "当日の価格でRRを再計算", "Stage A アクティブ → 「WATCH（様子見）」", "Stage A 消滅 → 「WAIT / PASSED」"])}
         <div style="display:flex;align-items:center;padding:0 8px;font-size:1.5rem;color:#475569;align-self:center">→</div>
         ${flowBox("③ 日次 Stage B 確認", "#10b981",
           "当日のローソク足・価格行動を分析",
@@ -62,7 +73,7 @@ export function renderTechStrategyGuide(container) {
     <!-- Stage A シグナル一覧 -->
     <div class="card" style="margin-bottom:20px">
       <h3 style="font-size:.95rem;font-weight:700;margin-bottom:4px">📡 Stage A — 準備シグナル（16種）</h3>
-      <div style="font-size:.78rem;color:#94a3b8;margin-bottom:16px">週次スキャンで検出。バックテスト勝率 52% 以上のみ採用。シグナルが重なるほど信頼度UP。</div>
+      <div style="font-size:.78rem;color:#94a3b8;margin-bottom:16px">週次スキャンで検出。バックテスト勝率 <strong style="color:#e2e8f0">58% 以上</strong>（最低20サンプル）のみ採用。シグナルが重なるほど信頼度UP。ブレイクアウト系は出来高1.4倍確認必須。</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
         <div>
           <div style="font-size:.75rem;font-weight:700;color:#34d399;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">▲ ロング（UP）シグナル</div>
@@ -126,44 +137,45 @@ export function renderTechStrategyGuide(container) {
 
     <!-- 信頼度スコア算出 -->
     <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:16px">🔢 信頼度スコアの計算式（Stage A）</h3>
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:16px">🔢 信頼度スコアの計算式（Phase8 改善版）</h3>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
         <div>
           <div style="font-family:monospace;background:#0f172a;border-radius:6px;padding:14px;font-size:.78rem;line-height:2;color:#e2e8f0">
-            <span style="color:#94a3b8">// Raw Score</span><br>
-            raw = <span style="color:#60a5fa">0.60</span> × 平均勝率<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.25</span> × min(RR / 3.0, 1.0)<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.10</span> × 合流ボーナス<br>
-            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.05</span> × Stage整合係数<br><br>
-            <span style="color:#94a3b8">// Stage遷移ボーナス（新規）</span><br>
+            <span style="color:#94a3b8">// Raw Score（新配分）</span><br>
+            raw = <span style="color:#60a5fa">0.40</span> × 平均勝率<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#34d399">0.20</span> × Stage整合係数 <span style="color:#6ee7b7">↑</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#a78bfa">0.15</span> × 合流スコア<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#60a5fa">0.15</span> × min(RR / 3.0, 1.0)<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;+ <span style="color:#f59e0b">0.10</span> × 市場スコア/100 <span style="color:#fde68a">★新規</span><br><br>
+            <span style="color:#94a3b8">// Stage遷移ボーナス</span><br>
             if (Stage 1→2 転換) conf += <span style="color:#34d399">0.05</span><br><br>
-            <span style="color:#94a3b8">// サンプル数補正（厳格化）</span><br>
+            <span style="color:#94a3b8">// サンプル数補正</span><br>
             if (N < 10) adj = 0.50<br>
-            else if (N < 20) adj = 0.70 + 0.245 × (N-10) / 10<br>
-            else adj = 0.70 + 0.30 × √(N / 30)<br><br>
-            <span style="color:#22c55e">信頼度 = raw × adj</span>
+            else if (N < 20) adj = 0.70 + 0.245×(N-10)/10<br>
+            else adj = 0.70 + 0.30×√(N/30)<br><br>
+            <span style="color:#22c55e">信頼度 = raw × adj</span>&nbsp;&nbsp;<span style="color:#94a3b8">閾値: 0.62</span>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px">
-          ${scoreRow("平均勝率（60%）", "過去のバックテストで算出した勝率の平均。最低52%以上のシグナルのみ採用。", "#60a5fa")}
-          ${scoreRow("RR品質（25%）", "動的RR計算：直近20バーのサポート/レジスタンスレベルを基準に計算。市場環境に応じてRRは1.8～2.5で変動。", "#60a5fa")}
-          ${scoreRow("合流ボーナス（10%）", "1シグナル=50pt / 2シグナル=75pt / 3以上=100pt。複数シグナルが同時に発火するほど信頼度UP。", "#a78bfa")}
-          ${scoreRow("Stage整合（5%）", "LONG×Stage2=1.0 / SHORT×Stage4=1.0。逆方向は0.1〜0.4。 + Stage遷移で+0.05ボーナス。", "#34d399")}
-          ${scoreRow("サンプル補正（乗数）", "N<10で50%割引（非常に保守的） / 10≤N<20で線形遷移 / N≥20でsqrt補正。小サンプルに厳しいペナルティ。", "#f97316")}
+          ${scoreRow("平均勝率（40%）★改", "バックテスト勝率の平均。60%→40%に変更し過剰適合リスクを低減。最低58%以上（旧52%）のシグナルのみ採用。", "#60a5fa")}
+          ${scoreRow("Stage整合（20%）★改", "5%→20%に大幅増。LONG×Stage2=1.0 / SHORT×Stage4=1.0。Stage2初期が最高評価。逆方向は0.05〜0.20。", "#34d399")}
+          ${scoreRow("合流スコア（15%）★改", "10%→15%に増加。1シグナル=0.50 / 2シグナル=0.75 / 3以上=1.0。複数シグナル一致で大きなボーナス。", "#a78bfa")}
+          ${scoreRow("RR品質（15%）★改", "25%→15%に変更。reward÷risk（修正後）でRR≥2.0が基準。直近サポート/レジスタンスから動的計算。", "#60a5fa")}
+          ${scoreRow("市場スコア（10%）★新規", "TraderMonty breadth CSVから自動算出。AD Line・200MA超え率・New H/L比・McClellan Osc の4指標。スコア<20でLONG却下。", "#f59e0b")}
         </div>
       </div>
     </div>
 
     <!-- バックテストの仕組み -->
     <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:16px">⚗️ バックテストの仕組み（Stage A）</h3>
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:16px">⚗️ バックテストの仕組み（Phase9 改善版）</h3>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
         ${btCard("① シグナル検出", "過去データ（150バー以上）を全て走査し、各バーでシグナルが発火したかを記録。")}
-        ${btCard("② エントリー想定", "シグナル発火バーの終値をエントリー価格とする。直近20バーのサポート/レジスタンスレベルを基準にストップロス・ターゲットを計算。")}
-        ${btCard("③ 勝敗判定", "エントリー後10〜20日間、日中にストップ価格をタッチ → 負け / 目標価格をタッチ → 勝ち。期限内未決着は終値で判定。")}
-        ${btCard("④ 勝率計算", "ヒット数が10件以上のシグナルのみ採用。勝率 = 勝ち数 ÷ 総ヒット数。52%未満は採用なし。統計的有意性を確保。")}
-        ${btCard("⑤ ウェイト付け", "VCP・ブルフラッグ・ダブル系はウェイト5〜6（重要度高）、クロス系はウェイト3〜4。")}
-        ${btCard("⑥ 方向決定", "UPシグナルの加重合計 vs DOWNシグナルの加重合計を比較。大きい方向を採用。引き分けは除外。")}
+        ${btCard("② エントリー想定 ★改", "【翌日始値】+ スリッページ0.1%でエントリー（旧: 当日終値）。より現実的なエントリー価格を反映。ショートは0.1%有利に調整。")}
+        ${btCard("③ 保有上限 ★新規", "最大20バー（スウィング前提）で強制決済。無期限保有による過大評価を防止。期限超過は終値で判定。")}
+        ${btCard("④ 勝率計算 ★改", "最低サンプル数20件以上（旧10件）のシグナルのみ採用。勝率58%以上（旧52%）。小サンプルの統計的不確実性を排除。")}
+        ${btCard("⑤ 品質補正 ★新規", "勝ちトレードの平均利益が0.5R未満の場合、勝率を0.9倍に調整。形式的な勝率より実質的な利益の大きさを重視。")}
+        ${btCard("⑥ 方向決定", "UPシグナルの加重合計 vs DOWNシグナルの加重合計を比較。差が10%以内なら矛盾として両方除去。大きい方向を採用。")}
       </div>
     </div>
 
@@ -197,13 +209,13 @@ export function renderTechStrategyGuide(container) {
             </tr>
           </thead>
           <tbody>
-            ${compareRow("スクリーニング基準", "VCP + Stage2 + RR + 業績", "16シグナルのバックテスト勝率")}
+            ${compareRow("スクリーニング基準", "VCP + Stage2 + RR + 業績", "16シグナルのバックテスト勝率（58%以上）")}
             ${compareRow("エントリー確認", "日次でブレイクアウト条件を再チェック", "Stage A（準備） + Stage B（転換確認）の2段階")}
-            ${compareRow("ダマシ対策", "出来高・ブレイクアウト条件", "リテスト完了・ローソク転換パターンで確認")}
-            ${compareRow("ファンダデータ", "EPS成長・売上・決算サプライズ（参考）", "不使用（値動きのみ）")}
-            ${compareRow("スコア算出", "テクニカル50% + RR30% + VCP20%", "勝率60% + RR25% + 合流10% + Stage5%")}
-            ${compareRow("銘柄数", "10〜20件（厳選）", "5〜30件（信頼度閾値で変動）")}
-            ${compareRow("向いている相場", "トレンド相場（一方向）", "あらゆる相場（ショートにも対応）")}
+            ${compareRow("ダマシ対策", "出来高・ブレイクアウト条件", "矛盾シグナル除去 + リテスト完了 + 出来高1.4倍確認")}
+            ${compareRow("ファンダデータ", "EPS成長・売上・決算サプライズ（参考）", "決算日±3日のみチェック（回避用）")}
+            ${compareRow("スコア算出", "テクニカル50% + ファンダ50%（ハイブリッド）", "勝率40% + Stage20% + 合流15% + RR15% + 市場10%")}
+            ${compareRow("銘柄数", "10〜20件（厳選）", "2〜20件（閾値0.62で厳選）")}
+            ${compareRow("向いている相場", "トレンド相場（ファンダ優位の局面）", "あらゆる相場（ショート・市場悪化時も対応）")}
             ${compareRow("理想の使い方", "ベース銘柄をじっくり選定", "シグナル発火タイミングを捉える")}
           </tbody>
         </table>
@@ -233,6 +245,14 @@ export function renderTechStrategyGuide(container) {
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+function improvCard(title, color, desc) {
+  return `
+    <div style="background:#1e293b;border:1px solid ${color}44;border-top:3px solid ${color};border-radius:8px;padding:12px">
+      <div style="font-size:.82rem;font-weight:700;color:${color};margin-bottom:6px">${title}</div>
+      <div style="font-size:.73rem;color:#94a3b8;line-height:1.5">${desc}</div>
+    </div>`;
+}
 
 function flowBox(title, color, sub, items) {
   const li = items.map(t =>

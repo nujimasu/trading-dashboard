@@ -16,14 +16,14 @@ from backend.db import get_connection
 
 # ── パラメータ ────────────────────────────────────────────────────────────────
 MIN_BARS          = 150      # 最低限必要なバー数
-MIN_BACKTEST_HITS = 10       # バックテスト最低サンプル数
-WIN_RATE_THRESH   = 0.52     # シグナル採用の最低勝率
-CONFIDENCE_THRESH = 0.58     # picks に載せる最低信頼度
-RR_MIN            = 1.8      # 最低 Risk/Reward
+MIN_BACKTEST_HITS = 20       # バックテスト最低サンプル数（10→20: 統計的信頼性向上）
+WIN_RATE_THRESH   = 0.58     # シグナル採用の最低勝率（0.52→0.58: 手数料後エッジ確保）
+CONFIDENCE_THRESH = 0.62     # picks に載せる最低信頼度（0.58→0.62: 新confidence式対応）
+RR_MIN            = 2.0      # 最低 Risk/Reward（1.8→2.0: CLAUDE.md Tier1基準）
 ATR_STOP_MULT     = 2.0      # ストップ = ATR × 2.0
 ATR_TARGET_MULT   = 4.0      # ターゲット = ATR × 4.0
 HOLD_SHORT        = 10       # 短期シグナルの保有日数
-HOLD_MID          = 20       # 中期シグナルの保有日数
+HOLD_MID          = 20       # 中期シグナルの保有日数（スウィング前提）
 
 # ── シグナル定義 [id, 日本語ラベル, 方向, ウェイト, 保有日数] ───────────────
 SIGNALS = [
@@ -185,14 +185,18 @@ def _fire(sig_id: str, ind: dict, i: int) -> bool:
     if sig_id == "bb_squeeze_up":
         bw_sl = ind["bb_bw"][max(0,i-5):i]
         bbu   = safe(ind["bb_up"], i)
+        vol_ratio = v[i] / vm if vm > 0 else 0
         return (not np.isnan(bw_sl).all() and np.nanmin(bw_sl) < 0.10
-                and bbu is not None and c[i] > bbu)
+                and bbu is not None and c[i] > bbu
+                and vol_ratio >= 1.4)  # Phase4: 出来高確認
 
     if sig_id == "bb_squeeze_dn":
         bw_sl = ind["bb_bw"][max(0,i-5):i]
         bbd   = safe(ind["bb_dn"], i)
+        vol_ratio = v[i] / vm if vm > 0 else 0
         return (not np.isnan(bw_sl).all() and np.nanmin(bw_sl) < 0.10
-                and bbd is not None and c[i] < bbd)
+                and bbd is not None and c[i] < bbd
+                and vol_ratio >= 1.4)  # Phase4: 出来高確認
 
     if sig_id == "vol_bull":
         body = c[i] - c[i-1]
@@ -208,12 +212,17 @@ def _fire(sig_id: str, ind: dict, i: int) -> bool:
         e50, e200 = safe(ind["e50"], i), safe(ind["e200"], i)
         if None in (e50, e200) or c[i] <= e50 or c[i] <= e200:
             return False
-        v_rec  = float(np.mean(v[max(0,i-5):i])) if i > 5 else vm
-        v_bef  = float(np.mean(v[max(0,i-20):max(0,i-5)])) if i > 20 else vm
-        dried  = v_rec < v_bef * 0.85 if v_bef > 0 else False
+        # Phase5: 強化VCPスコアで品質確認（60点以上のみ採用）
+        vcp_s = _enhanced_vcp_score(
+            c[max(0,i-60):i+1], v[max(0,i-60):i+1],
+            h[max(0,i-60):i+1], l[max(0,i-60):i+1]
+        )
+        if vcp_s < 60:
+            return False
         high20 = float(np.max(h[max(0,i-20):i+1]))
         near   = c[i] >= high20 * 0.95
-        return dried and near and v[i] > vm * 1.3
+        vol_ratio = v[i] / vm if vm > 0 else 0
+        return near and vol_ratio >= 1.3  # Phase4: 出来高確認統合
 
     if sig_id == "bull_flag":
         if i < 30:
@@ -396,17 +405,95 @@ def _detect_stage_b(ind: dict, i: int, direction: str, orig_entry: float) -> lis
     return confirmed
 
 
-# ── バックテスト ───────────────────────────────────────────────────────────────
+# ── 強化VCPスコア（Phase5） ────────────────────────────────────────────────────
+def _enhanced_vcp_score(closes: np.ndarray, volumes: np.ndarray,
+                        highs: np.ndarray, lows: np.ndarray) -> int:
+    """
+    改善VCPスコア (0-100):
+    - 収縮回数: 最低2回、3回以上でボーナス (0-30pt)
+    - 各収縮の深さ: 前回比で浅くなっているか (0-25pt)
+    - 出来高ドライアップ: ベース右端で最低出来高か (0-25pt)
+    - ピボットラインの明確さ: 高値が水平に収束しているか (0-20pt)
+    """
+    n = len(closes)
+    if n < 60:
+        return 0
+
+    score = 0
+
+    # 収縮回数チェック: 3×20バー区間で range を計測
+    ranges = []
+    for period_start in range(n - 60, n, 20):
+        period_end = min(period_start + 20, n)
+        if period_end - period_start < 5:
+            continue
+        h_sl = highs[period_start:period_end]
+        l_sl = lows[period_start:period_end]
+        rng_pct = (float(np.max(h_sl)) - float(np.min(l_sl))) / float(np.mean(closes[period_start:period_end]))
+        ranges.append(rng_pct)
+
+    if len(ranges) >= 2:
+        contractions = sum(1 for i in range(1, len(ranges)) if ranges[i] < ranges[i-1] * 0.85)
+        if contractions >= 2:
+            score += 30
+        elif contractions == 1:
+            score += 15
+
+        # 収縮深さが浅くなっているか
+        if len(ranges) >= 3 and ranges[-1] < ranges[-2] < ranges[-3]:
+            score += 25
+        elif len(ranges) >= 2 and ranges[-1] < ranges[-2]:
+            score += 12
+
+    # 出来高ドライアップ: 直近5日の平均が過去30日の平均の70%以下
+    if n >= 35:
+        vol_recent = float(np.mean(volumes[n-5:n]))
+        vol_base   = float(np.mean(volumes[n-35:n-5]))
+        if vol_base > 0:
+            vol_ratio = vol_recent / vol_base
+            if vol_ratio <= 0.50:
+                score += 25
+            elif vol_ratio <= 0.70:
+                score += 15
+            elif vol_ratio <= 0.85:
+                score += 5
+
+    # ピボットラインの明確さ: 直近20バーの高値の標準偏差が小さい
+    if n >= 20:
+        hi_sl = highs[n-20:n]
+        hi_std = float(np.std(hi_sl)) / float(np.mean(hi_sl)) if np.mean(hi_sl) > 0 else 1.0
+        if hi_std < 0.02:
+            score += 20
+        elif hi_std < 0.04:
+            score += 12
+        elif hi_std < 0.06:
+            score += 5
+
+    return min(score, 100)
+
+
+# ── バックテスト（Phase9: スリッページ・次バー・保有上限改善） ─────────────────
 def _backtest(sig_id: str, ind: dict, direction: str, hold_days: int) -> dict | None:
     n        = len(ind["c"])
     c, h, l  = ind["c"], ind["h"], ind["l"]
+    o_arr    = ind["o"]  # Phase9: 翌日始値エントリー用
     atr_arr  = ind["atr"]
     wins = losses = 0
+    win_profits = []  # Phase9: 勝ちトレードの利益率追跡
+    MAX_HOLD = 20     # Phase9: スウィング前提の最大保有バー数
 
-    for i in range(55, n - hold_days - 1):
+    for i in range(55, n - MAX_HOLD - 2):
         if not _fire(sig_id, ind, i):
             continue
-        entry = c[i]
+
+        # Phase9: 翌日始値 + スリッページ0.1%でエントリー
+        if i + 1 >= n:
+            continue
+        if direction == "UP":
+            entry = o_arr[i + 1] * 1.001  # 翌日始値 + 0.1% スリッページ
+        else:
+            entry = o_arr[i + 1] * 0.999  # 翌日始値 - 0.1% スリッページ
+
         atr_i = atr_arr[i] if not np.isnan(atr_arr[i]) else entry * 0.02
         if direction == "UP":
             stop   = entry - ATR_STOP_MULT * atr_i
@@ -416,7 +503,7 @@ def _backtest(sig_id: str, ind: dict, direction: str, hold_days: int) -> dict | 
             target = entry - ATR_TARGET_MULT * atr_i
 
         outcome = None
-        for j in range(i + 1, min(i + hold_days + 1, n)):
+        for j in range(i + 2, min(i + MAX_HOLD + 2, n)):
             lo, hi = l[j], h[j]
             if direction == "UP":
                 if lo <= stop:   outcome = "LOSS"; break
@@ -425,22 +512,43 @@ def _backtest(sig_id: str, ind: dict, direction: str, hold_days: int) -> dict | 
                 if hi >= stop:   outcome = "LOSS"; break
                 if lo <= target: outcome = "WIN";  break
 
+        # Phase9: 最大保有バー超過で強制決済
         if outcome is None:
-            exit_c = c[min(i + hold_days, n - 1)]
+            exit_c = c[min(i + MAX_HOLD + 1, n - 1)]
             if direction == "UP":
+                profit_r = (exit_c - entry) / (entry - stop) if entry > stop else 0
                 outcome = "WIN" if exit_c > entry * 1.01 else "LOSS"
             else:
+                profit_r = (entry - exit_c) / (stop - entry) if stop > entry else 0
                 outcome = "WIN" if exit_c < entry * 0.99 else "LOSS"
+        else:
+            if outcome == "WIN":
+                if direction == "UP":
+                    profit_r = (target - entry) / (entry - stop) if entry > stop else 2.0
+                else:
+                    profit_r = (entry - target) / (stop - entry) if stop > entry else 2.0
+            else:
+                profit_r = -1.0
 
         if outcome == "WIN":
             wins += 1
+            win_profits.append(profit_r)
         else:
             losses += 1
 
     total = wins + losses
     if total < MIN_BACKTEST_HITS:
         return None
-    return {"win_rate": wins / total, "n": total, "wins": wins, "losses": losses}
+
+    win_rate = wins / total
+
+    # Phase9: 勝ちトレードの平均利益が0.5R未満なら勝率を0.9倍に調整
+    if win_profits:
+        avg_win_r = float(np.mean(win_profits))
+        if avg_win_r < 0.5:
+            win_rate = win_rate * 0.90
+
+    return {"win_rate": win_rate, "n": total, "wins": wins, "losses": losses}
 
 
 # ── RR計算（サポート/レジスタンスベース） ──────────────────────────────────────
@@ -464,7 +572,7 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
         target = max(entry + risk * 2.0, entry + atr_i * ATR_TARGET_MULT)
         # TP1: リスク×1.5（RR=1.5）
         tp1 = entry + risk * 1.5
-        rr = risk / abs(target - entry) if target != entry else 2.0
+        rr = abs(target - entry) / risk if risk > 0 else 2.0  # Phase1修正: reward÷risk
     else:  # SHORT
         # Resistance: 直近20バーの最高値
         resistance = float(np.max(h[max(0, i - 20):i]))
@@ -476,7 +584,7 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
         target = min(entry - risk * 2.0, entry - atr_i * ATR_TARGET_MULT)
         # TP1: リスク×1.5
         tp1 = entry - risk * 1.5
-        rr = risk / abs(entry - target) if entry != target else 2.0
+        rr = abs(entry - target) / risk if risk > 0 else 2.0  # Phase1修正: reward÷risk
 
     return {
         "entry": round(entry, 2), "stop": round(stop, 2),
@@ -485,40 +593,80 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
     }
 
 
-# ── 信頼度スコア ───────────────────────────────────────────────────────────────
-def _confidence(hits: list, rr: float, stage: int, direction: str) -> float:
-    """hits: list of {weight, win_rate, n}"""
+# ── 信頼度スコア（Phase8: 配分改善） ─────────────────────────────────────────
+def _confidence(hits: list, rr: float, stage: int, direction: str,
+                market_score: int = 50) -> float:
+    """
+    hits: list of {weight, win_rate, n}
+    Phase8 新配分:
+      win_rate   40% (過剰適合リスク低減)
+      stage      20% (Stage2/4の質を重視)
+      convergence 15% (複数シグナル一致)
+      rr         15% (RR品質)
+      market_ctx 10% (市場コンテキスト)
+    """
     if not hits:
         return 0.0
-    avg_wr  = np.mean([h["win_rate"] for h in hits])
-    avg_n   = np.mean([h["n"] for h in hits])
+    avg_wr = np.mean([h["win_rate"] for h in hits])
+    avg_n  = np.mean([h["n"] for h in hits])
 
-    # 合流ボーナス
+    # 合流スコア (0-1)
     n_hit = len(hits)
-    conf_factor = 0.50 if n_hit == 1 else 0.75 if n_hit == 2 else 1.0
+    convergence = 0.50 if n_hit == 1 else 0.75 if n_hit == 2 else 1.0
 
-    # Stage整合ボーナス
+    # Stage スコア (0-1) — Phase8: 詳細化
     if direction == "UP":
-        stage_f = {2: 1.0, 1: 0.5, 3: 0.4, 0: 0.3, 4: 0.1}.get(stage, 0.3)
+        # Stage 2初期（遷移直後）が最高評価
+        stage_f = {2: 1.0, 1: 0.40, 3: 0.20, 0: 0.15, 4: 0.05}.get(stage, 0.15)
     else:
-        stage_f = {4: 1.0, 3: 0.6, 1: 0.4, 0: 0.3, 2: 0.1}.get(stage, 0.3)
+        stage_f = {4: 1.0, 3: 0.50, 1: 0.20, 0: 0.15, 2: 0.05}.get(stage, 0.15)
 
-    raw = (0.60 * avg_wr
-           + 0.25 * min(rr / 3.0, 1.0)
-           + 0.10 * conf_factor
-           + 0.05 * stage_f)
+    # 市場スコア正規化 (0-1)
+    market_f = min(market_score / 100.0, 1.0)
 
-    # サンプルサイズ割引（小サンプルに厳しいペナルティ）
+    raw = (0.40 * avg_wr
+           + 0.20 * stage_f
+           + 0.15 * convergence
+           + 0.15 * min(rr / 3.0, 1.0)
+           + 0.10 * market_f)
+
+    # サンプルサイズ割引
     if avg_n < 10:
-        sample_adj = 0.50  # N < 10: 50%割引（非常に保守的）
+        sample_adj = 0.50
     elif avg_n < 20:
-        # N=10で70%, N=20で94.5%へ線形遷移
         sample_adj = 0.70 + 0.245 * (avg_n - 10) / 10
     else:
-        # N >= 20: sqrt ベース
         sample_adj = 0.70 + 0.30 * np.sqrt(min(avg_n, 30) / 30)
 
     return round(float(raw * sample_adj), 4)
+
+
+# ── シグナル矛盾検出（Phase3） ────────────────────────────────────────────────
+def _check_signal_conflicts(up_hits: list, dn_hits: list) -> tuple:
+    """
+    LONGとSHORTシグナルが同時発火している場合に矛盾を検出・除去。
+    Returns: (filtered_up_hits, filtered_dn_hits, conflict_note)
+    """
+    if not up_hits or not dn_hits:
+        return up_hits, dn_hits, None
+
+    up_score = sum(h["weight"] * h["win_rate"] for h in up_hits)
+    dn_score = sum(h["weight"] * h["win_rate"] for h in dn_hits)
+    total = up_score + dn_score
+    if total == 0:
+        return [], [], "CONFLICT_NEUTRAL"
+
+    diff_pct = abs(up_score - dn_score) / max(up_score, dn_score)
+
+    if diff_pct <= 0.10:
+        # 差が10%以内 → 方向性不明、両方除去
+        return [], [], "CONFLICT_NEUTRAL"
+    elif up_score > dn_score:
+        # UP優勢 → DNを除去
+        return up_hits, [], "CONFLICT_RESOLVED_UP"
+    else:
+        # DOWN優勢 → UPを除去
+        return [], dn_hits, "CONFLICT_RESOLVED_DOWN"
 
 
 # ── Stage遷移検出 ─────────────────────────────────────────────────────────────
@@ -547,7 +695,9 @@ def _has_stage_transition(ind: dict, direction: str) -> bool:
 
 
 # ── メイン分析 ─────────────────────────────────────────────────────────────────
-def _analyze_ticker(ticker: str, df: pd.DataFrame) -> dict | None:
+def _analyze_ticker(ticker: str, df: pd.DataFrame,
+                    market_score: int = 50,
+                    earnings_near: bool = False) -> dict | None:
     ind = _compute_indicators(df)
     if ind is None:
         return None
@@ -570,6 +720,9 @@ def _analyze_ticker(ticker: str, df: pd.DataFrame) -> dict | None:
         else:
             dn_hits.append(entry)
 
+    # Phase3: シグナル矛盾検出
+    up_hits, dn_hits, conflict_note = _check_signal_conflicts(up_hits, dn_hits)
+
     up_score = sum(h["weight"] * h["win_rate"] for h in up_hits)
     dn_score = sum(h["weight"] * h["win_rate"] for h in dn_hits)
 
@@ -580,15 +733,23 @@ def _analyze_ticker(ticker: str, df: pd.DataFrame) -> dict | None:
     else:
         return None  # NEUTRAL — skip
 
+    # Phase6: 市場環境が非常に悪い場合はLONGシグナルを却下
+    if market_score < 20 and direction == "UP":
+        return None
+
     rr_result = _calc_rr(ind, direction)
     if rr_result is None or rr_result["rr"] < RR_MIN:
         return None
 
-    conf = _confidence(hits, rr_result["rr"], stage, direction)
+    conf = _confidence(hits, rr_result["rr"], stage, direction, market_score)
 
     # Stage遷移ボーナス：より信頼度の高い状況を加点
     if _has_stage_transition(ind, direction):
         conf = round(conf + 0.05, 4)
+
+    # Phase7: 決算接近時は信頼度を半減
+    if earnings_near:
+        conf = round(conf * 0.5, 4)
 
     if conf < CONFIDENCE_THRESH:
         return None
@@ -598,20 +759,123 @@ def _analyze_ticker(ticker: str, df: pd.DataFrame) -> dict | None:
     atr_pct = rr_result["atr_pct"]
 
     return {
-        "ticker":      ticker,
-        "direction":   "LONG" if direction == "UP" else "SHORT",
-        "stage":       stage,
-        "confidence":  conf,
+        "ticker":       ticker,
+        "direction":    "LONG" if direction == "UP" else "SHORT",
+        "stage":        stage,
+        "confidence":   conf,
         "avg_win_rate": avg_wr,
-        "risk_reward": rr_result["rr"],
-        "entry_price": rr_result["entry"],
-        "stop_price":  rr_result["stop"],
-        "tp1_price":   rr_result["tp1"],
+        "risk_reward":  rr_result["rr"],
+        "entry_price":  rr_result["entry"],
+        "stop_price":   rr_result["stop"],
+        "tp1_price":    rr_result["tp1"],
         "target_price": rr_result["target"],
-        "atr_pct":     atr_pct,
-        "rsi":         round(rsi_now, 1) if rsi_now else None,
-        "signals":     hits,
+        "atr_pct":      atr_pct,
+        "rsi":          round(rsi_now, 1) if rsi_now else None,
+        "signals":      hits,
+        "earnings_near": earnings_near,
+        "conflict_note": conflict_note,
     }
+
+
+# ── 市場コンテキスト取得（Phase6） ────────────────────────────────────────────
+def _fetch_market_score() -> int:
+    """
+    TraderMonty breadth CSV から市場スコア(0-100)を算出。
+    取得失敗時は50（中立）を返す。
+    """
+    try:
+        import requests
+        url = "https://raw.githubusercontent.com/tradermonty/market-breadth-data/main/breadth.csv"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            return 50
+        import io
+        df = pd.read_csv(io.StringIO(resp.text))
+        if df.empty:
+            return 50
+
+        latest = df.iloc[-1]
+        score = 0
+
+        # % Above 200MA > 60%
+        pct_200 = None
+        for col in ["pct_above_200ma", "PCT_ABOVE_200MA", "above_200ma_pct", "%_above_200ma"]:
+            if col in df.columns:
+                pct_200 = float(latest[col])
+                break
+        if pct_200 is not None and pct_200 > 60:
+            score += 25
+
+        # AD Line: 直近5日で上昇トレンド
+        for col in ["ad_line", "AD_LINE", "ad_line_value"]:
+            if col in df.columns and len(df) >= 5:
+                ad_vals = df[col].tail(5).dropna().astype(float)
+                if len(ad_vals) >= 2 and ad_vals.iloc[-1] > ad_vals.iloc[0]:
+                    score += 25
+                break
+
+        # New Highs / New Lows > 2
+        nh, nl = None, None
+        for col in ["new_highs", "NEW_HIGHS", "new_high"]:
+            if col in df.columns:
+                nh = float(latest[col])
+                break
+        for col in ["new_lows", "NEW_LOWS", "new_low"]:
+            if col in df.columns:
+                nl = float(latest[col])
+                break
+        if nh is not None and nl is not None and nl > 0 and nh / nl > 2:
+            score += 25
+
+        # McClellan Oscillator > 0
+        for col in ["mcclellan", "MCCLELLAN", "mcclellan_oscillator", "mco"]:
+            if col in df.columns:
+                mco = float(latest[col])
+                if mco > 0:
+                    score += 25
+                break
+
+        print(f"[TechScan] 市場スコア: {score}/100 (breadth CSV 取得成功)")
+        return score
+
+    except Exception as e:
+        print(f"[TechScan] 市場スコア取得失敗（中立50を使用）: {e}")
+        return 50
+
+
+# ── 決算回避フィルター（Phase7） ──────────────────────────────────────────────
+def _fetch_earnings_near_tickers(tickers: list) -> set:
+    """
+    FMP API から直近の決算日を取得し、±3営業日以内の銘柄セットを返す。
+    API取得失敗時は空セット（フィルターしない）。
+    """
+    import os
+    fmp_key = os.environ.get("FMP_API_KEY", "")
+    if not fmp_key:
+        return set()
+    try:
+        import requests
+        from datetime import date, timedelta
+        today = date.today()
+        from_dt = (today - timedelta(days=4)).isoformat()
+        to_dt   = (today + timedelta(days=4)).isoformat()
+        url = (f"https://financialmodelingprep.com/api/v3/earning_calendar"
+               f"?from={from_dt}&to={to_dt}&apikey={fmp_key}")
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            return set()
+        data = resp.json()
+        near = set()
+        ticker_set = set(tickers)
+        for item in data:
+            t = item.get("symbol", "")
+            if t in ticker_set:
+                near.add(t)
+        print(f"[TechScan] 決算接近銘柄: {len(near)}件")
+        return near
+    except Exception as e:
+        print(f"[TechScan] 決算情報取得失敗（フィルターなし）: {e}")
+        return set()
 
 
 # ── DB からデータ読み込み ──────────────────────────────────────────────────────
@@ -649,6 +913,20 @@ def run():
     tickers = [r["ticker"] for r in cur.fetchall()]
     print(f"[TechScan] 対象銘柄数: {len(tickers)}")
 
+    # Phase6: 市場コンテキスト取得
+    market_score = _fetch_market_score()
+
+    # Phase6: 市場スコアに応じて confidence 閾値を調整
+    effective_thresh = CONFIDENCE_THRESH
+    if market_score >= 70:
+        effective_thresh = CONFIDENCE_THRESH - 0.02  # 好地合い: 少し緩める
+    elif market_score < 40:
+        effective_thresh = CONFIDENCE_THRESH + 0.03  # 悪地合い: 厳しくする
+    print(f"[TechScan] 市場スコア={market_score} → 有効信頼度閾値={effective_thresh:.2f}")
+
+    # Phase7: 決算接近銘柄を取得
+    earnings_near_set = _fetch_earnings_near_tickers(tickers)
+
     results = []
     for idx, ticker in enumerate(tickers):
         if idx % 50 == 0:
@@ -657,8 +935,10 @@ def run():
         if df is None:
             continue
         try:
-            res = _analyze_ticker(ticker, df)
-            if res:
+            earnings_near = ticker in earnings_near_set
+            res = _analyze_ticker(ticker, df, market_score=market_score,
+                                  earnings_near=earnings_near)
+            if res and res["confidence"] >= effective_thresh:
                 results.append(res)
         except Exception as e:
             print(f"[TechScan] {ticker} エラー: {e}")
@@ -733,6 +1013,12 @@ def run_daily():
     tickers = [p["ticker"] for p in picks]
     pick_map = {p["ticker"]: p for p in picks}
 
+    # Phase6: 市場コンテキスト取得
+    market_score = _fetch_market_score()
+
+    # Phase7: 決算接近銘柄取得
+    earnings_near_set = _fetch_earnings_near_tickers(tickers)
+
     cur.execute("DELETE FROM tech_daily_picks WHERE date = ?", (today,))
 
     for ticker in tickers:
@@ -772,29 +1058,38 @@ def run_daily():
             has_stage_a = len(active) > 0
             has_stage_b = len(stage_b) > 0
 
-            # ── 2段階判定 ──
-            # Stage A + Stage B 両方あり → エントリー
-            if has_stage_a and has_stage_b:
-                if adj_rr >= 2.0 and p["confidence"] >= 0.70:
-                    verdict = "STRONG_BUY" if p["direction"] == "LONG" else "STRONG_SELL"
-                elif adj_rr >= 1.5:
-                    verdict = "BUY" if p["direction"] == "LONG" else "SELL"
-                else:
-                    verdict = "WATCH"  # RR不足
-
-            # Stage A のみ（確認待ち） → 様子見
-            elif has_stage_a and not has_stage_b:
-                verdict = "WATCH"
-
-            # Stage B のみ（準備シグナルなし） → 待機
-            elif not has_stage_a and has_stage_b and adj_rr >= 1.5:
-                verdict = "WATCH"  # B単独はWATCH扱い
-
-            # どちらもなし
-            elif adj_rr >= 1.0:
-                verdict = "WAIT"
-            else:
+            # Phase6: 市場スコア < 20 の場合 LONG は却下
+            earnings_near = ticker in earnings_near_set
+            if market_score < 20 and p["direction"] == "LONG":
                 verdict = "PASSED"
+            else:
+                # ── 2段階判定 ──
+                # Stage A + Stage B 両方あり → エントリー
+                if has_stage_a and has_stage_b:
+                    if adj_rr >= 2.0 and p["confidence"] >= 0.70:
+                        verdict = "STRONG_BUY" if p["direction"] == "LONG" else "STRONG_SELL"
+                    elif adj_rr >= 1.5:
+                        verdict = "BUY" if p["direction"] == "LONG" else "SELL"
+                    else:
+                        verdict = "WATCH"  # RR不足
+
+                # Stage A のみ（確認待ち） → 様子見
+                elif has_stage_a and not has_stage_b:
+                    verdict = "WATCH"
+
+                # Stage B のみ（準備シグナルなし） → 待機
+                elif not has_stage_a and has_stage_b and adj_rr >= 1.5:
+                    verdict = "WATCH"  # B単独はWATCH扱い
+
+                # どちらもなし
+                elif adj_rr >= 1.0:
+                    verdict = "WAIT"
+                else:
+                    verdict = "PASSED"
+
+                # Phase7: 決算接近でエントリー系を格下げ
+                if earnings_near and verdict in ("STRONG_BUY", "STRONG_SELL", "BUY", "SELL"):
+                    verdict = "WATCH"  # 決算前は WATCH に格下げ
 
             cur.execute("""
                 INSERT INTO tech_daily_picks
