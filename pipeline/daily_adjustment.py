@@ -30,6 +30,19 @@ def run():
     cur  = conn.cursor()
     cur.execute("SELECT ticker, stop_price, target_price, direction FROM weekly_picks")
     picks = [dict(r) for r in cur.fetchall()]
+
+    # Load fundamentals and technical_screen for take-profit detection
+    funda_map, ts_map = {}, {}
+    for p in picks:
+        t = p["ticker"]
+        cur.execute("SELECT * FROM fundamentals WHERE ticker = ?", (t,))
+        row = cur.fetchone()
+        if row:
+            funda_map[t] = dict(row)
+        cur.execute("SELECT * FROM technical_screen WHERE ticker = ?", (t,))
+        row = cur.fetchone()
+        if row:
+            ts_map[t] = dict(row)
     conn.close()
 
     if not picks:
@@ -115,6 +128,10 @@ def run():
             if adj_rr < MIN_RR_TIER2:
                 notes.append(f"RR低下({adj_rr:.2f})")
 
+            # Take-profit detection
+            from pipeline.stage6_scoring import compute_take_profit_signals
+            tp = compute_take_profit_signals(funda_map.get(ticker), ts_map.get(ticker))
+
             daily_rows.append({
                 "ticker":               ticker,
                 "date":                 today,
@@ -124,6 +141,8 @@ def run():
                 "volume_confirmation":  1 if vol_conf else 0,
                 "daily_verdict":        verdict,
                 "notes":                "、".join(notes),
+                "take_profit_verdict":  tp["verdict"],
+                "take_profit_signals":  "、".join(tp["signals"]),
             })
             print(f"  {ticker:6s} | ${price:.2f} | RR={adj_rr:.2f} | {verdict}")
 
@@ -136,17 +155,21 @@ def run():
             cur.execute("""
                 INSERT INTO daily_picks
                     (ticker, date, current_price, adjusted_rr,
-                     breakout_triggered, volume_confirmation, daily_verdict, notes)
-                VALUES (?,?,?,?,?,?,?,?)
+                     breakout_triggered, volume_confirmation, daily_verdict, notes,
+                     take_profit_verdict, take_profit_signals)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
                 ON CONFLICT (ticker, date) DO UPDATE SET
                     current_price=EXCLUDED.current_price, adjusted_rr=EXCLUDED.adjusted_rr,
                     breakout_triggered=EXCLUDED.breakout_triggered,
                     volume_confirmation=EXCLUDED.volume_confirmation,
-                    daily_verdict=EXCLUDED.daily_verdict, notes=EXCLUDED.notes
+                    daily_verdict=EXCLUDED.daily_verdict, notes=EXCLUDED.notes,
+                    take_profit_verdict=EXCLUDED.take_profit_verdict,
+                    take_profit_signals=EXCLUDED.take_profit_signals
             """, (
                 row["ticker"], row["date"], row["current_price"], row["adjusted_rr"],
                 row["breakout_triggered"], row["volume_confirmation"],
                 row["daily_verdict"], row["notes"],
+                row["take_profit_verdict"], row["take_profit_signals"],
             ))
 
     print(f"[Daily] Done. {len(daily_rows)} tickers updated.")

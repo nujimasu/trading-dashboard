@@ -21,22 +21,59 @@ def get_themes(ticker: str) -> list[str]:
 
 def compute_composite_score(tech_score: float, rr: float, vcp_score: float, fundamentals: dict | None = None) -> float:
     """
-    Composite score (0-100) — pure technical:
-    - Technical score (50%): 1-10 scale normalized
-    - RR quality (30%): capped at RR=3.0 for max points
-    - VCP score (20%): already 0-100
-    Fundamentals are reference-only and do NOT affect this score.
+    Hybrid composite score (0-100) — 50% Technical + 50% Fundamental.
+
+    Technical (50 pts):
+      - Trend & Momentum (25): tech_score 1-10 → 0-25
+      - Pattern Quality  (15): vcp_score 0-100 → 0-15
+      - RR Quality       (10): rr capped at 3.0 → 0-10
+
+    Fundamental (50 pts):
+      - Earnings Quality     (20): EPS growth + revenue growth
+      - Valuation Health     (15): PE ratio reasonableness
+      - Growth Sustainability(15): earnings surprise + ROE
     """
-    # Technical (0-50)
-    tech_component = (tech_score / 10) * 50
+    # === TECHNICAL (0-50) ===
+    trend_momentum  = (tech_score / 10) * 25
+    pattern_quality = (vcp_score / 100) * 15
+    rr_quality      = min(rr / 3.0, 1.0) * 10
+    tech_total = trend_momentum + pattern_quality + rr_quality
 
-    # RR (0-30): 1.5 → 15pts, 2.0 → 20pts, 3.0 → 30pts
-    rr_component = min(rr / 3.0, 1.0) * 30
+    # === FUNDAMENTAL (0-50) ===
+    if fundamentals:
+        # Earnings Quality (0-20): EPS growth 0-50%→12pts + Revenue growth 0-30%→8pts
+        eps_g = fundamentals.get("eps_growth_yoy") or 0
+        rev_g = fundamentals.get("revenue_growth_yoy") or 0
+        eps_pts = min(max(eps_g, 0) / 50, 1.0) * 12
+        rev_pts = min(max(rev_g, 0) / 30, 1.0) * 8
+        earnings_quality = eps_pts + rev_pts
 
-    # VCP (0-20)
-    vcp_component = (vcp_score / 100) * 20
+        # Valuation Health (0-15): PE ratio scoring
+        pe = fundamentals.get("pe_ratio")
+        if pe is not None and pe > 0:
+            if pe <= 15:
+                val_pts = 15.0
+            elif pe <= 25:
+                val_pts = 15.0 - ((pe - 15) / 10) * 5
+            elif pe <= 40:
+                val_pts = 10.0 - ((pe - 25) / 15) * 7
+            else:
+                val_pts = max(3.0 - ((pe - 40) / 20) * 3, 0)
+        else:
+            val_pts = 7.5  # neutral when data unavailable
 
-    total = tech_component + rr_component + vcp_component
+        # Growth Sustainability (0-15): Earnings surprise 0-15%→8pts + ROE 0-30%→7pts
+        surprise = fundamentals.get("earnings_surprise_pct") or 0
+        roe = fundamentals.get("roe") or 0
+        surprise_pts = min(max(surprise, 0) / 15, 1.0) * 8
+        roe_pts = min(max(roe, 0) / 30, 1.0) * 7
+        sustainability = surprise_pts + roe_pts
+
+        funda_total = earnings_quality + val_pts + sustainability
+    else:
+        funda_total = 25.0  # neutral default
+
+    total = tech_total + funda_total
     return round(min(total, 100.0), 1)
 
 
@@ -68,6 +105,45 @@ def compute_fundamental_verdict(f: dict | None) -> str:
     elif score >= 0: return "中立"
     elif score >= -2: return "やや弱気"
     else:            return "弱気"
+
+
+def compute_take_profit_signals(f: dict | None, ts: dict | None) -> dict:
+    """Detect fundamental overvaluation / take-profit signals."""
+    signals = []
+    severity = 0
+
+    if f:
+        pe = f.get("pe_ratio")
+        if pe is not None and pe > 30:
+            signals.append(f"PE過熱({pe:.1f})")
+            severity += 1 if pe <= 40 else 2
+
+        eps_g = f.get("eps_growth_yoy") or 0
+        if eps_g < 0:
+            signals.append(f"EPS成長鈍化({eps_g:.1f}%)")
+            severity += 1 if eps_g > -10 else 2
+
+        rev_g = f.get("revenue_growth_yoy") or 0
+        if rev_g < 0:
+            signals.append(f"売上成長停滞({rev_g:.1f}%)")
+            severity += 1
+
+    if ts:
+        rsi = ts.get("rsi")
+        if rsi is not None and rsi > 75:
+            signals.append(f"RSI過熱({rsi:.1f})")
+            severity += 1
+
+    if severity >= 3:
+        verdict = "TAKE_PROFIT"
+    elif severity >= 2:
+        verdict = "REDUCE"
+    elif severity >= 1:
+        verdict = "WATCH_EXIT"
+    else:
+        verdict = "HOLD"
+
+    return {"verdict": verdict, "signals": signals, "severity": severity}
 
 
 def build_technical_summary(da: dict, ts: dict) -> dict:
@@ -208,11 +284,12 @@ def run(tickers: list[str]) -> list[str]:
         ts = dict(ts) if ts else {}
         f  = dict(f)  if f  else None
 
-        # Composite score (pure technical — fundamentals are reference only)
+        # Hybrid composite score (50% technical + 50% fundamental)
         score = compute_composite_score(
             tech_score=da.get("technical_score", 5),
             rr=da.get("risk_reward", 0),
             vcp_score=da.get("vcp_score", 0),
+            fundamentals=f,
         )
         fundamental_verdict = compute_fundamental_verdict(f)
 
@@ -222,6 +299,10 @@ def run(tickers: list[str]) -> list[str]:
         direction     = da.get("direction", "LONG")
         tech_summary  = build_technical_summary(da, ts)
         fund_summary  = build_fundamental_summary(f)
+
+        # Take-profit signals
+        tp_info = compute_take_profit_signals(f, ts)
+        tech_summary["take_profit"] = tp_info
 
         # Verdict depends on direction
         if direction == "SHORT":
@@ -241,7 +322,7 @@ def run(tickers: list[str]) -> list[str]:
             "tp1_price":            da.get("tp1_price"),
             "target_price":         da.get("target_price"),
             "risk_reward":          da.get("risk_reward"),
-            "holding_days_est":     da.get("holding_days_est", 20),
+            "holding_days_est":     da.get("holding_days_est", 30),
             "technical_summary":    json.dumps(tech_summary,  ensure_ascii=False),
             "fundamental_summary":  json.dumps(fund_summary,  ensure_ascii=False),
             "fundamental_verdict":  fundamental_verdict,

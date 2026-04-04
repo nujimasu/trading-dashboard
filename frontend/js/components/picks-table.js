@@ -16,23 +16,31 @@ async function _getMarketHealth() {
 let openDetailRow = null;  // track currently expanded row
 
 export function renderPicksTable(container, picks, title, mode = "weekly") {
+  const isDaily = mode === "daily";
+  const isTP    = mode === "take-profit";
+  const isHybridEntry = mode === "hybrid-entry";
+
   if (!picks.length) {
-    const emptyMsg = mode === "daily"
-      ? "本日の候補なし — 毎朝7:00に自動更新されます（手動: <code>python3 pipeline/run_pipeline.py --daily-only</code>）"
-      : "候補銘柄なし — パイプラインを実行してください。";
+    const emptyMsg = isTP
+      ? "利確シグナルなし — 全銘柄「継続保有」の判定です。"
+      : isDaily
+        ? "本日の候補なし — 毎朝7:00に自動更新されます（手動: <code>python3 pipeline/run_pipeline.py --daily-only</code>）"
+        : "候補銘柄なし — パイプラインを実行してください。";
     container.innerHTML = `
       <div class="section-title">${title}</div>
       <div class="empty-state">${emptyMsg}</div>`;
     return;
   }
 
-  const headerExtra = mode === "daily"
-    ? `<th>現在値</th><th>判定RR</th><th>ブレイク</th><th>出来高</th>`
-    : ``;
-
   const rows = picks.map((p, i) => {
-    const verdictText  = verdictLabel(mode === "daily" ? p.daily_verdict : p.verdict);
-    const verdictClass = verdictCss(mode === "daily"   ? p.daily_verdict : p.verdict);
+    // Determine which verdict to show
+    let vKey;
+    if (isTP)         vKey = p.take_profit_verdict || "HOLD";
+    else if (isDaily) vKey = p.daily_verdict;
+    else              vKey = p.daily_verdict || p.verdict;
+
+    const verdictText  = verdictLabel(vKey);
+    const verdictClass = verdictCss(vKey);
     const tierBadge    = p.tier === "Tier1"
       ? `<span class="tier-badge tier-t1">T1</span>`
       : `<span class="tier-badge tier-t2">T2</span>`;
@@ -40,15 +48,19 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
       ? `<span class="dir-badge dir-short">▼SHORT</span>`
       : `<span class="dir-badge dir-long">▲LONG</span>`;
 
-    const rr = mode === "daily" ? (p.adjusted_rr ?? p.weekly_rr) : p.risk_reward;
-
-    const dailyBreakout = mode === "daily" ? `<td>${p.breakout_triggered ? "✅" : "—"}</td>` : ``;
-    const dailyVolume = mode === "daily" ? `<td>${p.volume_confirmation ? "✅" : "—"}</td>` : ``;
-    const dailyPrice = mode === "daily" ? `<td>$${fmt(p.current_price)}</td>` : ``;
-    const dailyAdjRr = mode === "daily" ? `<td>${fmt(p.adjusted_rr)}</td>` : ``;
+    const rr = (isDaily || isHybridEntry || isTP) ? (p.adjusted_rr ?? p.weekly_rr ?? p.risk_reward) : p.risk_reward;
 
     const score = p.composite_score ?? "—";
     const holdBadge = _holdingBadge(p.holding_days_est);
+
+    // Take-profit mode: show TP signals column
+    const tpCol = isTP ? `<td style="font-size:.78rem">${escHtml(p.take_profit_signals || "—")}</td>` : "";
+
+    // Daily-specific columns
+    const dailyBreakout = isDaily ? `<td>${p.breakout_triggered ? "✅" : "—"}</td>` : ``;
+    const dailyVolume   = isDaily ? `<td>${p.volume_confirmation ? "✅" : "—"}</td>` : ``;
+    const dailyPrice    = (isDaily || isHybridEntry || isTP) && p.current_price
+      ? `<td>$${fmt(p.current_price)}</td>` : (isDaily || isHybridEntry || isTP) ? `<td>—</td>` : ``;
 
     return `
       <tr data-idx="${i}" class="pick-row">
@@ -56,6 +68,7 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
         <td>${tierBadge}</td>
         <td>${score}</td>
         <td class="${verdictClass}">${verdictText}</td>
+        ${tpCol}
         ${dailyBreakout}
         ${dailyVolume}
         <td>${holdBadge}</td>
@@ -67,10 +80,9 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
         <td>$${fmt(p.target_price)}</td>
         <td>${p.sector || "—"}</td>
         ${dailyPrice}
-        ${dailyAdjRr}
       </tr>
       <tr class="detail-row" id="detail-${i}" style="display:none">
-        <td colspan="100">${buildDetailPanel(p, i)}</td>
+        <td colspan="100">${buildDetailPanel(p, i, mode)}</td>
       </tr>`;
   }).join("");
 
@@ -81,11 +93,12 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
         <thead>
           <tr>
             <th>銘柄</th><th>Tier</th><th>スコア</th><th>判定</th>
-            ${mode === "daily" ? "<th>ブレイク</th><th>出来高</th>" : ""}
+            ${isTP ? "<th>利確理由</th>" : ""}
+            ${isDaily ? "<th>ブレイク</th><th>出来高</th>" : ""}
             <th>保有期間</th><th>方向</th>
             <th>RR</th><th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
             <th>セクター</th>
-            ${mode === "daily" ? "<th>現在値</th><th>現RR</th>" : ""}
+            ${(isDaily || isHybridEntry || isTP) ? "<th>現在値</th>" : ""}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -148,7 +161,7 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
   });
 }
 
-function buildDetailPanel(p, idx) {
+function buildDetailPanel(p, idx, mode = "weekly") {
   const ts = p.technical_summary   || {};
   const fs = p.fundamental_summary || {};
 
@@ -254,6 +267,7 @@ function buildDetailPanel(p, idx) {
 
         ${fundBlock}
         ${sectorBlock}
+        ${_buildTakeProfitBlock(p)}
       </div>
       ${chartDiv}
       </div>
@@ -261,6 +275,20 @@ function buildDetailPanel(p, idx) {
 }
 
 // ── helpers ────────────────────────────────────────────────
+
+function _buildTakeProfitBlock(p) {
+  const tpVerdict  = p.take_profit_verdict || (p.technical_summary?.take_profit?.verdict);
+  const tpSignals  = p.take_profit_signals || (p.technical_summary?.take_profit?.signals || []).join("、");
+  if (!tpVerdict || tpVerdict === "HOLD") return "";
+  const label = verdictLabel(tpVerdict);
+  const css   = verdictCss(tpVerdict);
+  return `
+    <div class="detail-block">
+      <h4>利確シグナル</h4>
+      ${kv("判定", `<span class="${css}" style="font-weight:700">${label}</span>`)}
+      ${kv("理由", escHtml(tpSignals) || "—")}
+    </div>`;
+}
 
 function _holdingBadge(days) {
   if (!days) return '<span class="hold-badge hold-unknown">—</span>';
@@ -287,6 +315,8 @@ function verdictLabel(v) {
     BUY: "買い", WATCH: "様子見", "NO-BUY": "見送り",
     ENTRY_NOW: "今日エントリー", WAIT: "待機", PASSED: "通過済",
     SHORT_SELL: "売り", SHORT_WATCH: "ショート様子見",
+    TAKE_PROFIT: "利確推奨", REDUCE: "一部利確",
+    WATCH_EXIT: "出口注視", HOLD: "継続保有",
   };
   return map[v] || v || "—";
 }
@@ -295,6 +325,8 @@ function verdictCss(v) {
     BUY: "verdict-buy", WATCH: "verdict-watch", "NO-BUY": "verdict-nobuy",
     ENTRY_NOW: "verdict-entry", WAIT: "verdict-wait", PASSED: "verdict-passed",
     SHORT_SELL: "verdict-short", SHORT_WATCH: "verdict-short-watch",
+    TAKE_PROFIT: "verdict-short", REDUCE: "verdict-short-watch",
+    WATCH_EXIT: "verdict-watch", HOLD: "verdict-buy",
   };
   return map[v] || "";
 }

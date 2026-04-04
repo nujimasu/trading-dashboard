@@ -15,14 +15,14 @@ const SECTIONS = [
   { id: "market-health",    label: "市場ヘルス",             icon: "📊", load: loadMarketHealth },
   { id: "economic",         label: "経済指標",               icon: "📈", load: loadEconomic },
   { id: "news",             label: "ビッグニュース",         icon: "📰", load: loadNews },
-  // ── ファンダ考慮 ──────────────────────────────────────────────────────
-  { id: "weekly-picks",     label: "週次（ファンダ考慮）",   icon: "🎯", load: loadWeekly,     group: "funda" },
-  { id: "daily-picks",      label: "日次（ファンダ考慮）",   icon: "⚡", load: loadDaily,      group: "funda" },
+  // ── ハイブリッド ──────────────────────────────────────────────────────
+  { id: "hybrid-entry",      label: "ハイブリッド エントリー", icon: "🎯", load: loadHybridEntry,      group: "hybrid" },
+  { id: "hybrid-takeprofit", label: "ハイブリッド 利確",       icon: "💰", load: loadHybridTakeProfit, group: "hybrid" },
   // ── テクニカル重視 ────────────────────────────────────────────────────
   { id: "tech-weekly",      label: "週次（テクニカル重視）", icon: "📡", load: loadTechWeekly, group: "tech" },
   { id: "tech-daily",       label: "日次（テクニカル重視）", icon: "🔬", load: loadTechDaily,  group: "tech" },
   // ── ガイド ────────────────────────────────────────────────────────────
-  { id: "strategy-guide",      label: "ロジック（ファンダ）",   icon: "📖", load: loadStrategyGuide,    group: "guide" },
+  { id: "strategy-guide",      label: "ロジック（ハイブリッド）", icon: "📖", load: loadStrategyGuide,    group: "guide" },
   { id: "tech-strategy-guide", label: "ロジック（テクニカル）", icon: "🧪", load: loadTechStrategyGuide, group: "guide" },
   // ─────────────────────────────────────────────────────────────────────
   { id: "search",              label: "銘柄検索",               icon: "🔍", load: loadSearch },
@@ -57,8 +57,8 @@ function buildSidebar() {
   let lastGroup = null;
   SECTIONS.forEach(s => {
     if (s.group && s.group !== lastGroup) {
-      const groupLabel = s.group === "funda" ? "ファンダ考慮"
-                       : s.group === "tech"  ? "テクニカル重視"
+      const groupLabel = s.group === "hybrid" ? "ハイブリッド"
+                       : s.group === "tech"   ? "テクニカル重視"
                        : "ロジック説明";
       html += `<div class="nav-group-label">${groupLabel}</div>`;
       lastGroup = s.group;
@@ -129,24 +129,44 @@ async function loadNews(container) {
   await renderEvents(container, "/api/news", "📰 ビッグニュース");
 }
 
-async function loadWeekly(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>週次ピック取得中...</span></div>`;
+async function loadHybridEntry(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>ハイブリッドエントリー候補取得中...</span></div>`;
   try {
-    const picks = await apiFetch("/api/weekly-picks");
-    renderPicksTable(container, picks, "🎯 今週のエントリー推奨銘柄", "weekly");
+    const [weekly, daily] = await Promise.all([
+      apiFetch("/api/weekly-picks"),
+      apiFetch("/api/daily-picks"),
+    ]);
+    const merged = _mergeWeeklyDaily(weekly, daily);
+    const entries = merged.filter(p => p.daily_verdict !== "PASSED");
+    renderPicksTable(container, entries, "🎯 ハイブリッド エントリー候補", "hybrid-entry");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
   }
 }
 
-async function loadDaily(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>本日の推奨取得中...</span></div>`;
+async function loadHybridTakeProfit(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>利確シグナル取得中...</span></div>`;
   try {
-    const picks = await apiFetch("/api/daily-picks");
-    renderPicksTable(container, picks, "⚡ 本日のエントリー候補", "daily");
+    const daily = await apiFetch("/api/daily-picks");
+    const tp = daily.filter(p => p.take_profit_verdict && p.take_profit_verdict !== "HOLD");
+    renderPicksTable(container, tp, "💰 ハイブリッド 利確シグナル", "take-profit");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
   }
+}
+
+function _mergeWeeklyDaily(weekly, daily) {
+  const map = {};
+  weekly.forEach(w => { map[w.ticker] = { ...w }; });
+  daily.forEach(d => {
+    if (map[d.ticker]) {
+      const score = map[d.ticker].composite_score;
+      map[d.ticker] = { ...map[d.ticker], ...d, composite_score: score };
+    } else {
+      map[d.ticker] = { ...d };
+    }
+  });
+  return Object.values(map).sort((a, b) => (b.composite_score || 0) - (a.composite_score || 0));
 }
 
 async function loadTechWeekly(container) {

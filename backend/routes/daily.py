@@ -38,6 +38,8 @@ def get_daily_picks():
             d.volume_confirmation,
             d.daily_verdict,
             d.notes,
+            d.take_profit_verdict,
+            d.take_profit_signals,
             w.composite_score,
             w.tier,
             w.sector,
@@ -93,6 +95,8 @@ def get_daily_picks():
             "fundamental_verdict": r["fundamental_verdict"] or "データなし",
             "technical_summary":   json.loads(r["technical_summary"]  or "{}"),
             "fundamental_summary": json.loads(r["fundamental_summary"] or "{}"),
+            "take_profit_verdict": r["take_profit_verdict"] or "HOLD",
+            "take_profit_signals": r["take_profit_signals"] or "",
         }
         for r in rows
     ]

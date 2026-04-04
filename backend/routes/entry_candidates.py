@@ -1,4 +1,4 @@
-"""GET /api/entry-candidates — 全4ソースのエントリー候補を統合"""
+"""GET /api/entry-candidates — 全4ソース（ハイブリッド+テクニカル）のエントリー候補を統合"""
 import json
 from datetime import date
 from fastapi import APIRouter
@@ -59,13 +59,13 @@ def get_entry_candidates():
     for r in cur.fetchall():
         if r["daily_verdict"] in DAILY_FUNDA_OK:
             c = _get(r["ticker"])
-            c["sources"].append("daily_funda")
+            c["sources"].append("daily_hybrid")
             c["current_price"]      = r["current_price"]
             c["best_rr"]            = r["adjusted_rr"]
             c["tier"]               = r["tier"]
             c["sector"]             = r["sector"]
             c["direction"]          = r["direction"] or "LONG"
-            c["verdicts"]["daily_funda"] = r["daily_verdict"]
+            c["verdicts"]["daily_hybrid"] = r["daily_verdict"]
             if r["composite_score"] is not None:
                 c["composite_score"] = r["composite_score"]
             # 詳細データ
@@ -120,7 +120,7 @@ def get_entry_candidates():
     """)
     for r in cur.fetchall():
         c = _get(r["ticker"])
-        c["sources"].append("weekly_funda")
+        c["sources"].append("weekly_hybrid")
         if c["current_price"] is None:
             c["current_price"] = r["entry_price"]
         if c["best_rr"] is None or (r["risk_reward"] or 0) > (c["best_rr"] or 0):
@@ -128,7 +128,7 @@ def get_entry_candidates():
         if c["tier"] is None:    c["tier"]    = r["tier"]
         if c["sector"] is None:  c["sector"]  = r["sector"]
         c["direction"] = r["direction"] or "LONG"
-        c["verdicts"]["weekly_funda"] = r["verdict"]
+        c["verdicts"]["weekly_hybrid"] = r["verdict"]
         if r["composite_score"] is not None:
             if c["composite_score"] is None or r["composite_score"] > c["composite_score"]:
                 c["composite_score"] = r["composite_score"]
