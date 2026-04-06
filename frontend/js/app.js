@@ -3,25 +3,17 @@ import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2
 import { renderPicksTable }         from "./components/picks-table.js?v=10";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=3";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
-import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
-import { renderTechStrategyGuide }  from "./components/tech-strategy-guide.js?v=2";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: "market-health",    label: "市場ヘルス",             icon: "📊", load: loadMarketHealth },
-  { id: "economic",         label: "経済指標",               icon: "📈", load: loadEconomic },
-  // ── ハイブリッド ──────────────────────────────────────────────────────
-  { id: "hybrid-entry",      label: "ハイブリッド エントリー", icon: "🎯", load: loadHybridEntry,      group: "hybrid" },
-  { id: "hybrid-takeprofit", label: "ハイブリッド 利確",       icon: "💰", load: loadHybridTakeProfit, group: "hybrid" },
-  // ── テクニカル重視 ────────────────────────────────────────────────────
-  { id: "tech-weekly",      label: "週次（テクニカル重視）", icon: "📡", load: loadTechWeekly, group: "tech" },
-  { id: "tech-daily",       label: "日次（テクニカル重視）", icon: "🔬", load: loadTechDaily,  group: "tech" },
-  // ── ガイド ────────────────────────────────────────────────────────────
-  { id: "strategy-guide",      label: "ロジック（ハイブリッド）", icon: "📖", load: loadStrategyGuide,    group: "guide" },
-  { id: "tech-strategy-guide", label: "ロジック（テクニカル）", icon: "🧪", load: loadTechStrategyGuide, group: "guide" },
-  // ─────────────────────────────────────────────────────────────────────
-  { id: "search",              label: "銘柄検索",               icon: "🔍", load: loadSearch },
+  { id: "market-health", label: "市場ヘルス", icon: "📊", load: loadMarketHealth },
+  { id: "economic",      label: "経済指標",   icon: "📈", load: loadEconomic },
+  // ── リスト ───────────────────────────────────────────────────────────────
+  { id: "logic1", label: "ロジック１（ファンダ考慮）", icon: "🎯", load: loadLogic1, group: "list" },
+  { id: "logic2", label: "ロジック２",                 icon: "🔬", load: loadLogic2, group: "list" },
+  // ─────────────────────────────────────────────────────────────────────────
+  { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
 
 let currentSection = null;
@@ -53,10 +45,7 @@ function buildSidebar() {
   let lastGroup = null;
   SECTIONS.forEach(s => {
     if (s.group && s.group !== lastGroup) {
-      const groupLabel = s.group === "hybrid" ? "ハイブリッド"
-                       : s.group === "tech"   ? "テクニカル重視"
-                       : "ロジック説明";
-      html += `<div class="nav-group-label">${groupLabel}</div>`;
+      html += `<div class="nav-group-label">リスト</div>`;
       lastGroup = s.group;
     } else if (!s.group && lastGroup) {
       html += `<div class="nav-separator"></div>`;
@@ -117,8 +106,9 @@ async function loadEconomic(container) {
   await renderEconomicDashboard(container);
 }
 
-async function loadHybridEntry(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>ハイブリッドエントリー候補取得中...</span></div>`;
+// ロジック１（ファンダ考慮）: 旧ハイブリッドエントリー
+async function loadLogic1(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
   try {
     const [weekly, daily] = await Promise.all([
       apiFetch("/api/weekly-picks"),
@@ -126,18 +116,7 @@ async function loadHybridEntry(container) {
     ]);
     const merged = _mergeWeeklyDaily(weekly, daily);
     const entries = merged.filter(p => p.daily_verdict !== "PASSED" && p.direction !== "SHORT");
-    renderPicksTable(container, entries, "🎯 ハイブリッド エントリー候補", "hybrid-entry");
-  } catch (e) {
-    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
-  }
-}
-
-async function loadHybridTakeProfit(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>利確シグナル取得中...</span></div>`;
-  try {
-    const daily = await apiFetch("/api/daily-picks");
-    const tp = daily.filter(p => p.take_profit_verdict && p.take_profit_verdict !== "HOLD" && p.direction !== "SHORT");
-    renderPicksTable(container, tp, "💰 ハイブリッド 利確シグナル", "take-profit");
+    renderPicksTable(container, entries, "🎯 ロジック１（ファンダ考慮）", "hybrid-entry");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
   }
@@ -157,32 +136,15 @@ function _mergeWeeklyDaily(weekly, daily) {
   return Object.values(map).sort((a, b) => (b.composite_score || 0) - (a.composite_score || 0));
 }
 
-async function loadTechWeekly(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>テクニカルスキャン取得中...</span></div>`;
-  try {
-    const picks = await apiFetch("/api/tech-weekly-picks");
-    renderTechPicksTable(container, picks, "📡 週次テクニカルスキャン結果", "weekly");
-  } catch (e) {
-    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
-  }
-}
-
-async function loadTechDaily(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>本日のテクニカル推奨取得中...</span></div>`;
+// ロジック２: 旧日次（テクニカル重視）
+async function loadLogic2(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
   try {
     const picks = await apiFetch("/api/tech-daily-picks");
-    renderTechPicksTable(container, picks, "🔬 本日のテクニカルエントリー候補", "daily");
+    renderTechPicksTable(container, picks, "🔬 ロジック２", "daily");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
   }
-}
-
-function loadStrategyGuide(container) {
-  renderStrategyGuide(container);
-}
-
-function loadTechStrategyGuide(container) {
-  renderTechStrategyGuide(container);
 }
 
 function loadSearch(container) {
