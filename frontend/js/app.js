@@ -3,6 +3,8 @@ import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2
 import { renderPicksTable }         from "./components/picks-table.js?v=10";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=3";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
+import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
+import { renderTechStrategyGuide }  from "./components/tech-strategy-guide.js?v=2";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
@@ -12,6 +14,9 @@ const SECTIONS = [
   // ── リスト ───────────────────────────────────────────────────────────────
   { id: "logic1", label: "ロジック１（ファンダ考慮）", icon: "🎯", load: loadLogic1, group: "list" },
   { id: "logic2", label: "ロジック２",                 icon: "🔬", load: loadLogic2, group: "list" },
+  // ── ロジック説明 ──────────────────────────────────────────────────────────
+  { id: "strategy-guide",      label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,    group: "guide" },
+  { id: "tech-strategy-guide", label: "ロジック２の説明", icon: "🧪", load: loadTechStrategyGuide, group: "guide" },
   // ─────────────────────────────────────────────────────────────────────────
   { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
@@ -45,7 +50,8 @@ function buildSidebar() {
   let lastGroup = null;
   SECTIONS.forEach(s => {
     if (s.group && s.group !== lastGroup) {
-      html += `<div class="nav-group-label">リスト</div>`;
+      const groupLabel = s.group === "list" ? "リスト" : "ロジック説明";
+      html += `<div class="nav-group-label">${groupLabel}</div>`;
       lastGroup = s.group;
     } else if (!s.group && lastGroup) {
       html += `<div class="nav-separator"></div>`;
@@ -145,6 +151,14 @@ async function loadLogic2(container) {
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
   }
+}
+
+function loadStrategyGuide(container) {
+  renderStrategyGuide(container);
+}
+
+function loadTechStrategyGuide(container) {
+  renderTechStrategyGuide(container);
 }
 
 function loadSearch(container) {
