@@ -245,6 +245,16 @@ def run_daily_full():
     except Exception as e:
         log_stage("DailyFull-Daily", "ERROR", str(e), time.time() - t0)
 
+    # ── ロジック３スキャン（日次）────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic3_scan import run as logic3_run
+        logic3_run()
+        log_stage("DailyFull-Logic3", "OK", "logic3_picks updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Logic3", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic3 scan failed: {e}")
+
     # ── テクニカルスキャン（日次）────────────────────────────────────────────
     t0 = time.time()
     try:
