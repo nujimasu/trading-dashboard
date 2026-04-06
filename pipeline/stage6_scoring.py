@@ -297,6 +297,11 @@ def run(tickers: list[str]) -> list[str]:
         themes = get_themes(ticker)
 
         direction     = da.get("direction", "LONG")
+
+        # ハイブリッドパイプラインはLONGのみ（ファンダスコアはロング優位の指標のため）
+        if direction == "SHORT":
+            continue
+
         tech_summary  = build_technical_summary(da, ts)
         fund_summary  = build_fundamental_summary(f)
 
@@ -304,11 +309,7 @@ def run(tickers: list[str]) -> list[str]:
         tp_info = compute_take_profit_signals(f, ts)
         tech_summary["take_profit"] = tp_info
 
-        # Verdict depends on direction
-        if direction == "SHORT":
-            verdict = "SHORT_SELL" if da.get("tier") == "Tier1" else "SHORT_WATCH"
-        else:
-            verdict = "BUY"        if da.get("tier") == "Tier1" else "WATCH"
+        verdict = "BUY" if da.get("tier") == "Tier1" else "WATCH"
 
         pick = {
             "ticker":               ticker,
@@ -331,8 +332,8 @@ def run(tickers: list[str]) -> list[str]:
         }
         picks.append(pick)
 
-    # Sort: longs by score desc, shorts by score desc, longs first
-    picks.sort(key=lambda x: (x["direction"] == "SHORT", -x["composite_score"]))
+    # Sort by score desc (LONGのみ)
+    picks.sort(key=lambda x: -x["composite_score"])
 
     # Save weekly picks
     cur.execute("DELETE FROM weekly_picks")
@@ -369,12 +370,9 @@ def run(tickers: list[str]) -> list[str]:
     compute_market_health(conn, today)
     conn.close()
 
-    longs_p  = [p for p in picks if p["direction"] == "LONG"]
-    shorts_p = [p for p in picks if p["direction"] == "SHORT"]
-    print(f"\n[Stage6] Weekly Picks — {len(longs_p)} long, {len(shorts_p)} short:")
+    print(f"\n[Stage6] Weekly Picks — {len(picks)} long (SHORTは除外):")
     for p in picks[:12]:
-        dir_icon = "📈" if p["direction"] == "LONG" else "📉"
-        print(f"  {dir_icon} {p['ticker']:6s} | Score={p['composite_score']:5.1f} | {p['tier']} | RR={p['risk_reward']:.2f} | {p['verdict']}")
+        print(f"  📈 {p['ticker']:6s} | Score={p['composite_score']:5.1f} | {p['tier']} | RR={p['risk_reward']:.2f} | {p['verdict']}")
 
     return [p["ticker"] for p in picks]
 

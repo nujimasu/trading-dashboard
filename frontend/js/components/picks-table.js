@@ -53,14 +53,14 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
     const score = p.composite_score ?? "—";
     const holdBadge = _holdingBadge(p.holding_days_est);
 
-    // Take-profit mode: show TP signals column
-    const tpCol = isTP ? `<td style="font-size:.78rem">${escHtml(p.take_profit_signals || "—")}</td>` : "";
-
     // Daily-specific columns
     const dailyBreakout = isDaily ? `<td>${p.breakout_triggered ? "✅" : "—"}</td>` : ``;
     const dailyVolume   = isDaily ? `<td>${p.volume_confirmation ? "✅" : "—"}</td>` : ``;
     const dailyPrice    = (isDaily || isHybridEntry || isTP) && p.current_price
       ? `<td>$${fmt(p.current_price)}</td>` : (isDaily || isHybridEntry || isTP) ? `<td>—</td>` : ``;
+
+    // ハイブリッドモード: エントリー/利確理由を表示
+    const hybridReasonCol = (isHybridEntry || isTP) ? `<td style="font-size:.76rem;color:var(--text-muted);max-width:220px">${_hybridReason(p, isTP)}</td>` : "";
 
     return `
       <tr data-idx="${i}" class="pick-row">
@@ -68,16 +68,12 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
         <td>${tierBadge}</td>
         <td>${score}</td>
         <td class="${verdictClass}">${verdictText}</td>
-        ${tpCol}
+        ${hybridReasonCol}
         ${dailyBreakout}
         ${dailyVolume}
         <td>${holdBadge}</td>
         <td>${dirBadge}</td>
-        <td>${fmt(rr)}</td>
-        <td>$${fmt(p.entry_price)}</td>
-        <td>$${fmt(p.stop_price)}</td>
-        <td>$${fmt(p.tp1_price)}</td>
-        <td>$${fmt(p.target_price)}</td>
+        ${!(isHybridEntry || isTP) ? `<td>${fmt(rr)}</td><td>$${fmt(p.entry_price)}</td><td>$${fmt(p.stop_price)}</td><td>$${fmt(p.tp1_price)}</td><td>$${fmt(p.target_price)}</td>` : `<td>${fmt(rr)}</td>`}
         <td>${p.sector || "—"}</td>
         ${dailyPrice}
       </tr>
@@ -95,8 +91,9 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
             <th>銘柄</th><th>Tier</th><th>スコア</th><th>判定</th>
             ${isTP ? "<th>利確理由</th>" : ""}
             ${isDaily ? "<th>ブレイク</th><th>出来高</th>" : ""}
+            ${(isHybridEntry || isTP) ? "<th>理由</th>" : ""}
             <th>保有期間</th><th>方向</th>
-            <th>RR</th><th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>
+            ${!(isHybridEntry || isTP) ? "<th>RR</th><th>エントリー</th><th>SL</th><th>TP1</th><th>TP2</th>" : "<th>RR</th>"}
             <th>セクター</th>
             ${(isDaily || isHybridEntry || isTP) ? "<th>現在値</th>" : ""}
           </tr>
@@ -275,6 +272,18 @@ function buildDetailPanel(p, idx, mode = "weekly") {
 }
 
 // ── helpers ────────────────────────────────────────────────
+
+function _hybridReason(p, isTP) {
+  if (isTP) {
+    // 利確モード: take_profit_signals を表示
+    const signals = p.take_profit_signals || (p.technical_summary?.take_profit?.signals || []).join("、");
+    return escHtml(signals) || "—";
+  }
+  // エントリーモード: entry_reasons の先頭2件を表示
+  const reasons = p.technical_summary?.entry_reasons || [];
+  if (reasons.length === 0) return "—";
+  return reasons.slice(0, 2).map(r => escHtml(r)).join("　/　");
+}
 
 function _buildTakeProfitBlock(p) {
   const tpVerdict  = p.take_profit_verdict || (p.technical_summary?.take_profit?.verdict);

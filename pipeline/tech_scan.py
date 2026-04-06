@@ -551,8 +551,12 @@ def _backtest(sig_id: str, ind: dict, direction: str, hold_days: int) -> dict | 
     return {"win_rate": win_rate, "n": total, "wins": wins, "losses": losses}
 
 
-# ── RR計算（サポート/レジスタンスベース） ──────────────────────────────────────
+# ── RR計算（市場構造ベース） ────────────────────────────────────────────────────
 def _calc_rr(ind: dict, direction: str) -> dict | None:
+    """
+    市場構造（スウィング高値/安値）に基づいてSL・TPを設定し、実際のRRを計算する。
+    RRを強制的に2.0にするのではなく、構造的なSL/TPから自然なRRを導く。
+    """
     i     = len(ind["c"]) - 1
     entry = ind["c"][i]
     atr_i = ind["atr"][i]
@@ -562,29 +566,51 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
     c, h, l = ind["c"], ind["h"], ind["l"]
 
     if direction == "UP":
-        # Support: 直近20バーの最安値
-        support = float(np.min(l[max(0, i - 20):i]))
-        # Stop: support より下（ATR × 1.5）
-        stop = support - atr_i * 1.5
-        # リスク = エントリー - ストップ
+        # ── SL: 直近20バーのスウィング安値の0.5%下 ──
+        swing_low = float(np.min(l[max(0, i - 20):i + 1]))
+        stop = swing_low * 0.995
         risk = entry - stop
-        # ターゲット: リスク×2（RR=2.0）またはATR×4.0 の大きい方
-        target = max(entry + risk * 2.0, entry + atr_i * ATR_TARGET_MULT)
-        # TP1: リスク×1.5（RR=1.5）
+        if risk <= 0 or risk > entry * 0.20:  # リスクが20%超は異常値として除外
+            return None
+
+        # ── TP: 直近60バーの最高値の2%手前（最も近いレジスタンス）──
+        lookback_high = float(np.max(h[max(0, i - 60):i + 1]))
+        if lookback_high > entry * 1.03:
+            # エントリーより3%以上高い直近高値がある → そこの2%手前をTP
+            target = lookback_high * 0.98
+        else:
+            # 高値更新中（ブレイクアウト直後）→ ATR×3でターゲット設定
+            target = entry + atr_i * 3.0
+
+        # TP1: エントリー + リスク × 1.5
         tp1 = entry + risk * 1.5
-        rr = abs(target - entry) / risk if risk > 0 else 2.0  # Phase1修正: reward÷risk
+
+        # TPがTP1より低い場合（レジスタンスが近すぎる）→ ATRベースに切り替え
+        if target <= tp1:
+            target = entry + atr_i * 3.0
+
+        rr = (target - entry) / risk
+
     else:  # SHORT
-        # Resistance: 直近20バーの最高値
-        resistance = float(np.max(h[max(0, i - 20):i]))
-        # Stop: resistance より上（ATR × 1.5）
-        stop = resistance + atr_i * 1.5
-        # リスク = ストップ - エントリー
+        # ── SL: 直近20バーのスウィング高値の0.5%上 ──
+        swing_high = float(np.max(h[max(0, i - 20):i + 1]))
+        stop = swing_high * 1.005
         risk = stop - entry
-        # ターゲット: リスク×2 またはATR×4.0 の小さい方
-        target = min(entry - risk * 2.0, entry - atr_i * ATR_TARGET_MULT)
-        # TP1: リスク×1.5
+        if risk <= 0 or risk > entry * 0.20:
+            return None
+
+        # ── TP: 直近60バーの最安値の2%手前（最も近いサポート）──
+        lookback_low = float(np.min(l[max(0, i - 60):i + 1]))
+        if lookback_low < entry * 0.97:
+            target = lookback_low * 1.02
+        else:
+            target = entry - atr_i * 3.0
+
         tp1 = entry - risk * 1.5
-        rr = abs(entry - target) / risk if risk > 0 else 2.0  # Phase1修正: reward÷risk
+        if target >= tp1:
+            target = entry - atr_i * 3.0
+
+        rr = (entry - target) / risk
 
     return {
         "entry": round(entry, 2), "stop": round(stop, 2),
