@@ -1,20 +1,16 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
-import { renderEvents }             from "./components/events.js?v=3";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
 import { renderPicksTable }         from "./components/picks-table.js?v=10";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=3";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
 import { renderTechStrategyGuide }  from "./components/tech-strategy-guide.js?v=2";
-import { renderEntryCandidates }   from "./components/entry-candidates.js?v=2";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: "entry-candidates", label: "今すぐエントリー",       icon: "🚀", load: loadEntryCandidates },
   { id: "market-health",    label: "市場ヘルス",             icon: "📊", load: loadMarketHealth },
   { id: "economic",         label: "経済指標",               icon: "📈", load: loadEconomic },
-  { id: "news",             label: "ビッグニュース",         icon: "📰", load: loadNews },
   // ── ハイブリッド ──────────────────────────────────────────────────────
   { id: "hybrid-entry",      label: "ハイブリッド エントリー", icon: "🎯", load: loadHybridEntry,      group: "hybrid" },
   { id: "hybrid-takeprofit", label: "ハイブリッド 利確",       icon: "💰", load: loadHybridTakeProfit, group: "hybrid" },
@@ -35,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   buildSidebar();
   buildSections();
   loadPipelineStatus();
-  navigate("entry-candidates");
+  navigate("market-health");
 
   // ── ハンバーガーメニュー ───────────────────────────────────────────────
   const toggle  = document.getElementById("menu-toggle");
@@ -113,20 +109,12 @@ function navigate(id) {
 }
 
 // ── Section loaders ───────────────────────────────────────────────────────
-async function loadEntryCandidates(container) {
-  await renderEntryCandidates(container);
-}
-
 async function loadMarketHealth(container) {
   await renderMarketHealth(container);
 }
 
 async function loadEconomic(container) {
   await renderEconomicDashboard(container);
-}
-
-async function loadNews(container) {
-  await renderEvents(container, "/api/news", "📰 ビッグニュース");
 }
 
 async function loadHybridEntry(container) {
