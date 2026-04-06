@@ -111,6 +111,16 @@ def run_full(skip_download: bool = False):
         print(f"[FATAL] Stage 6 failed: {e}")
         return
 
+    # ── Logic3 scan ───────────────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic3_scan import run as logic3_run
+        logic3_run()
+        log_stage("Logic3", "OK", "Logic3 picks generated", time.time() - t0)
+    except Exception as e:
+        log_stage("Logic3", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic3 scan failed: {e}")
+
     # ── News collection ───────────────────────────────────────────────────
     t0 = time.time()
     try:

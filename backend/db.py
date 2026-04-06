@@ -205,6 +205,25 @@ else:
             active_signals_json TEXT DEFAULT '[]',
             PRIMARY KEY (ticker, date)
         );
+        CREATE TABLE IF NOT EXISTS logic3_picks (
+            ticker          TEXT PRIMARY KEY,
+            scan_date       TEXT,
+            stage           INTEGER DEFAULT 0,
+            confidence      REAL,
+            avg_win_rate    REAL,
+            risk_reward     REAL,
+            entry_price     REAL,
+            stop_price      REAL,
+            tp1_price       REAL,
+            target_price    REAL,
+            atr_pct         REAL,
+            rsi             REAL,
+            vol_ratio       REAL,
+            current_price   REAL,
+            signals_json    TEXT DEFAULT '[]',
+            sector          TEXT,
+            holding_days_est INTEGER DEFAULT 20
+        );
         """)
 
         conn.commit()

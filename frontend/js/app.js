@@ -3,8 +3,9 @@ import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2
 import { renderPicksTable }         from "./components/picks-table.js?v=10";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=3";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
-import { renderStrategyGuide }     from "./components/strategy-guide.js?v=3";
-import { renderTechStrategyGuide }  from "./components/tech-strategy-guide.js?v=2";
+import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
+import { renderTechStrategyGuide }    from "./components/tech-strategy-guide.js?v=2";
+import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=1";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
@@ -16,8 +17,9 @@ const SECTIONS = [
   { id: "logic2", label: "ロジック２",                 icon: "🔬", load: loadLogic2, group: "list" },
   { id: "logic3", label: "ロジック３",                 icon: "⚡", load: loadLogic3, group: "list" },
   // ── ロジック説明 ──────────────────────────────────────────────────────────
-  { id: "strategy-guide",      label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,    group: "guide" },
-  { id: "tech-strategy-guide", label: "ロジック２の説明", icon: "🧪", load: loadTechStrategyGuide, group: "guide" },
+  { id: "strategy-guide",       label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,       group: "guide" },
+  { id: "tech-strategy-guide",  label: "ロジック２の説明", icon: "🧪", load: loadTechStrategyGuide,  group: "guide" },
+  { id: "logic3-strategy-guide",label: "ロジック３の説明", icon: "⚡", load: loadLogic3StrategyGuide, group: "guide" },
   // ─────────────────────────────────────────────────────────────────────────
   { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
@@ -171,6 +173,10 @@ function loadStrategyGuide(container) {
 
 function loadTechStrategyGuide(container) {
   renderTechStrategyGuide(container);
+}
+
+function loadLogic3StrategyGuide(container) {
+  renderLogic3StrategyGuide(container);
 }
 
 function loadSearch(container) {
