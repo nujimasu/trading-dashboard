@@ -65,7 +65,7 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
     return `
       <tr data-idx="${i}" class="pick-row">
         <td class="ticker-cell">${p.ticker}</td>
-        <td>${tierBadge}</td>
+        ${!(isHybridEntry || isTP) ? `<td>${tierBadge}</td>` : ""}
         <td>${score}</td>
         <td class="${verdictClass}">${verdictText}</td>
         ${hybridReasonCol}
@@ -88,7 +88,7 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
       <table>
         <thead>
           <tr>
-            <th>銘柄</th><th>Tier</th><th>スコア</th><th>判定</th>
+            <th>銘柄</th>${!(isHybridEntry || isTP) ? "<th>Tier</th>" : ""}<th>スコア</th><th>判定</th>
             ${isTP ? "<th>利確理由</th>" : ""}
             ${isDaily ? "<th>ブレイク</th><th>出来高</th>" : ""}
             ${(isHybridEntry || isTP) ? "<th>理由</th>" : ""}
