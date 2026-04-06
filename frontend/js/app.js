@@ -137,7 +137,7 @@ async function loadHybridEntry(container) {
       apiFetch("/api/daily-picks"),
     ]);
     const merged = _mergeWeeklyDaily(weekly, daily);
-    const entries = merged.filter(p => p.daily_verdict !== "PASSED");
+    const entries = merged.filter(p => p.daily_verdict !== "PASSED" && p.direction !== "SHORT");
     renderPicksTable(container, entries, "🎯 ハイブリッド エントリー候補", "hybrid-entry");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
@@ -148,7 +148,7 @@ async function loadHybridTakeProfit(container) {
   container.innerHTML = `<div class="loading"><div class="spinner"></div><span>利確シグナル取得中...</span></div>`;
   try {
     const daily = await apiFetch("/api/daily-picks");
-    const tp = daily.filter(p => p.take_profit_verdict && p.take_profit_verdict !== "HOLD");
+    const tp = daily.filter(p => p.take_profit_verdict && p.take_profit_verdict !== "HOLD" && p.direction !== "SHORT");
     renderPicksTable(container, tp, "💰 ハイブリッド 利確シグナル", "take-profit");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
