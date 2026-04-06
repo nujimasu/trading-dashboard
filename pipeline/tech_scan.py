@@ -16,9 +16,9 @@ from backend.db import get_connection
 
 # ── パラメータ ────────────────────────────────────────────────────────────────
 MIN_BARS          = 150      # 最低限必要なバー数
-MIN_BACKTEST_HITS = 20       # バックテスト最低サンプル数（10→20: 統計的信頼性向上）
-WIN_RATE_THRESH   = 0.58     # シグナル採用の最低勝率（0.52→0.58: 手数料後エッジ確保）
-CONFIDENCE_THRESH = 0.62     # picks に載せる最低信頼度（0.58→0.62: 新confidence式対応）
+MIN_BACKTEST_HITS = 15       # バックテスト最低サンプル数
+WIN_RATE_THRESH   = 0.52     # シグナル採用の最低勝率（翌日始値+スリッページ込みで52%）
+CONFIDENCE_THRESH = 0.45     # picks に載せる最低信頼度（新formula+ベア相場対応）
 RR_MIN            = 1.5      # 最低 Risk/Reward（好条件が揃えば1.5も可）
 ATR_STOP_MULT     = 2.0      # ストップ = ATR × 2.0
 ATR_TARGET_MULT   = 4.0      # ターゲット = ATR × 4.0
