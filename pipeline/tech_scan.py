@@ -19,7 +19,7 @@ MIN_BARS          = 150      # 最低限必要なバー数
 MIN_BACKTEST_HITS = 20       # バックテスト最低サンプル数（10→20: 統計的信頼性向上）
 WIN_RATE_THRESH   = 0.58     # シグナル採用の最低勝率（0.52→0.58: 手数料後エッジ確保）
 CONFIDENCE_THRESH = 0.62     # picks に載せる最低信頼度（0.58→0.62: 新confidence式対応）
-RR_MIN            = 2.0      # 最低 Risk/Reward（1.8→2.0: CLAUDE.md Tier1基準）
+RR_MIN            = 1.5      # 最低 Risk/Reward（好条件が揃えば1.5も可）
 ATR_STOP_MULT     = 2.0      # ストップ = ATR × 2.0
 ATR_TARGET_MULT   = 4.0      # ターゲット = ATR × 4.0
 HOLD_SHORT        = 10       # 短期シグナルの保有日数
@@ -570,24 +570,33 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
         swing_low = float(np.min(l[max(0, i - 20):i + 1]))
         stop = swing_low * 0.995
         risk = entry - stop
-        if risk <= 0 or risk > entry * 0.20:  # リスクが20%超は異常値として除外
+
+        # 最小リスク下限 = ATR × 0.75（タイトなベースでRRが爆発するのを防ぐ）
+        min_risk = atr_i * 0.75
+        if risk < min_risk:
+            stop = entry - min_risk
+            risk = min_risk
+
+        if risk <= 0 or risk > entry * 0.20:  # 20%超は異常値として除外
             return None
 
-        # ── TP: 直近60バーの最高値の2%手前（最も近いレジスタンス）──
-        lookback_high = float(np.max(h[max(0, i - 60):i + 1]))
-        if lookback_high > entry * 1.03:
-            # エントリーより3%以上高い直近高値がある → そこの2%手前をTP
+        # ── TP: 直近30バーの最高値の2%手前（スウィング現実的範囲内に限定）──
+        # 上限はentry × 1.30（スウィングトレードで30%超は非現実的）
+        max_target = entry * 1.30
+        lookback_high = float(np.max(h[max(0, i - 30):i]))  # 当日を含めない
+        if entry * 1.02 < lookback_high <= max_target:
+            # エントリーより2%以上上で30%以内の直近高値 → その2%手前をTP
             target = lookback_high * 0.98
         else:
-            # 高値更新中（ブレイクアウト直後）→ ATR×3でターゲット設定
-            target = entry + atr_i * 3.0
+            # 新高値更新中 or 近くに適切な抵抗なし → ATR×3（上限30%）
+            target = min(entry + atr_i * 3.0, max_target)
 
         # TP1: エントリー + リスク × 1.5
         tp1 = entry + risk * 1.5
 
-        # TPがTP1より低い場合（レジスタンスが近すぎる）→ ATRベースに切り替え
+        # TPがTP1以下（抵抗が近すぎる）→ ATR×3にフォールバック
         if target <= tp1:
-            target = entry + atr_i * 3.0
+            target = min(entry + atr_i * 3.0, max_target)
 
         rr = (target - entry) / risk
 
@@ -596,19 +605,26 @@ def _calc_rr(ind: dict, direction: str) -> dict | None:
         swing_high = float(np.max(h[max(0, i - 20):i + 1]))
         stop = swing_high * 1.005
         risk = stop - entry
+
+        min_risk = atr_i * 0.75
+        if risk < min_risk:
+            stop = entry + min_risk
+            risk = min_risk
+
         if risk <= 0 or risk > entry * 0.20:
             return None
 
-        # ── TP: 直近60バーの最安値の2%手前（最も近いサポート）──
-        lookback_low = float(np.min(l[max(0, i - 60):i + 1]))
-        if lookback_low < entry * 0.97:
+        # ── TP: 直近30バーの最安値の2%手前（30%下限内に限定）──
+        min_target = entry * 0.70
+        lookback_low = float(np.min(l[max(0, i - 30):i]))
+        if min_target <= lookback_low < entry * 0.98:
             target = lookback_low * 1.02
         else:
-            target = entry - atr_i * 3.0
+            target = max(entry - atr_i * 3.0, min_target)
 
         tp1 = entry - risk * 1.5
         if target >= tp1:
-            target = entry - atr_i * 3.0
+            target = max(entry - atr_i * 3.0, min_target)
 
         rr = (entry - target) / risk
 
