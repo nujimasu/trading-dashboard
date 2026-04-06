@@ -14,6 +14,7 @@ const SECTIONS = [
   // ── リスト ───────────────────────────────────────────────────────────────
   { id: "logic1", label: "ロジック１（ファンダ考慮）", icon: "🎯", load: loadLogic1, group: "list" },
   { id: "logic2", label: "ロジック２",                 icon: "🔬", load: loadLogic2, group: "list" },
+  { id: "logic3", label: "ロジック３",                 icon: "⚡", load: loadLogic3, group: "list" },
   // ── ロジック説明 ──────────────────────────────────────────────────────────
   { id: "strategy-guide",      label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,    group: "guide" },
   { id: "tech-strategy-guide", label: "ロジック２の説明", icon: "🧪", load: loadTechStrategyGuide, group: "guide" },
@@ -140,6 +141,17 @@ function _mergeWeeklyDaily(weekly, daily) {
     }
   });
   return Object.values(map).sort((a, b) => (b.composite_score || 0) - (a.composite_score || 0));
+}
+
+// ロジック３: signal-scanner-v5 エンジン（28シグナル, 勝率65%+, 信頼度70%+）
+async function loadLogic3(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
+  try {
+    const picks = await apiFetch("/api/logic3-picks");
+    renderTechPicksTable(container, picks, "⚡ ロジック３", "daily");
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
+  }
 }
 
 // ロジック２: 旧日次（テクニカル重視）
