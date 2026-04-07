@@ -36,20 +36,28 @@ def _sanitize_params(params):
         if isinstance(v, (np.floating,)): return float(v)
         if isinstance(v, (np.bool_,)):    return bool(v)
         return v
+    if isinstance(params, dict):
+        return {k: _fix(v) for k, v in params.items()}
     return tuple(_fix(v) for v in params)
 
 
 class CompatCursor:
-    """`?` を `%s` に自動変換するカーソルラッパー。"""
+    """`?` を `%s`、`:name` を `%(name)s` に自動変換するカーソルラッパー。"""
 
     def __init__(self, cursor):
         self._cur = cursor
 
-    def _convert(self, sql: str) -> str:
-        return sql.replace("?", "%s")
+    def _convert(self, sql: str, params=None) -> str:
+        if isinstance(params, dict):
+            # SQLite named params (:name) → psycopg2 named params (%(name)s)
+            sql = re.sub(r':(\w+)', r'%(\1)s', sql)
+        else:
+            # SQLite positional params (?) → psycopg2 positional params (%s)
+            sql = sql.replace("?", "%s")
+        return sql
 
     def execute(self, sql: str, params=None):
-        sql = self._convert(sql)
+        sql = self._convert(sql, params)
         self._cur.execute(sql, _sanitize_params(params))
         return self
 
