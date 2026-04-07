@@ -541,7 +541,7 @@ def run():
         SELECT p.ticker, COUNT(*) as cnt
         FROM price_data p
         GROUP BY p.ticker
-        HAVING cnt >= ?
+        HAVING COUNT(*) >= ?
     """, (MIN_BARS,))
     tickers = [r["ticker"] for r in cur.fetchall()]
     print(f"[Logic3] 対象銘柄数: {len(tickers)}")
