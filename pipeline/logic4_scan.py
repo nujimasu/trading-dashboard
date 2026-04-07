@@ -491,33 +491,42 @@ def _detect_1h_trigger(rows_1h, support_price):
 
 def _detect_4h_structure(rows_4h, support_price):
     """
-    4時間足の構造を判定。
+    4時間足の構造を判定（7日≒8本向けの簡略版）。
+
+    直近4本の終値の傾き（線形回帰）で判断:
+      bullish : 傾きが終値平均の+0.1%/本以上 かつ 最終足が陽線
+      bearish : 傾きが終値平均の-0.1%/本以下 かつ 最終足が陰線
+      neutral : それ以外
+
     Returns: 'bullish' | 'neutral' | 'bearish'
     """
-    if not rows_4h or len(rows_4h) < 6:
+    if not rows_4h or len(rows_4h) < 4:
         return "neutral"
 
-    C4 = [r["close"] for r in rows_4h]
-    H4 = [r["high"]  for r in rows_4h]
-    L4 = [r["low"]   for r in rows_4h]
-    last = len(C4) - 1
+    # 直近4本を使用
+    recent = rows_4h[-4:]
+    closes = [b["close"] for b in recent]
+    n = len(closes)
 
-    ema20_4h = _ema(C4, min(20, len(C4)))
+    # 線形回帰の傾きを計算（最小二乗法）
+    xs = list(range(n))
+    x_mean = sum(xs) / n
+    c_mean = sum(closes) / n
+    num   = sum((xs[i] - x_mean) * (closes[i] - c_mean) for i in range(n))
+    denom = sum((xs[i] - x_mean) ** 2 for i in range(n))
+    slope = num / denom if denom != 0 else 0
 
-    sh = _find_swing_highs(H4, lookback=2)
-    sl = _find_swing_lows(L4, lookback=2)
+    # 傾きを終値平均で正規化（1本あたり何%動いているか）
+    slope_pct = slope / c_mean if c_mean != 0 else 0
 
-    if len(sh) >= 2 and len(sl) >= 2:
-        hh = H4[sh[-1]] > H4[sh[-2]]
-        hl = L4[sl[-1]] > L4[sl[-2]]
-        if hh and hl:
-            return "bullish"
-        if not hh and not hl:
-            return "bearish"
+    last_bar = recent[-1]
+    is_bull_candle = last_bar["close"] > last_bar["open"]
+    is_bear_candle = last_bar["close"] < last_bar["open"]
 
-    if ema20_4h[last] is not None and C4[last] > ema20_4h[last]:
+    if slope_pct >= 0.001 and is_bull_candle:
         return "bullish"
-
+    if slope_pct <= -0.001 and is_bear_candle:
+        return "bearish"
     return "neutral"
 
 
