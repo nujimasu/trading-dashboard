@@ -121,6 +121,16 @@ def run_full(skip_download: bool = False):
         log_stage("Logic3", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] Logic3 scan failed: {e}")
 
+    # ── Logic4 scan ───────────────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic4_scan import run as logic4_run
+        logic4_run()
+        log_stage("Logic4", "OK", "Logic4 picks generated", time.time() - t0)
+    except Exception as e:
+        log_stage("Logic4", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic4 scan failed: {e}")
+
     # ── News collection ───────────────────────────────────────────────────
     t0 = time.time()
     try:
@@ -254,6 +264,16 @@ def run_daily_full():
     except Exception as e:
         log_stage("DailyFull-Logic3", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] Logic3 scan failed: {e}")
+
+    # ── ロジック４スキャン（日次）────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic4_scan import run as logic4_run
+        logic4_run()
+        log_stage("DailyFull-Logic4", "OK", "logic4_picks updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Logic4", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic4 scan failed: {e}")
 
     # ── テクニカルスキャン（日次）────────────────────────────────────────────
     t0 = time.time()
