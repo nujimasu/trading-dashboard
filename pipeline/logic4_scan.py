@@ -38,6 +38,12 @@ from datetime import date, timedelta
 from collections import defaultdict
 from backend.db import get_connection
 
+try:
+    import yfinance as yf
+    _YF_AVAILABLE = True
+except ImportError:
+    _YF_AVAILABLE = False
+
 # ── 定数 ───────────────────────────────────────────────────────────────────
 MIN_BARS_DAILY   = 250   # 週足200EMA計算に必要な日足バー数
 MIN_AVG_VOLUME   = 500_000
@@ -340,6 +346,181 @@ def _fib_confluence(H, L, C, ema20, ema50, i, lookback=120):
 
     return None
 
+# ── イントラデイ（1H/4H）ヘルパー ───────────────────────────────────────────────
+
+def _fetch_intraday_batch(tickers):
+    """yfinanceで1時間足データを一括取得（期間=7日）。Dict[ticker→df]を返す。"""
+    if not _YF_AVAILABLE or not tickers:
+        return None
+    try:
+        if len(tickers) == 1:
+            df = yf.download(tickers[0], period="7d", interval="1h",
+                             auto_adjust=True, progress=False)
+            return {tickers[0]: df} if not df.empty else None
+        raw = yf.download(
+            tickers=" ".join(tickers),
+            period="7d",
+            interval="1h",
+            group_by="ticker",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
+        # yfinance multi-ticker returns MultiIndex or grouped DataFrame
+        result = {}
+        for t in tickers:
+            try:
+                df = raw[t] if t in raw else None
+                if df is not None and not df.empty:
+                    result[t] = df
+            except Exception:
+                pass
+        return result if result else None
+    except Exception as e:
+        print(f"[Logic4] 1H data fetch error: {e}")
+        return None
+
+
+def _extract_ticker_1h(data_dict, ticker):
+    """dict から1銘柄のOHLCVリストを取得する。"""
+    if data_dict is None:
+        return None
+    try:
+        df = data_dict.get(ticker)
+        if df is None or df.empty:
+            return None
+        df = df.dropna(subset=["Close"])
+        if df.empty:
+            return None
+        result = []
+        for _, row in df.iterrows():
+            result.append({
+                "open":   float(row["Open"]),
+                "high":   float(row["High"]),
+                "low":    float(row["Low"]),
+                "close":  float(row["Close"]),
+                "volume": float(row["Volume"]),
+            })
+        return result if len(result) >= 8 else None
+    except Exception:
+        return None
+
+
+def _resample_4h(rows_1h):
+    """1Hバーを4Hバーにリサンプル（4本ずつグループ化）。"""
+    bars = []
+    for i in range(0, len(rows_1h) - 3, 4):
+        group = rows_1h[i:i + 4]
+        bars.append({
+            "open":   group[0]["open"],
+            "high":   max(b["high"]   for b in group),
+            "low":    min(b["low"]    for b in group),
+            "close":  group[-1]["close"],
+            "volume": sum(b["volume"] for b in group),
+        })
+    return bars
+
+
+def _is_pin_bar(bar):
+    """ハンマー型ピンバー（下ヒゲ ≥ 実体の2倍、陽線）。"""
+    body = abs(bar["close"] - bar["open"])
+    lower_wick = min(bar["close"], bar["open"]) - bar["low"]
+    upper_wick = bar["high"] - max(bar["close"], bar["open"])
+    if body < 1e-8:
+        body = (bar["high"] - bar["low"]) * 0.1
+    return (bar["close"] > bar["open"] and
+            lower_wick >= 2 * body and
+            lower_wick >= 2 * (upper_wick + 1e-8))
+
+
+def _is_bull_engulfing(prev, curr):
+    """強気エンガルフィング。"""
+    if prev is None:
+        return False
+    return (prev["close"] < prev["open"] and       # 前足: 陰線
+            curr["close"] > curr["open"] and        # 当足: 陽線
+            curr["open"]  <= prev["close"] and
+            curr["close"] >= prev["open"])
+
+
+def _detect_1h_trigger(rows_1h, support_price):
+    """
+    1時間足の直近バーでトリガーシグナルを検出。
+    サポート価格の ±5% 以内で発生したもののみ対象。
+    Returns: シグナル名 (str) or None
+    """
+    if not rows_1h or len(rows_1h) < 10:
+        return None
+
+    vols = [r["volume"] for r in rows_1h]
+    vol_ma = sum(vols[-20:]) / min(20, len(vols)) if vols else 1
+
+    # 直近10バーを新しい順にチェック
+    recent = rows_1h[-10:]
+
+    # ダブルボトム検出（直近30本のスイングロー）
+    lows_30 = [r["low"] for r in rows_1h[-30:]]
+    sl_idxs = _find_swing_lows(lows_30, lookback=2)
+    double_bottom = False
+    if len(sl_idxs) >= 2:
+        l1, l2 = lows_30[sl_idxs[-2]], lows_30[sl_idxs[-1]]
+        if l1 > 0 and abs(l1 - l2) / l1 < 0.01:
+            double_bottom = True
+
+    for j in range(len(recent) - 1, -1, -1):
+        bar  = recent[j]
+        prev = recent[j - 1] if j > 0 else None
+
+        # サポート近傍チェック（±5%）
+        mid = (bar["high"] + bar["low"]) / 2
+        if support_price > 0 and abs(mid - support_price) / support_price > 0.05:
+            continue
+
+        if _is_pin_bar(bar):
+            return "ピンバー(1H)"
+        if prev and _is_bull_engulfing(prev, bar):
+            return "強気エンガルフィング(1H)"
+        if bar["volume"] >= vol_ma * 1.5 and bar["close"] > bar["open"]:
+            return "出来高急増(1H)"
+
+    if double_bottom:
+        return "ダブルボトム(1H)"
+
+    return None
+
+
+def _detect_4h_structure(rows_4h, support_price):
+    """
+    4時間足の構造を判定。
+    Returns: 'bullish' | 'neutral' | 'bearish'
+    """
+    if not rows_4h or len(rows_4h) < 6:
+        return "neutral"
+
+    C4 = [r["close"] for r in rows_4h]
+    H4 = [r["high"]  for r in rows_4h]
+    L4 = [r["low"]   for r in rows_4h]
+    last = len(C4) - 1
+
+    ema20_4h = _ema(C4, min(20, len(C4)))
+
+    sh = _find_swing_highs(H4, lookback=2)
+    sl = _find_swing_lows(L4, lookback=2)
+
+    if len(sh) >= 2 and len(sl) >= 2:
+        hh = H4[sh[-1]] > H4[sh[-2]]
+        hl = L4[sl[-1]] > L4[sl[-2]]
+        if hh and hl:
+            return "bullish"
+        if not hh and not hl:
+            return "bearish"
+
+    if ema20_4h[last] is not None and C4[last] > ema20_4h[last]:
+        return "bullish"
+
+    return "neutral"
+
+
 # ── MACDダイバージェンス（強気）検出 ─────────────────────────────────────────
 
 def _macd_bull_divergence(hist, C, i, lookback=25):
@@ -552,6 +733,46 @@ def run():
         except Exception as e:
             print(f"[Logic4] {ticker} エラー: {e}")
 
+    # ── イントラデイ（1H/4H）分析 ─────────────────────────────────────────────
+    if picks:
+        candidate_tickers = [p["ticker"] for p in picks]
+        print(f"[Logic4] 1H/4Hデータ取得中... {len(candidate_tickers)}銘柄")
+        intraday_dict = _fetch_intraday_batch(candidate_tickers)
+
+        for p in picks:
+            rows_1h = _extract_ticker_1h(intraday_dict, p["ticker"])
+            rows_4h = _resample_4h(rows_1h) if rows_1h else None
+
+            # サポートまでの距離（%）
+            price_to_support = None
+            if p["support_price"] and p["current_price"]:
+                price_to_support = round(
+                    (p["current_price"] - p["support_price"]) / p["current_price"] * 100, 1
+                )
+            p["price_to_support_pct"] = price_to_support
+
+            # 4H構造
+            p["h4_structure"] = _detect_4h_structure(rows_4h, p["support_price"]) if rows_4h else "neutral"
+
+            # 1Hトリガー
+            p["h1_trigger"] = _detect_1h_trigger(rows_1h, p["support_price"]) if rows_1h else None
+
+            # 判定をインデイタイムフレームで更新
+            near_support = price_to_support is not None and price_to_support <= 3.0
+            has_trigger  = p["h1_trigger"] is not None
+
+            if has_trigger and near_support:
+                p["verdict"] = "最優先候補"
+            elif near_support:
+                p["verdict"] = "サポート接近中"
+            else:
+                p["verdict"] = "押し目待ち"
+    else:
+        for p in picks:
+            p["price_to_support_pct"] = None
+            p["h4_structure"]         = "neutral"
+            p["h1_trigger"]           = None
+
     # ── 保存 ────────────────────────────────────────────────────────────────
     cur.execute("DELETE FROM logic4_picks")
     for p in picks:
@@ -562,22 +783,28 @@ def run():
                  risk_reward, entry_price, stop_price, tp1_price, target_price,
                  rsi, rsi_flag, macd_div_flag, fib_confluence, atr,
                  verdict, confidence, composite_score, sector, current_price,
-                 holding_days_est, signals_json)
+                 holding_days_est, signals_json,
+                 price_to_support_pct, h1_trigger, h4_structure)
             VALUES
                 (:ticker, :scan_date, :perfect_order, :perf_3m, :perf_6m, :avg_vol_20d,
                  :dow_trend, :support_price, :confluence, :support_reasons, :reji_sapo,
                  :risk_reward, :entry_price, :stop_price, :tp1_price, :target_price,
                  :rsi, :rsi_flag, :macd_div_flag, :fib_confluence, :atr,
                  :verdict, :confidence, :composite_score, :sector, :current_price,
-                 :holding_days_est, :signals_json)
+                 :holding_days_est, :signals_json,
+                 :price_to_support_pct, :h1_trigger, :h4_structure)
         """, p)
     conn.commit()
     conn.close()
 
+    verdict_order = {"最優先候補": 0, "サポート接近中": 1, "押し目待ち": 2}
     picks.sort(key=lambda x: (
-        0 if x["verdict"] == "最優先候補" else 1,
+        verdict_order.get(x["verdict"], 3),
         -x["risk_reward"]
     ))
     print(f"[Logic4] 完了 — 一次通過:{first_pass} 二次通過:{second_pass} 採用:{adopted}")
     for p in picks[:5]:
-        print(f"  {p['ticker']:8s} {p['verdict']} RR={p['risk_reward']:.2f} {p['reji_sapo']} conf={p['confidence']:.3f}")
+        trigger = p.get("h1_trigger") or "-"
+        dist    = p.get("price_to_support_pct")
+        dist_s  = f"{dist:.1f}%" if dist is not None else "N/A"
+        print(f"  {p['ticker']:8s} {p['verdict']} RR={p['risk_reward']:.2f} dist={dist_s} trigger={trigger}")

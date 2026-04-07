@@ -95,13 +95,47 @@ export function renderLogic4StrategyGuide(container) {
       </div>
     </div>
 
+    <!-- イントラデイ確認（4H/1H） -->
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">④ イントラデイ確認（4H/1H トリガー）</h3>
+      <div style="font-size:.8rem;color:#94a3b8;line-height:1.7;margin-bottom:12px">
+        日足フィルターを通過した後、<strong style="color:#e2e8f0">4時間足・1時間足</strong>でサポートからの実際の反発シグナルを確認する。<br>
+        これにより「まだ押し目中」「そろそろエントリー」「今が反発点」を区別できる。
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:.8rem;font-weight:700;color:#e2e8f0;margin-bottom:8px">4時間足 構造チェック</div>
+          <div style="font-size:.78rem;color:#94a3b8;line-height:1.7">
+            直近の4Hスイングハイ・ローを確認し、4H EMA20との位置関係を判定:
+            <div style="margin-top:6px">
+              ${badge("bullish", "#10b981")} HH/HL継続 または EMA20上<br>
+              ${badge("neutral", "#f59e0b")} 構造不明確<br>
+              ${badge("bearish", "#ef4444")} LH/LLパターン（ロングは保留）
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:.8rem;font-weight:700;color:#e2e8f0;margin-bottom:8px">1時間足 トリガーシグナル</div>
+          <div style="font-size:.78rem;color:#94a3b8;line-height:1.7">
+            サポート近傍（±5%）での反発シグナルを検出:
+            <ul style="margin:6px 0 0 16px;line-height:1.9">
+              <li><strong style="color:#6ee7b7">ピンバー(1H)</strong> — 下ヒゲ ≥ 実体×2、陽線</li>
+              <li><strong style="color:#6ee7b7">強気エンガルフィング(1H)</strong> — 陰線を包む陽線</li>
+              <li><strong style="color:#6ee7b7">出来高急増(1H)</strong> — 20本平均×1.5倍以上の陽線</li>
+              <li><strong style="color:#6ee7b7">ダブルボトム(1H)</strong> — 1%以内の二底形成</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 総合判定基準 -->
     <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">④ 総合判定基準</h3>
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">⑤ 総合判定基準</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-        ${verdict("最優先候補", "#10b981", ["一次フィルター全通過", "レジサポ転換：確認済み", "R:R ≥ 1.5", "ボーナスフラグ 1件以上"])}
-        ${verdict("監視リスト入り", "#f59e0b", ["一次フィルター全通過", "R:R ≥ 1.5", "サポートライン：明確（根拠2+）"])}
-        ${verdict("見送り", "#ef4444", ["R:R < 1.5", "または サポート不明確", "または トレンド条件未達"])}
+        ${verdict("最優先候補", "#10b981", ["一次フィルター全通過", "R:R ≥ 1.5", "サポートから≤3%", "1Hトリガーシグナル確認済み"])}
+        ${verdict("サポート接近中", "#f59e0b", ["一次フィルター全通過", "R:R ≥ 1.5", "サポートから≤3%（トリガー未確認）"])}
+        ${verdict("押し目待ち", "#64748b", ["一次フィルター全通過", "R:R ≥ 1.5", "サポートまで>3%（押し目継続中）"])}
       </div>
     </div>
 
@@ -113,6 +147,7 @@ export function renderLogic4StrategyGuide(container) {
         <div>🚫 <strong style="color:#e2e8f0">R:R 1.5未満は推奨しない</strong> — チャート形状が良くてもR:R未達は候補から除外</div>
         <div>🚫 <strong style="color:#e2e8f0">低流動性銘柄は除外</strong> — 20日平均出来高50万株未満は一切推奨しない</div>
         <div>✅ <strong style="color:#e2e8f0">コンフルエンス重視</strong> — サポートは複数の根拠が重なるポイントを優先提示</div>
+        <div>✅ <strong style="color:#e2e8f0">1Hトリガー待ち</strong> — 「サポート接近中」でも1Hシグナルが出るまでエントリーは見送り</div>
       </div>
     </div>
   `;

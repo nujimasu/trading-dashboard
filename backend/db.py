@@ -272,6 +272,9 @@ else:
             ("tech_daily_picks",  "stage_b_signals_json TEXT DEFAULT '[]'"),
             ("daily_picks",       "take_profit_verdict TEXT DEFAULT 'HOLD'"),
             ("daily_picks",       "take_profit_signals TEXT DEFAULT ''"),
+            ("logic4_picks",      "price_to_support_pct REAL"),
+            ("logic4_picks",      "h1_trigger TEXT"),
+            ("logic4_picks",      "h4_structure TEXT DEFAULT 'neutral'"),
         ]
         for tbl, col_def in migrations:
             try:

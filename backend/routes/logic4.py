@@ -6,9 +6,9 @@ from backend.db import get_connection
 router = APIRouter()
 
 VERDICT_CSS = {
-    "最優先候補":   "verdict-entry",
-    "監視リスト入り": "verdict-buy",
-    "見送り":       "verdict-passed",
+    "最優先候補":    "verdict-entry",
+    "サポート接近中": "verdict-buy",
+    "押し目待ち":    "verdict-passed",
 }
 
 
@@ -22,13 +22,15 @@ def get_logic4_picks():
                risk_reward, entry_price, stop_price, tp1_price, target_price,
                rsi, rsi_flag, macd_div_flag, fib_confluence, atr,
                verdict, confidence, composite_score, sector, current_price,
-               holding_days_est, signals_json
+               holding_days_est, signals_json,
+               price_to_support_pct, h1_trigger, h4_structure
         FROM logic4_picks
         ORDER BY
             CASE verdict
-                WHEN '最優先候補'   THEN 0
-                WHEN '監視リスト入り' THEN 1
-                ELSE 2
+                WHEN '最優先候補'    THEN 0
+                WHEN 'サポート接近中' THEN 1
+                WHEN '押し目待ち'    THEN 2
+                ELSE 3
             END,
             risk_reward DESC
     """)
@@ -49,6 +51,16 @@ def get_logic4_picks():
         if r.get("fib_confluence"):bonus.append(f"Fib {r['fib_confluence']}")
 
         entry_reasons = reasons + bonus
+
+        # 1H/4H トリガー情報
+        h1_trigger  = r.get("h1_trigger")
+        h4_structure = r.get("h4_structure") or "neutral"
+        price_to_support_pct = r.get("price_to_support_pct")
+
+        if h1_trigger:
+            entry_reasons.append(h1_trigger)
+        if h4_structure == "bullish":
+            entry_reasons.append("4H上昇構造")
 
         result.append({
             "ticker":          r["ticker"],
@@ -76,6 +88,9 @@ def get_logic4_picks():
             "fib_confluence":  r["fib_confluence"],
             "sector":          r["sector"],
             "holding_days_est": r["holding_days_est"],
+            "h1_trigger":      h1_trigger,
+            "h4_structure":    h4_structure,
+            "price_to_support_pct": price_to_support_pct,
             # picks-table 互換
             "verdict":         verdict,
             "daily_verdict":   verdict,
@@ -85,7 +100,7 @@ def get_logic4_picks():
             "technical_summary": {
                 "rsi":               r["rsi"],
                 "macd_above_sig":    bool(r.get("macd_div_flag")),
-                "pct_from_high":     None,
+                "pct_from_high":     price_to_support_pct,
                 "vcp_score":         None,
                 "short_momentum":    None,
                 "contraction_count": None,
@@ -94,6 +109,7 @@ def get_logic4_picks():
                 "entry_reasons":     entry_reasons,
                 "risk_factors":      [
                     f"サポート: ${r['support_price']:.2f}（根拠{r['confluence']}つ）",
+                    f"サポートまでの距離: {price_to_support_pct:.1f}%" if price_to_support_pct is not None else "距離: N/A",
                     f"レジサポ転換: {r['reji_sapo']}",
                     f"3ヶ月騰落率: {r['perf_3m']:+.1f}%",
                 ],

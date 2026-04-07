@@ -6,7 +6,7 @@ import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
 import { renderTechStrategyGuide }    from "./components/tech-strategy-guide.js?v=2";
 import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=1";
-import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=1";
+import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=2";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
