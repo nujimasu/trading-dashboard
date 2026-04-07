@@ -92,11 +92,13 @@ def get_logic4_picks():
             "h4_structure":    h4_structure,
             "price_to_support_pct": price_to_support_pct,
             # picks-table 互換
+            # signals はオブジェクト配列 {label, win_rate, n} を期待するコンポーネント向け
+            # ロジック４はシグナル別勝率を持たないため空にし、active_signals のみ使用
             "verdict":         verdict,
             "daily_verdict":   verdict,
             "tier":            "Tier1" if verdict == "最優先候補" else "Tier2",
             "active_signals":  entry_reasons,
-            "signals":         entry_reasons,
+            "signals":         [],
             "technical_summary": {
                 "rsi":               r["rsi"],
                 "macd_above_sig":    bool(r.get("macd_div_flag")),
