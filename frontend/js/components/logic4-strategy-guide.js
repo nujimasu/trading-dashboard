@@ -6,6 +6,25 @@ export function renderLogic4StrategyGuide(container) {
   container.innerHTML = `
     <div class="section-title">🎯 ロジック４ — ロジック説明（押し目買い）</div>
 
+    <!-- 判定凡例 -->
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">📋 判定の見方（リスト画面）</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.4);border-radius:6px;padding:8px 14px">
+          <span style="font-weight:700;color:#10b981">最優先候補</span>
+          <span style="font-size:.75rem;color:#94a3b8">サポートから≤3% かつ 1Hトリガー確認済み → 即エントリー検討</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:8px 14px">
+          <span style="font-weight:700;color:#f59e0b">サポート接近中</span>
+          <span style="font-size:.75rem;color:#94a3b8">サポートから≤3% だがトリガー未確認 → 1Hシグナル出るまで待機</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.4);border-radius:6px;padding:8px 14px">
+          <span style="font-weight:700;color:#94a3b8">押し目待ち</span>
+          <span style="font-size:.75rem;color:#94a3b8">サポートまで>3% → まだ押し目途中、監視継続</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 概要バナー -->
     <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:18px 22px;margin-bottom:20px">
       <div style="font-size:.95rem;font-weight:700;color:#6ee7b7;margin-bottom:8px">押し目買い戦略とは？</div>

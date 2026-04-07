@@ -1,12 +1,12 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
 import { renderPicksTable }         from "./components/picks-table.js?v=10";
-import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=3";
+import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=4";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
 import { renderTechStrategyGuide }    from "./components/tech-strategy-guide.js?v=2";
 import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=1";
-import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=2";
+import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=3";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ async function loadLogic4(container) {
   container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
   try {
     const picks = await apiFetch("/api/logic4-picks");
-    renderTechPicksTable(container, picks, "🎯 ロジック４（押し目買い）", "daily");
+    renderTechPicksTable(container, picks, "🎯 ロジック４（押し目買い）", "logic4");
   } catch (e) {
     container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
   }

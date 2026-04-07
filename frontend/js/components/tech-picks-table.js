@@ -20,6 +20,9 @@ const STAGE_LABEL = {
 };
 
 export function renderTechPicksTable(container, picks, title, mode = "weekly") {
+  const isLogic4 = mode === "logic4";
+  const isDailyMode = mode === "daily" || isLogic4;
+
   if (!picks.length) {
     const msg = mode === "weekly"
       ? `テクニカルスキャン未実行 — <code>python3 pipeline/run_pipeline.py --tech-weekly</code> を実行してください`
@@ -40,16 +43,19 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
                    : (p.confidence || 0) >= 0.62 ? "conf-mid" : "conf-low";
     const wrPct    = ((p.avg_win_rate || 0) * 100).toFixed(0);
 
-    // シグナルタグ（上位3件）
-    const sigList  = (p.signals || []).slice(0, 3).map(s =>
-      `<span class="sig-tag">${s.label}</span>`).join("");
+    // シグナルタグ: ロジック４はactive_signals（文字列配列）、他はsignals（オブジェクト配列）
+    const sigList = isLogic4
+      ? (p.active_signals || []).slice(0, 3).map(s => `<span class="sig-tag">${s}</span>`).join("")
+      : (p.signals || []).slice(0, 3).map(s => `<span class="sig-tag">${s.label}</span>`).join("");
 
-    // 保有期間バッジ
     const holdBadge = _holdingBadge(p.holding_days_est);
 
-    // 日次モード用の判定列（現在値・現RR は削除）
-    const verdictCell = mode === "daily" ? `
-      <td class="${_verdictCss(p.daily_verdict)}">${_verdictLabel(p.daily_verdict)}</td>` : ``;
+    const verdictCell = isDailyMode ? `
+      <td class="${isLogic4 ? _verdictCssLogic4(p.daily_verdict) : _verdictCss(p.daily_verdict)}">${p.daily_verdict || "—"}</td>` : ``;
+
+    // ロジック４はSTAGE・勝率列を非表示
+    const stageCell = isLogic4 ? `` : `<td><span class="stage-badge ${stageMeta.css}">${stageMeta.text}</span></td>`;
+    const wrCell    = isLogic4 ? `` : `<td class="wr-cell">${wrPct}%</td>`;
 
     return `
       <tr data-idx="${i}" class="pick-row">
@@ -57,23 +63,25 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         <td>${dirBadge}</td>
         ${verdictCell}
         <td>${holdBadge}</td>
-        <td><span class="stage-badge ${stageMeta.css}">${stageMeta.text}</span></td>
+        ${stageCell}
         <td>
           <div class="conf-bar-wrap">
             <div class="conf-bar ${confCls}" style="width:${confPct}%"></div>
           </div>
           <span class="conf-val">${confPct}%</span>
         </td>
-        <td class="wr-cell">${wrPct}%</td>
+        ${wrCell}
         <td>${fmt(p.risk_reward)}</td>
         <td class="sig-tags-cell">${sigList}</td>
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
-        <td colspan="100">${_buildDetailPanel(p, i)}</td>
+        <td colspan="100">${isLogic4 ? _buildDetailPanelLogic4(p, i) : _buildDetailPanel(p, i)}</td>
       </tr>`;
   }).join("");
 
-  const dailyHeaders = mode === "daily" ? `<th>判定</th>` : ``;
+  const verdictHeader = isDailyMode ? `<th>判定</th>` : ``;
+  const stageHeader   = isLogic4 ? `` : `<th>Stage</th>`;
+  const wrHeader      = isLogic4 ? `` : `<th>勝率</th>`;
 
   container.innerHTML = `
     <div class="section-title">${title}
@@ -83,8 +91,8 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
       <table>
         <thead>
           <tr>
-            <th>銘柄</th><th>方向</th>${dailyHeaders}<th>保有期間</th><th>Stage</th>
-            <th>信頼度</th><th>勝率</th><th>RR</th>
+            <th>銘柄</th><th>方向</th>${verdictHeader}<th>保有期間</th>${stageHeader}
+            <th>信頼度</th>${wrHeader}<th>RR</th>
             <th>シグナル</th>
           </tr>
         </thead>
@@ -271,6 +279,115 @@ function _buildDetailPanel(p, idx) {
 }
 
 
+// ── ロジック４専用 詳細パネル ─────────────────────────────────
+
+function _buildDetailPanelLogic4(p, idx) {
+  const isShort = p.direction === "SHORT";
+  const rr1 = p.entry_price && p.stop_price && p.tp1_price
+    ? Math.abs((p.tp1_price - p.entry_price) / (p.entry_price - p.stop_price)).toFixed(2)
+    : "1.50";
+
+  const activeSignals = (p.active_signals || []).map(s =>
+    `<span class="sig-tag sig-tag--active">${s}</span>`).join("") || "—";
+
+  const chartDiv = `<div id="tchart-${idx}" class="pick-chart-container"></div>`;
+
+  // サポートまでの距離バッジ
+  const distBadge = p.price_to_support_pct != null
+    ? `<span style="padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:700;background:${p.price_to_support_pct<=3?'rgba(16,185,129,.2)':'rgba(245,158,11,.2)'};color:${p.price_to_support_pct<=3?'#6ee7b7':'#fbbf24'}">${p.price_to_support_pct.toFixed(1)}% above support</span>`
+    : "—";
+
+  const h4Badge = p.h4_structure
+    ? `<span style="padding:2px 8px;border-radius:4px;font-size:.75rem;font-weight:700;background:${p.h4_structure==='bullish'?'rgba(16,185,129,.2)':p.h4_structure==='bearish'?'rgba(239,68,68,.2)':'rgba(100,116,139,.2)'};color:${p.h4_structure==='bullish'?'#6ee7b7':p.h4_structure==='bearish'?'#fca5a5':'#94a3b8'}">${p.h4_structure}</span>`
+    : "—";
+
+  return `
+<div class="detail-panel">
+  <!-- トレードプラン -->
+  <div class="trade-plan-row">
+    <div class="tp-box tp-entry">
+      <div class="tp-label">エントリー</div>
+      <div class="tp-val">$${fmt(p.entry_price)}</div>
+    </div>
+    <div class="tp-arrow">${isShort ? "▼" : "▲"}</div>
+    <div class="tp-box tp-sl">
+      <div class="tp-label">SL（損切り）</div>
+      <div class="tp-val tp-val-red">$${fmt(p.stop_price)}</div>
+      <div class="tp-sub">ATR×2.0</div>
+    </div>
+    <div class="tp-arrow">→</div>
+    <div class="tp-box tp-tp1">
+      <div class="tp-label">TP1（半決済）</div>
+      <div class="tp-val tp-val-green">$${fmt(p.tp1_price)}</div>
+      <div class="tp-sub">RR ${rr1}R</div>
+    </div>
+    <div class="tp-arrow">→</div>
+    <div class="tp-box tp-tp2">
+      <div class="tp-label">TP2（ランナー）</div>
+      <div class="tp-val tp-val-green">$${fmt(p.target_price)}</div>
+      <div class="tp-sub">RR ${fmt(p.risk_reward)}R</div>
+    </div>
+    <div class="tp-sep"></div>
+    <div class="tp-box" style="border-color:rgba(99,102,241,.3)">
+      <div class="tp-label">ATRボラ</div>
+      <div class="tp-val" style="font-size:1.2rem">${p.atr ? (p.atr / (p.entry_price||1) * 100).toFixed(1)+"%" : "—"}</div>
+      <div class="tp-sub">日次 ATR / 価格</div>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <!-- エントリー根拠 -->
+    <div class="detail-block" style="flex:2;min-width:260px">
+      <h4>エントリー根拠（サポート分析）</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px">${activeSignals}</div>
+
+      <h4 style="margin-top:4px">4H/1H インデイタイム確認</h4>
+      <div class="kv-row"><span class="kv-key">サポートまでの距離</span><span class="kv-val">${distBadge}</span></div>
+      <div class="kv-row"><span class="kv-key">4H構造</span><span class="kv-val">${h4Badge}</span></div>
+      <div class="kv-row"><span class="kv-key">1Hトリガー</span><span class="kv-val">${p.h1_trigger ? `<span class="sig-tag sig-tag--active">${p.h1_trigger}</span>` : '<span style="color:var(--text-muted)">未検出（サポート接近待ち）</span>'}</span></div>
+    </div>
+
+    <!-- テクニカル指標 -->
+    <div class="detail-block">
+      <h4>テクニカル指標</h4>
+      ${kv("RSI",          p.rsi ? p.rsi.toFixed(1) : "—")}
+      ${kv("RR",           p.risk_reward ? p.risk_reward.toFixed(2) : "—")}
+      ${kv("サポート価格",  p.support_price ? "$"+fmt(p.support_price) : "—")}
+      ${kv("コンフルエンス", p.confluence ? p.confluence+"件" : "—")}
+      ${kv("レジサポ転換",  p.reji_sapo || "—")}
+      ${kv("ダウ理論",      p.dow_trend || "—")}
+      ${kv("3ヶ月騰落率",   p.perf_3m != null ? (p.perf_3m > 0 ? "+" : "")+p.perf_3m.toFixed(1)+"%" : "—")}
+    </div>
+
+    <!-- セクター動向 -->
+    ${p.sector ? `
+    <div class="detail-block">
+      <h4>セクター動向 — ${p.sector}</h4>
+      <div id="tsector-slot-${idx}" style="min-height:40px">
+        <div style="color:var(--text-muted);font-size:.78rem">読み込み中...</div>
+      </div>
+    </div>` : ""}
+
+    <!-- スコア説明 -->
+    <div class="detail-block">
+      <h4>信頼度の根拠</h4>
+      <div class="tech-formula">
+        <div class="tf-row"><span class="tf-k">基本スコア</span><span class="tf-v">${p.reji_sapo==="confirmed"?"レジサポ確認（+25pt）":"通常押し目"}</span></div>
+        <div class="tf-row"><span class="tf-k">RR品質</span><span class="tf-v">${p.risk_reward ? p.risk_reward.toFixed(2)+"R" : "—"}</span></div>
+        <div class="tf-row"><span class="tf-k">ボーナスフラグ</span><span class="tf-v">${[p.rsi_flag?"RSI":"", p.macd_div_flag?"MACDダイバ":"", p.fib_confluence?"Fib":""].filter(Boolean).join(", ") || "なし"}</span></div>
+        <div class="tf-total">信頼度 = <strong>${p.confidence ? ((p.confidence)*100).toFixed(1)+"%" : "—"}</strong></div>
+      </div>
+      <div style="font-size:.7rem;color:var(--text-muted);margin-top:8px;line-height:1.5">
+        ※ファンダメンタルは考慮しない純テクニカル判定<br>
+        ※SL = サポート×0.99 または サポート−ATR
+      </div>
+    </div>
+  </div>
+  ${chartDiv}
+</div>`;
+}
+
+
 // ── helpers ────────────────────────────────────────────────
 
 function _holdingBadge(days) {
@@ -310,6 +427,12 @@ function _verdictCss(v) {
     WATCH: "verdict-watch", WAIT: "verdict-wait", PASSED: "verdict-passed",
   };
   return map[v] || "";
+}
+function _verdictCssLogic4(v) {
+  if (v === "最優先候補")    return "verdict-entry";
+  if (v === "サポート接近中") return "verdict-buy";
+  if (v === "押し目待ち")    return "verdict-passed";
+  return "";
 }
 function kv(label, value) {
   return `<div class="kv-row"><span class="kv-key">${label}</span><span class="kv-val">${value ?? "—"}</span></div>`;
