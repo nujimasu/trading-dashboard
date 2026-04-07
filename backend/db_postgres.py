@@ -335,6 +335,9 @@ def init_db():
         "ALTER TABLE tech_daily_picks ADD COLUMN IF NOT EXISTS stage_b_signals_json TEXT DEFAULT '[]'",
         "ALTER TABLE daily_picks ADD COLUMN IF NOT EXISTS take_profit_verdict TEXT DEFAULT 'HOLD'",
         "ALTER TABLE daily_picks ADD COLUMN IF NOT EXISTS take_profit_signals TEXT DEFAULT ''",
+        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS price_to_support_pct REAL",
+        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h1_trigger TEXT",
+        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h4_structure TEXT DEFAULT 'neutral'",
     ]
     for m in pg_migrations:
         try:
