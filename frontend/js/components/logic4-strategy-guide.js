@@ -41,7 +41,7 @@ export function renderLogic4StrategyGuide(container) {
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
         ${filter("週足トレンド", "週足 20EMA > 200EMA", "#10b981", "中長期的に上昇トレンドが継続していること。週足でデッドクロス中の銘柄は全除外。")}
         ${filter("日足パーフェクトオーダー", "株価 > 20EMA > 50EMA > 200EMA", "#3b82f6", "短・中・長期の移動平均が上から順に並び、トレンドの勢いが強い状態。準成立（株価>20EMA>200EMA）は別途フラグ付き。")}
-        ${filter("3ヶ月パフォーマンス", "過去3ヶ月の騰落率 > 0%", "#8b5cf6", "ダウ理論の高値・安値切り上げを数値で代替。6ヶ月もプラスなら信頼度向上。")}
+        ${filter("3ヶ月パフォーマンス", "過去3ヶ月の騰落率 > 0%", "#8b5cf6", "直近3ヶ月でプラスの銘柄のみ対象。例: +5〜15%が安定候補。+30%超はモメンタムは強いが押し目が浅い傾向。+1〜3%は上昇初期で反発余地が大きい場合も。")}
         ${filter("流動性", "20日平均出来高 ≥ 50万株", "#f59e0b", "出来高が低いとテクニカル分析が機能しにくく、スリッページも発生しやすいため除外。")}
       </div>
     </div>
@@ -56,9 +56,12 @@ export function renderLogic4StrategyGuide(container) {
           <div style="font-size:.78rem;color:#94a3b8;line-height:1.7">
             スイングハイ・ローを検出し、<strong style="color:#e2e8f0">高値の切り上げ（HH）と安値の切り上げ（HL）</strong>が直近で確認できるかを判定。
             <div style="margin-top:8px">
-              ${badge("強い上昇", "#10b981")} 直近2回以上のHH/HL<br>
-              ${badge("上昇初期", "#f59e0b")} 直近1回のHH/HL<br>
-              ${badge("除外", "#ef4444")} HH/HLが崩れている
+              ${badge("strong", "#10b981")} 直近2回以上のHH/HL → 上昇トレンドが明確に継続中<br>
+              ${badge("early", "#f59e0b")} 直近1回のHH/HL → 上昇トレンドの初期段階 or スイング数が不足<br>
+              ${badge("broken", "#ef4444")} HH/HLの連続が崩れた → <strong style="color:#fca5a5">除外</strong>
+            </div>
+            <div style="margin-top:8px;padding:8px;background:rgba(30,41,59,.5);border-radius:4px;font-size:.74rem;color:#64748b">
+              ※ <strong style="color:#94a3b8">early</strong> はスイングポイントが直近60日間で2つ未満の場合にもデフォルトで表示されます。上昇トレンド初期の銘柄や、レンジから抜け出したばかりの銘柄に多いです。
             </div>
           </div>
         </div>
@@ -111,6 +114,50 @@ export function renderLogic4StrategyGuide(container) {
         ${bonus("RSI 30〜50", "#3b82f6", "売られすぎゾーンからの反転が期待できる押し目ゾーン。RSI<30は売られすぎ、RSI>50は押し目と言えない。")}
         ${bonus("MACDダイバージェンス", "#8b5cf6", "株価が安値切り下げにもかかわらずMACDヒストが切り上げ → 強気ダイバージェンス。反発の信頼度が大幅向上。")}
         ${bonus("フィボナッチコンフルエンス", "#f59e0b", "直近高値・安値からの38.2%/50%/61.8%水準がEMAやサポートと±2%以内で重なる場合に付与。")}
+      </div>
+    </div>
+
+    <!-- 信頼度算出ロジック -->
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">📊 信頼度（リスト列）の算出ロジック</h3>
+      <div style="font-size:.8rem;color:#94a3b8;line-height:1.7;margin-bottom:12px">
+        信頼度スコアは<strong style="color:#e2e8f0">レジサポ転換・R:R・コンフルエンス・ボーナスフラグ</strong>の4要素で決定:
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;font-size:.78rem;border-collapse:collapse">
+          <thead>
+            <tr style="background:rgba(30,41,59,.6);color:#94a3b8">
+              <th style="padding:8px 12px;text-align:left">条件</th>
+              <th style="padding:8px 12px;text-align:center">ベーススコア</th>
+              <th style="padding:8px 12px;text-align:center">ボーナス加算</th>
+              <th style="padding:8px 12px;text-align:center">上限</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(30,41,59,.8)">
+              <td style="padding:7px 12px;color:#10b981;font-weight:600">レジサポ転換確認 + R:R≥1.5 + ボーナス1件以上</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">70%</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">+5% / ボーナスフラグ1件 + R:R≥2.0で+5%</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">95%</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(30,41,59,.8)">
+              <td style="padding:7px 12px;color:#3b82f6;font-weight:600">R:R≥1.5 + コンフルエンス≥2件</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">55%</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">+5% / ボーナスフラグ1件 + R:R≥2.0で+5%</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">80%</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(30,41,59,.8)">
+              <td style="padding:7px 12px;color:#f59e0b;font-weight:600">R:R≥1.5 + コンフルエンス1件</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">50%</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">+3% / ボーナスフラグ1件</td>
+              <td style="padding:7px 12px;text-align:center;color:#e2e8f0">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;padding:8px;background:rgba(30,41,59,.5);border-radius:4px;font-size:.74rem;color:#64748b">
+        ボーナスフラグ = RSI 30〜50 / MACDダイバージェンス / フィボナッチコンフルエンス（各+1件）<br>
+        例: レジサポ確認 + ボーナス2件 + R:R 2.5 → 70% + 10% + 5% = 85%
       </div>
     </div>
 

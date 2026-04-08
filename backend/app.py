@@ -22,7 +22,6 @@ from backend.routes.daily         import router as daily_router
 from backend.routes.search        import router as search_router
 from backend.routes.sentiment     import router as sentiment_router
 from backend.routes.tech_weekly   import router as tech_weekly_router
-from backend.routes.tech_daily    import router as tech_daily_router
 from backend.routes.chart              import router as chart_router
 from backend.routes.entry_candidates   import router as entry_candidates_router
 from backend.routes.logic3             import router as logic3_router
@@ -36,11 +35,8 @@ def _run_daily_in_background():
     """サーバー起動時にバックグラウンドで日次調整を実行する。"""
     try:
         from pipeline.daily_adjustment import run as daily_run
-        from pipeline.tech_scan import run_daily as tech_daily_run
         print("[Startup] 日次調整をバックグラウンドで実行中...")
         daily_run()
-        print("[Startup] テクニカル日次調整をバックグラウンドで実行中...")
-        tech_daily_run()
     except Exception as e:
         print(f"[Startup] 日次調整エラー: {e}")
 
@@ -92,7 +88,6 @@ def create_app() -> FastAPI:
         search_router,
         sentiment_router,
         tech_weekly_router,
-        tech_daily_router,
         chart_router,
         entry_candidates_router,
         logic3_router,

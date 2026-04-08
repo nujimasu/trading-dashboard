@@ -20,7 +20,7 @@ const STAGE_LABEL = {
 };
 
 export function renderTechPicksTable(container, picks, title, mode = "weekly") {
-  const isLogic4 = mode === "logic4";
+  const isLogic4 = mode === "logic4" || mode === "logic3";
   const isDailyMode = mode === "daily" || isLogic4;
 
   if (!picks.length) {
@@ -341,10 +341,13 @@ function _buildDetailPanelLogic4(p, idx) {
       <h4>エントリー根拠（サポート分析）</h4>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px">${activeSignals}</div>
 
-      <h4 style="margin-top:4px">4H/1H インデイタイム確認</h4>
+      <h4 style="margin-top:4px">${p.h4_trigger !== undefined ? '4H インデイタイム確認' : '4H/1H インデイタイム確認'}</h4>
       <div class="kv-row"><span class="kv-key">サポートまでの距離</span><span class="kv-val">${distBadge}</span></div>
       <div class="kv-row"><span class="kv-key">4H構造</span><span class="kv-val">${h4Badge}</span></div>
-      <div class="kv-row"><span class="kv-key">1Hトリガー</span><span class="kv-val">${p.h1_trigger ? `<span class="sig-tag sig-tag--active">${p.h1_trigger}</span>` : '<span style="color:var(--text-muted)">未検出（サポート接近待ち）</span>'}</span></div>
+      ${p.h4_trigger !== undefined
+        ? `<div class="kv-row"><span class="kv-key">4Hトリガー</span><span class="kv-val">${p.h4_trigger ? `<span class="sig-tag sig-tag--active">${p.h4_trigger}</span>` : '<span style="color:var(--text-muted)">未検出（サポート接近待ち）</span>'}</span></div>`
+        : `<div class="kv-row"><span class="kv-key">1Hトリガー</span><span class="kv-val">${p.h1_trigger ? `<span class="sig-tag sig-tag--active">${p.h1_trigger}</span>` : '<span style="color:var(--text-muted)">未検出（サポート接近待ち）</span>'}</span></div>`
+      }
     </div>
 
     <!-- テクニカル指標 -->

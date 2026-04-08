@@ -333,23 +333,37 @@ def init_db():
         """,
         """
         CREATE TABLE IF NOT EXISTS logic3_picks (
-            ticker           TEXT PRIMARY KEY,
-            scan_date        TEXT,
-            stage            INTEGER DEFAULT 0,
-            confidence       REAL,
-            avg_win_rate     REAL,
-            risk_reward      REAL,
-            entry_price      REAL,
-            stop_price       REAL,
-            tp1_price        REAL,
-            target_price     REAL,
-            atr_pct          REAL,
-            rsi              REAL,
-            vol_ratio        REAL,
-            current_price    REAL,
-            signals_json     TEXT DEFAULT '[]',
-            sector           TEXT,
-            holding_days_est INTEGER DEFAULT 20
+            ticker               TEXT PRIMARY KEY,
+            scan_date            TEXT,
+            perfect_order        TEXT,
+            perf_3m              REAL,
+            perf_6m              REAL,
+            avg_vol_20d          REAL,
+            dow_trend            TEXT,
+            support_price        REAL,
+            confluence           INTEGER DEFAULT 0,
+            support_reasons      TEXT DEFAULT '[]',
+            reji_sapo            TEXT DEFAULT 'none',
+            risk_reward          REAL,
+            entry_price          REAL,
+            stop_price           REAL,
+            tp1_price            REAL,
+            target_price         REAL,
+            rsi                  REAL,
+            rsi_flag             INTEGER DEFAULT 0,
+            macd_div_flag        INTEGER DEFAULT 0,
+            fib_confluence       TEXT,
+            atr                  REAL,
+            verdict              TEXT,
+            confidence           REAL,
+            composite_score      REAL,
+            sector               TEXT,
+            current_price        REAL,
+            holding_days_est     INTEGER DEFAULT 14,
+            signals_json         TEXT DEFAULT '[]',
+            price_to_support_pct REAL,
+            h4_trigger           TEXT,
+            h4_structure         TEXT DEFAULT 'neutral'
         )
         """,
         """
@@ -393,6 +407,56 @@ def init_db():
         cur.execute(stmt)
 
     # Column migrations for existing tables
+    # logic3_picks のスキーマが旧28シグナル版から押し目買い4H版に変更
+    # 旧テーブルを削除して新スキーマで再作成
+    try:
+        cur.execute("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'logic3_picks' AND column_name = 'h4_trigger'
+        """)
+        if not cur.fetchone():
+            cur.execute("DROP TABLE IF EXISTS logic3_picks")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS logic3_picks (
+                    ticker               TEXT PRIMARY KEY,
+                    scan_date            TEXT,
+                    perfect_order        TEXT,
+                    perf_3m              REAL,
+                    perf_6m              REAL,
+                    avg_vol_20d          REAL,
+                    dow_trend            TEXT,
+                    support_price        REAL,
+                    confluence           INTEGER DEFAULT 0,
+                    support_reasons      TEXT DEFAULT '[]',
+                    reji_sapo            TEXT DEFAULT 'none',
+                    risk_reward          REAL,
+                    entry_price          REAL,
+                    stop_price           REAL,
+                    tp1_price            REAL,
+                    target_price         REAL,
+                    rsi                  REAL,
+                    rsi_flag             INTEGER DEFAULT 0,
+                    macd_div_flag        INTEGER DEFAULT 0,
+                    fib_confluence       TEXT,
+                    atr                  REAL,
+                    verdict              TEXT,
+                    confidence           REAL,
+                    composite_score      REAL,
+                    sector               TEXT,
+                    current_price        REAL,
+                    holding_days_est     INTEGER DEFAULT 14,
+                    signals_json         TEXT DEFAULT '[]',
+                    price_to_support_pct REAL,
+                    h4_trigger           TEXT,
+                    h4_structure         TEXT DEFAULT 'neutral'
+                )
+            """)
+            conn.commit()
+            print("[DB] logic3_picks table recreated with new schema (4H trigger)")
+    except Exception as e:
+        conn.rollback()
+        print(f"[DB] logic3_picks migration error: {e}")
+
     pg_migrations = [
         "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''",
         "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS next_release TEXT DEFAULT ''",
