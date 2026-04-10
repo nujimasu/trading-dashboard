@@ -20,7 +20,7 @@ const STAGE_LABEL = {
 };
 
 export function renderTechPicksTable(container, picks, title, mode = "weekly") {
-  const isLogic4 = mode === "logic4" || mode === "logic3";
+  const isLogic4 = mode === "logic4" || mode === "logic3" || mode === "logic2";
   const isDailyMode = mode === "daily" || isLogic4;
 
   if (!picks.length) {
@@ -348,6 +348,8 @@ function _buildDetailPanelLogic4(p, idx) {
         ? `<div class="kv-row"><span class="kv-key">4Hトリガー</span><span class="kv-val">${p.h4_trigger ? `<span class="sig-tag sig-tag--active">${p.h4_trigger}</span>` : '<span style="color:var(--text-muted)">未検出（サポート接近待ち）</span>'}</span></div>`
         : `<div class="kv-row"><span class="kv-key">1Hトリガー</span><span class="kv-val">${p.h1_trigger ? `<span class="sig-tag sig-tag--active">${p.h1_trigger}</span>` : '<span style="color:var(--text-muted)">未検出（サポート接近待ち）</span>'}</span></div>`
       }
+      ${p.trigger_bonus > 0 ? `<div class="kv-row"><span class="kv-key">トリガーボーナス</span><span class="kv-val"><span style="color:var(--accent-green);font-weight:bold">+${(p.trigger_bonus * 100).toFixed(0)}%</span></span></div>` : ''}
+      ${p.h4_triggers_all && p.h4_triggers_all.length > 1 ? `<div class="kv-row"><span class="kv-key">検出トリガー(全)</span><span class="kv-val">${p.h4_triggers_all.map(t => `<span class="sig-tag sig-tag--active">${t}</span>`).join(' ')}</span></div>` : ''}
     </div>
 
     <!-- テクニカル指標 -->

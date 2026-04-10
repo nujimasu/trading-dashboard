@@ -111,6 +111,16 @@ def run_full(skip_download: bool = False):
         print(f"[FATAL] Stage 6 failed: {e}")
         return
 
+    # ── Logic2 scan ───────────────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic2_scan import run as logic2_run
+        logic2_run()
+        log_stage("Logic2", "OK", "Logic2 picks generated", time.time() - t0)
+    except Exception as e:
+        log_stage("Logic2", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic2 scan failed: {e}")
+
     # ── Logic3 scan ───────────────────────────────────────────────────────
     t0 = time.time()
     try:
@@ -254,6 +264,16 @@ def run_daily_full():
         log_stage("DailyFull-Daily", "OK", "daily_picks updated", time.time() - t0)
     except Exception as e:
         log_stage("DailyFull-Daily", "ERROR", str(e), time.time() - t0)
+
+    # ── ロジック２スキャン（日次）────────────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic2_scan import run as logic2_run
+        logic2_run()
+        log_stage("DailyFull-Logic2", "OK", "logic2_picks updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Logic2", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic2 scan failed: {e}")
 
     # ── ロジック３スキャン（日次）────────────────────────────────────────────
     t0 = time.time()

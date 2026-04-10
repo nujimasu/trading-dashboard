@@ -268,6 +268,41 @@ else:
             h4_trigger      TEXT,
             h4_structure    TEXT DEFAULT 'neutral'
         );
+        CREATE TABLE IF NOT EXISTS logic2_picks (
+            ticker          TEXT PRIMARY KEY,
+            scan_date       TEXT,
+            perfect_order   TEXT,
+            perf_3m         REAL,
+            perf_6m         REAL,
+            avg_vol_20d     REAL,
+            dow_trend       TEXT,
+            support_price   REAL,
+            confluence      INTEGER DEFAULT 0,
+            support_reasons TEXT DEFAULT '[]',
+            reji_sapo       TEXT DEFAULT 'none',
+            risk_reward     REAL,
+            entry_price     REAL,
+            stop_price      REAL,
+            tp1_price       REAL,
+            target_price    REAL,
+            rsi             REAL,
+            rsi_flag        INTEGER DEFAULT 0,
+            macd_div_flag   INTEGER DEFAULT 0,
+            fib_confluence  TEXT,
+            atr             REAL,
+            verdict         TEXT,
+            confidence      REAL,
+            composite_score REAL,
+            sector          TEXT,
+            current_price   REAL,
+            holding_days_est INTEGER DEFAULT 14,
+            signals_json    TEXT DEFAULT '[]',
+            price_to_support_pct REAL,
+            h4_trigger      TEXT,
+            h4_structure    TEXT DEFAULT 'neutral',
+            h4_triggers_all TEXT DEFAULT '[]',
+            trigger_bonus   REAL DEFAULT 0
+        );
         """)
 
         conn.commit()

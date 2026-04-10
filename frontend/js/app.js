@@ -1,9 +1,10 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
 import { renderPicksTable }         from "./components/picks-table.js?v=10";
-import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=5";
+import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=6";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
+import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=1";
 import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=2";
 import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=4";
 import { apiFetch }                from "./utils/api.js?v=2";
@@ -14,10 +15,12 @@ const SECTIONS = [
   { id: "economic",      label: "経済指標",   icon: "📈", load: loadEconomic },
   // ── リスト ───────────────────────────────────────────────────────────────
   { id: "logic1", label: "ロジック１（ファンダ考慮）", icon: "🎯", load: loadLogic1, group: "list" },
+  { id: "logic2", label: "ロジック２（厳選押し目買い）", icon: "🔥", load: loadLogic2, group: "list" },
   { id: "logic3", label: "ロジック３（押し目買い・4H）", icon: "⚡", load: loadLogic3, group: "list" },
   { id: "logic4", label: "ロジック４（押し目買い・1H）", icon: "🎯", load: loadLogic4, group: "list" },
   // ── ロジック説明 ──────────────────────────────────────────────────────────
   { id: "strategy-guide",       label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,       group: "guide" },
+  { id: "logic2-strategy-guide",label: "ロジック２の説明", icon: "🔥", load: loadLogic2StrategyGuide, group: "guide" },
   { id: "logic3-strategy-guide",label: "ロジック３の説明", icon: "⚡", load: loadLogic3StrategyGuide, group: "guide" },
   { id: "logic4-strategy-guide",label: "ロジック４の説明", icon: "🎯", load: loadLogic4StrategyGuide, group: "guide" },
   // ─────────────────────────────────────────────────────────────────────────
@@ -156,6 +159,17 @@ async function loadLogic4(container) {
   }
 }
 
+// ロジック２: 厳選押し目買い（4H厳格トリガー版）
+async function loadLogic2(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
+  try {
+    const picks = await apiFetch("/api/logic2-picks");
+    renderTechPicksTable(container, picks, "\uD83D\uDD25 ロジック２（厳選押し目買い）", "logic2");
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
+  }
+}
+
 // ロジック３: 押し目買い（4Hトリガー版）
 async function loadLogic3(container) {
   container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
@@ -169,6 +183,10 @@ async function loadLogic3(container) {
 
 function loadStrategyGuide(container) {
   renderStrategyGuide(container);
+}
+
+function loadLogic2StrategyGuide(container) {
+  renderLogic2StrategyGuide(container);
 }
 
 function loadLogic3StrategyGuide(container) {
