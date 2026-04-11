@@ -51,9 +51,12 @@
 
 import json
 import math
+import os
+import requests
 from datetime import date, timedelta
 from collections import defaultdict
 from backend.db import get_connection
+from config import FMP_API_KEY, FMP_BASE_URL, SECTOR_DISPLAY
 
 try:
     import yfinance as yf
@@ -633,6 +636,38 @@ def _calc_trigger_confidence_bonus(triggers, rsi_val, support_price, current_pri
 
 # ── メインスキャン ─────────────────────────────────────────────────────────────
 
+def _build_sector_map(cur, tickers=None):
+    """全テーブルからセクター情報を一括取得し、不足分はFMP APIで補完。"""
+    sector_map = {}
+    for tbl in ["universe", "fundamentals", "weekly_picks"]:
+        try:
+            cur.execute(f"SELECT ticker, sector FROM {tbl} WHERE sector IS NOT NULL AND sector != ''")
+            for r in cur.fetchall():
+                sector_map[r["ticker"]] = r["sector"]
+        except Exception:
+            pass
+
+    if tickers and FMP_API_KEY:
+        missing = [t for t in tickers if t not in sector_map]
+        if missing:
+            print(f"[Logic2] FMP APIでセクター補完: {len(missing)}銘柄")
+            for i in range(0, len(missing), 50):
+                batch = missing[i:i+50]
+                try:
+                    url = f"{FMP_BASE_URL}/profile?symbol={','.join(batch)}&apikey={FMP_API_KEY}"
+                    resp = requests.get(url, timeout=15)
+                    if resp.status_code == 200:
+                        for item in resp.json():
+                            sym = item.get("symbol", "")
+                            sec = item.get("sector", "")
+                            if sym and sec:
+                                sector_map[sym] = SECTOR_DISPLAY.get(sec, sec)
+                except Exception as e:
+                    print(f"[Logic2] FMP sector fetch error: {e}")
+
+    return sector_map
+
+
 def run():
     print("[Logic2] 厳選押し目買いスクリーニング開始...")
     conn = get_connection()
@@ -646,6 +681,9 @@ def run():
     """, (MIN_BARS_DAILY,))
     tickers = [r["ticker"] for r in cur.fetchall()]
     print(f"[Logic2] 対象銘柄数: {len(tickers)}")
+
+    sector_map = _build_sector_map(cur, tickers)
+    print(f"[Logic2] セクターマッピング: {len(sector_map)}銘柄")
 
     picks = []
     first_pass = second_pass = adopted = 0
@@ -775,14 +813,8 @@ def run():
 
             adopted += 1
 
-            # セクター（weekly_picks → fundamentals → universe の順にフォールバック）
-            sector = None
-            for sec_tbl in ["weekly_picks", "fundamentals", "universe"]:
-                cur.execute(f"SELECT sector FROM {sec_tbl} WHERE ticker = ? LIMIT 1", (ticker,))
-                sec_row = cur.fetchone()
-                if sec_row and sec_row["sector"]:
-                    sector = sec_row["sector"]
-                    break
+            # セクター（起動時に一括取得済み）
+            sector = sector_map.get(ticker)
 
             # 保有日数推定
             if atr_v and atr_v > 0 and tp_price and C[i]:
