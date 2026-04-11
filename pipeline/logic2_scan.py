@@ -409,6 +409,66 @@ def _is_bull_engulfing_strict(prev, curr):
             curr["close"] >= prev["high"])            # 前足高値以上で引け
 
 
+def _is_inverse_hammer_strict(bar):
+    """厳格逆ハンマー: 上ヒゲ ≥ 実体の3倍（標準は2倍）、下ヒゲ極小。"""
+    body = abs(bar["close"] - bar["open"])
+    upper_wick = bar["high"] - max(bar["close"], bar["open"])
+    lower_wick = min(bar["close"], bar["open"]) - bar["low"]
+    if body < 1e-8:
+        body = (bar["high"] - bar["low"]) * 0.1
+    return (upper_wick >= 3 * body and
+            lower_wick <= body * 0.3)
+
+
+def _is_piercing_line_strict(prev, curr):
+    """厳格切り込み線: 前足の61.8%以上まで戻す（標準は50%）。"""
+    if prev is None:
+        return False
+    prev_threshold = prev["open"] - (prev["open"] - prev["close"]) * 0.382
+    return (prev["close"] < prev["open"] and
+            curr["close"] > curr["open"] and
+            curr["open"]  < prev["close"] and
+            curr["close"] >= prev_threshold and
+            curr["close"] < prev["open"])
+
+
+def _is_three_white_soldiers_strict(b1, b2, b3):
+    """厳格赤三兵: 各足の実体が前足の高値〜安値レンジの50%以上。"""
+    if b1 is None or b2 is None or b3 is None:
+        return False
+    if not (b1["close"] > b1["open"] and
+            b2["close"] > b2["open"] and
+            b3["close"] > b3["open"]):
+        return False
+    if not (b2["close"] > b1["close"] and b3["close"] > b2["close"]):
+        return False
+    if not (b2["open"] >= b1["open"] and b3["open"] >= b2["open"]):
+        return False
+    # 各足の実体がレンジの50%以上（大きな実体を要求）
+    for b in [b1, b2, b3]:
+        body = b["close"] - b["open"]
+        rng  = b["high"] - b["low"]
+        if rng < 1e-8 or body / rng < 0.5:
+            return False
+    return True
+
+
+def _is_morning_star_strict(b1, b2, b3):
+    """厳格明けの明星: b2の実体がb1の30%未満（標準は40%）、b3がb1の60%以上戻す。"""
+    if b1 is None or b2 is None or b3 is None:
+        return False
+    b1_body = abs(b1["close"] - b1["open"])
+    b2_body = abs(b2["close"] - b2["open"])
+    b3_body = abs(b3["close"] - b3["open"])
+    if b1_body < 1e-8:
+        return False
+    return (b1["close"] < b1["open"] and
+            b2_body < b1_body * 0.3 and              # b2実体がb1の30%未満（厳格化）
+            b3["close"] > b3["open"] and
+            b3_body > b1_body * 0.6 and              # b3がb1の60%以上（厳格化）
+            b3["close"] > (b1["open"] + b1["close"]) / 2)
+
+
 def _detect_4h_trigger_strict(rows_4h, support_price):
     """
     厳格4Hトリガー検出。
@@ -416,7 +476,11 @@ def _detect_4h_trigger_strict(rows_4h, support_price):
     - ピンバー: 3倍ヒゲ（ロジック３は2倍）
     - エンガルフィング: 全レンジ包み込み
     - 出来高: 2.0倍（ロジック３は1.5倍）
-    Returns: シグナル名 (str) or None
+    - 逆ハンマー: 3倍上ヒゲ（ロジック３は2倍）
+    - 切り込み線: 61.8%戻し（ロジック３は50%）
+    - 赤三兵: 実体レンジ比50%以上（ロジック３は条件なし）
+    - 明けの明星: b2実体30%未満+b3が60%戻し（ロジック３は40%/50%）
+    Returns: list[str] or None
     """
     if not rows_4h or len(rows_4h) < 4:
         return None
@@ -440,18 +504,34 @@ def _detect_4h_trigger_strict(rows_4h, support_price):
     for j in range(len(recent) - 1, -1, -1):
         bar  = recent[j]
         prev = recent[j - 1] if j > 0 else None
+        prev2 = recent[j - 2] if j >= 2 else None
 
         # サポート近傍チェック（±3% — 厳格化）
         mid = (bar["high"] + bar["low"]) / 2
         if support_price > 0 and abs(mid - support_price) / support_price > 0.03:
             continue
 
+        # 1本足パターン
         if _is_pin_bar_strict(bar):
             triggers_found.append("ピンバー(4H厳選)")
+        if _is_inverse_hammer_strict(bar):
+            triggers_found.append("逆ハンマー(4H厳選)")
+
+        # 2本足パターン
         if prev and _is_bull_engulfing_strict(prev, bar):
             triggers_found.append("強気エンガルフィング(4H厳選)")
+        if prev and _is_piercing_line_strict(prev, bar):
+            triggers_found.append("切り込み線(4H厳選)")
+
+        # 出来高急増
         if bar["volume"] >= vol_ma * 2.0 and bar["close"] > bar["open"]:
             triggers_found.append("出来高急増(4H厳選)")
+
+        # 3本足パターン
+        if prev and prev2 and _is_morning_star_strict(prev2, prev, bar):
+            triggers_found.append("明けの明星(4H厳選)")
+        if prev and prev2 and _is_three_white_soldiers_strict(prev2, prev, bar):
+            triggers_found.append("赤三兵(4H厳選)")
 
         if triggers_found:
             break
@@ -695,10 +775,14 @@ def run():
 
             adopted += 1
 
-            # セクター
-            cur.execute("SELECT sector FROM weekly_picks WHERE ticker = ? LIMIT 1", (ticker,))
-            sec_row = cur.fetchone()
-            sector = sec_row["sector"] if sec_row else None
+            # セクター（weekly_picks → fundamentals → universe の順にフォールバック）
+            sector = None
+            for sec_tbl in ["weekly_picks", "fundamentals", "universe"]:
+                cur.execute(f"SELECT sector FROM {sec_tbl} WHERE ticker = ? LIMIT 1", (ticker,))
+                sec_row = cur.fetchone()
+                if sec_row and sec_row["sector"]:
+                    sector = sec_row["sector"]
+                    break
 
             # 保有日数推定
             if atr_v and atr_v > 0 and tp_price and C[i]:

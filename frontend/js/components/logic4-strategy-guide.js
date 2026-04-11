@@ -186,8 +186,12 @@ export function renderLogic4StrategyGuide(container) {
             サポート近傍（±5%）での反発シグナルを検出:
             <ul style="margin:6px 0 0 16px;line-height:1.9">
               <li><strong style="color:#6ee7b7">ピンバー(1H)</strong> — 下ヒゲ ≥ 実体×2、陽線</li>
+              <li><strong style="color:#6ee7b7">逆ハンマー(1H)</strong> — 上ヒゲ ≥ 実体×2、下ヒゲ小</li>
               <li><strong style="color:#6ee7b7">強気エンガルフィング(1H)</strong> — 陰線を包む陽線</li>
+              <li><strong style="color:#6ee7b7">切り込み線(1H)</strong> — 陰線→陽線が前足中間以上まで戻す</li>
               <li><strong style="color:#6ee7b7">出来高急増(1H)</strong> — 20本平均×1.5倍以上の陽線</li>
+              <li><strong style="color:#6ee7b7">明けの明星(1H)</strong> — 大陰線→小実体→大陽線の3本反転</li>
+              <li><strong style="color:#6ee7b7">赤三兵(1H)</strong> — 3本連続陽線、各足が切り上がり</li>
               <li><strong style="color:#6ee7b7">ダブルボトム(1H)</strong> — 1%以内の二底形成</li>
             </ul>
           </div>

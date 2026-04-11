@@ -445,6 +445,65 @@ def _is_bull_engulfing(prev, curr):
             curr["close"] >= prev["open"])
 
 
+def _is_inverse_hammer(bar):
+    """逆ハンマー（上ヒゲ ≥ 実体の2倍、下ヒゲ小、小実体）。"""
+    body = abs(bar["close"] - bar["open"])
+    upper_wick = bar["high"] - max(bar["close"], bar["open"])
+    lower_wick = min(bar["close"], bar["open"]) - bar["low"]
+    if body < 1e-8:
+        body = (bar["high"] - bar["low"]) * 0.1
+    return (upper_wick >= 2 * body and
+            lower_wick <= body * 0.5)
+
+
+def _is_piercing_line(prev, curr):
+    """切り込み線: 陰線→陽線が前足の中間以上まで戻す（エンガルフィング未満）。"""
+    if prev is None:
+        return False
+    prev_mid = (prev["open"] + prev["close"]) / 2
+    return (prev["close"] < prev["open"] and            # 前足: 陰線
+            curr["close"] > curr["open"] and             # 当足: 陽線
+            curr["open"]  < prev["close"] and            # 前足終値より下で寄り付き
+            curr["close"] >= prev_mid and                # 前足中間以上まで戻す
+            curr["close"] < prev["open"])                # エンガルフィングにはならない
+
+
+def _is_three_white_soldiers(b1, b2, b3):
+    """赤三兵: 3本連続陽線、各足が前足の高値を超えて引ける。"""
+    if b1 is None or b2 is None or b3 is None:
+        return False
+    # 全て陽線
+    if not (b1["close"] > b1["open"] and
+            b2["close"] > b2["open"] and
+            b3["close"] > b3["open"]):
+        return False
+    # 各足が前足の高値を超えて引ける
+    if not (b2["close"] > b1["close"] and b3["close"] > b2["close"]):
+        return False
+    # 各足がギャップダウンせず前足の実体内で寄り付く
+    if not (b2["open"] >= b1["open"] and b3["open"] >= b2["open"]):
+        return False
+    return True
+
+
+def _is_morning_star(b1, b2, b3):
+    """明けの明星: 大陰線→小実体（十字線含む）→大陽線。"""
+    if b1 is None or b2 is None or b3 is None:
+        return False
+    b1_body = abs(b1["close"] - b1["open"])
+    b2_body = abs(b2["close"] - b2["open"])
+    b3_body = abs(b3["close"] - b3["open"])
+    b1_range = b1["high"] - b1["low"]
+    if b1_range < 1e-8:
+        return False
+    # b1: 大陰線、b2: 小実体、b3: 大陽線
+    return (b1["close"] < b1["open"] and                 # b1: 陰線
+            b2_body < b1_body * 0.4 and                  # b2: 小実体（b1の40%未満）
+            b3["close"] > b3["open"] and                 # b3: 陽線
+            b3_body > b1_body * 0.5 and                  # b3: b1の50%以上の実体
+            b3["close"] > (b1["open"] + b1["close"]) / 2)  # b3がb1の中間以上まで戻す
+
+
 def _detect_4h_trigger(rows_4h, support_price):
     """
     4時間足の直近バーでトリガーシグナルを検出。
@@ -472,18 +531,34 @@ def _detect_4h_trigger(rows_4h, support_price):
     for j in range(len(recent) - 1, -1, -1):
         bar  = recent[j]
         prev = recent[j - 1] if j > 0 else None
+        prev2 = recent[j - 2] if j >= 2 else None
 
         # サポート近傍チェック（±5%）
         mid = (bar["high"] + bar["low"]) / 2
         if support_price > 0 and abs(mid - support_price) / support_price > 0.05:
             continue
 
+        # 1本足パターン
         if _is_pin_bar(bar):
             return "ピンバー(4H)"
+        if _is_inverse_hammer(bar):
+            return "逆ハンマー(4H)"
+
+        # 2本足パターン
         if prev and _is_bull_engulfing(prev, bar):
             return "強気エンガルフィング(4H)"
+        if prev and _is_piercing_line(prev, bar):
+            return "切り込み線(4H)"
+
+        # 出来高急増
         if bar["volume"] >= vol_ma * 1.5 and bar["close"] > bar["open"]:
             return "出来高急増(4H)"
+
+        # 3本足パターン
+        if prev and prev2 and _is_morning_star(prev2, prev, bar):
+            return "明けの明星(4H)"
+        if prev and prev2 and _is_three_white_soldiers(prev2, prev, bar):
+            return "赤三兵(4H)"
 
     if double_bottom:
         return "ダブルボトム(4H)"
@@ -699,10 +774,14 @@ def run():
 
             adopted += 1
 
-            # セクター
-            cur.execute("SELECT sector FROM weekly_picks WHERE ticker = ? LIMIT 1", (ticker,))
-            sec_row = cur.fetchone()
-            sector = sec_row["sector"] if sec_row else None
+            # セクター（weekly_picks → fundamentals → universe の順にフォールバック）
+            sector = None
+            for sec_tbl in ["weekly_picks", "fundamentals", "universe"]:
+                cur.execute(f"SELECT sector FROM {sec_tbl} WHERE ticker = ? LIMIT 1", (ticker,))
+                sec_row = cur.fetchone()
+                if sec_row and sec_row["sector"]:
+                    sector = sec_row["sector"]
+                    break
 
             # 保有日数推定
             if atr_v and atr_v > 0 and tp_price and C[i]:

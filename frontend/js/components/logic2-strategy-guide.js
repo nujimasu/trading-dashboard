@@ -62,8 +62,12 @@ export function renderLogic2StrategyGuide(container) {
           <strong>Step 3: 厳格4Hトリガー検出（改善B）</strong>
           <ul style="margin:8px 0 0 16px;">
             <li><strong>ピンバー(4H厳選)</strong>: 下ヒゲ >= 実体の<span style="color:var(--accent-green)">3倍</span>、陽線</li>
+            <li><strong>逆ハンマー(4H厳選)</strong>: 上ヒゲ >= 実体の<span style="color:var(--accent-green)">3倍</span>、下ヒゲ極小</li>
             <li><strong>強気エンガルフィング(4H厳選)</strong>: 前足の<span style="color:var(--accent-green)">全レンジ（高値〜安値）</span>を包み込む</li>
+            <li><strong>切り込み線(4H厳選)</strong>: 陰線→陽線が前足の<span style="color:var(--accent-green)">61.8%以上</span>まで戻す</li>
             <li><strong>出来高急増(4H厳選)</strong>: 平均出来高の<span style="color:var(--accent-green)">2.0倍</span>以上 + 陽線</li>
+            <li><strong>明けの明星(4H厳選)</strong>: 大陰線→<span style="color:var(--accent-green)">実体30%未満</span>→<span style="color:var(--accent-green)">60%以上戻す</span>大陽線</li>
+            <li><strong>赤三兵(4H厳選)</strong>: 3本連続陽線、各足の<span style="color:var(--accent-green)">実体がレンジの50%以上</span></li>
             <li><strong>ダブルボトム(4H厳選)</strong>: スイングロー2点の乖離 < 1.5%</li>
             <li>全パターン: サポート価格の<span style="color:var(--accent-green)">±3%以内</span>で発生したもののみ</li>
           </ul>
@@ -141,6 +145,30 @@ export function renderLogic2StrategyGuide(container) {
             <td style="color:var(--accent-green)">±3%</td>
             <td>±5%</td>
             <td>±5%</td>
+          </tr>
+          <tr>
+            <td>逆ハンマー上ヒゲ比率</td>
+            <td style="color:var(--accent-green)">>=3倍、下ヒゲ極小</td>
+            <td>>=2倍</td>
+            <td>>=2倍</td>
+          </tr>
+          <tr>
+            <td>切り込み線 戻し水準</td>
+            <td style="color:var(--accent-green)">61.8%以上</td>
+            <td>50%以上</td>
+            <td>50%以上</td>
+          </tr>
+          <tr>
+            <td>明けの明星 b2実体/b3戻し</td>
+            <td style="color:var(--accent-green)">30%未満/60%以上</td>
+            <td>40%未満/50%以上</td>
+            <td>40%未満/50%以上</td>
+          </tr>
+          <tr>
+            <td>赤三兵 実体条件</td>
+            <td style="color:var(--accent-green)">レンジの50%以上</td>
+            <td>条件なし</td>
+            <td>条件なし</td>
           </tr>
           <tr>
             <td>ダブルボトム tolerance</td>

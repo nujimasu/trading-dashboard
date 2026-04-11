@@ -89,8 +89,12 @@ export function renderLogic3StrategyGuide(container) {
             サポート近傍（±5%）で以下を4H足で検出:
             <ul style="margin:6px 0 0 16px;line-height:1.9">
               <li><strong style="color:#a5b4fc">ピンバー(4H)</strong> — 下ヒゲ ≥ 実体×2、陽線</li>
+              <li><strong style="color:#a5b4fc">逆ハンマー(4H)</strong> — 上ヒゲ ≥ 実体×2、下ヒゲ小</li>
               <li><strong style="color:#a5b4fc">強気エンガルフィング(4H)</strong> — 陰線を包む陽線</li>
+              <li><strong style="color:#a5b4fc">切り込み線(4H)</strong> — 陰線→陽線が前足中間以上まで戻す</li>
               <li><strong style="color:#a5b4fc">出来高急増(4H)</strong> — 全4H平均×1.5倍以上の陽線</li>
+              <li><strong style="color:#a5b4fc">明けの明星(4H)</strong> — 大陰線→小実体→大陽線の3本反転</li>
+              <li><strong style="color:#a5b4fc">赤三兵(4H)</strong> — 3本連続陽線、各足が切り上がり</li>
               <li><strong style="color:#a5b4fc">ダブルボトム(4H)</strong> — 1.5%以内の二底形成</li>
             </ul>
           </div>
