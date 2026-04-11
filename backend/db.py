@@ -324,6 +324,9 @@ else:
             ("logic4_picks",      "price_to_support_pct REAL"),
             ("logic4_picks",      "h1_trigger TEXT"),
             ("logic4_picks",      "h4_structure TEXT DEFAULT 'neutral'"),
+            ("logic2_picks",      "chart_pattern TEXT"),
+            ("logic3_picks",      "chart_pattern TEXT"),
+            ("logic4_picks",      "chart_pattern TEXT"),
         ]
         for tbl, col_def in migrations:
             try:

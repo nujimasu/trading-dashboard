@@ -23,7 +23,7 @@ def get_logic2_picks():
                verdict, confidence, composite_score, sector, current_price,
                holding_days_est, signals_json,
                price_to_support_pct, h4_trigger, h4_structure,
-               h4_triggers_all, trigger_bonus
+               h4_triggers_all, trigger_bonus, chart_pattern
         FROM logic2_picks
         ORDER BY
             CASE verdict
@@ -58,12 +58,17 @@ def get_logic2_picks():
         trigger_bonus = r.get("trigger_bonus") or 0
         price_to_support_pct = r.get("price_to_support_pct")
 
+        chart_pattern = r.get("chart_pattern")
+
         if h4_trigger:
             entry_reasons.append(h4_trigger)
         # 複数トリガー検出時は全て追加
         for t in h4_triggers_all:
             if t != h4_trigger and t not in entry_reasons:
                 entry_reasons.append(t)
+        if chart_pattern:
+            for cp in chart_pattern.split(", "):
+                entry_reasons.append(cp)
         if h4_structure == "bullish":
             entry_reasons.append("4H上昇構造")
 
@@ -97,6 +102,7 @@ def get_logic2_picks():
             "h4_structure":    h4_structure,
             "h4_triggers_all": h4_triggers_all,
             "trigger_bonus":   trigger_bonus,
+            "chart_pattern":   chart_pattern,
             "price_to_support_pct": price_to_support_pct,
             "verdict":         verdict,
             "daily_verdict":   verdict,

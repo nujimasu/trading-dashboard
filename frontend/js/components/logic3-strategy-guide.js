@@ -97,6 +97,16 @@ export function renderLogic3StrategyGuide(container) {
               <li><strong style="color:#a5b4fc">赤三兵(4H)</strong> — 3本連続陽線、各足が切り上がり</li>
               <li><strong style="color:#a5b4fc">ダブルボトム(4H)</strong> — 1.5%以内の二底形成</li>
             </ul>
+            <div style="margin-top:14px;padding-top:10px;border-top:1px solid #334155">
+              <div style="font-size:.78rem;font-weight:700;color:#60a5fa;margin-bottom:6px">📊 日足チャートパターン（NEW）</div>
+              <ul style="margin:6px 0 0 16px;line-height:1.9">
+                <li><strong style="color:#60a5fa">カップウィズハンドル</strong> — U字底＋小さな戻り→ブレイクアウト（60日）</li>
+                <li><strong style="color:#60a5fa">アセンディングトライアングル</strong> — 水平レジスタンス＋切り上がるサポート（30日）</li>
+                <li><strong style="color:#60a5fa">逆ヘッドアンドショルダー</strong> — 3つの谷（中央最深）→ネックライン突破（50日）</li>
+                <li><strong style="color:#60a5fa">ブルペナント</strong> — 急騰後の三角持ち合い→上放れ（30日）</li>
+                <li><strong style="color:#60a5fa">フォーリングウェッジ</strong> — 下降ウェッジ収束→上方ブレイク（30日）</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -104,7 +114,7 @@ export function renderLogic3StrategyGuide(container) {
 
     <!-- ローソクパターン図鑑 -->
     <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">🕯️ ローソクパターン図鑑（検出対象8パターン）</h3>
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">🕯️ ローソクパターン図鑑（4Hトリガー: 8パターン）</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
         ${candleCard("ピンバー", "1本足・強気", "#10b981", candleSvg_hammer())}
         ${candleCard("逆ハンマー", "1本足・強気", "#10b981", candleSvg_inverseHammer())}
@@ -114,6 +124,19 @@ export function renderLogic3StrategyGuide(container) {
         ${candleCard("赤三兵", "3本足・強気", "#8b5cf6", candleSvg_threeWhite())}
         ${candleCard("出来高急増", "1本足+出来高", "#f59e0b", candleSvg_volumeSurge())}
         ${candleCard("ダブルボトム", "複数足・反転", "#f59e0b", candleSvg_doubleBottom())}
+      </div>
+    </div>
+
+    <!-- 日足チャートパターン図鑑 -->
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">📊 日足チャートパターン図鑑（5パターン — NEW）</h3>
+      <div style="font-size:.78rem;color:#94a3b8;margin-bottom:12px">日足データ（60〜250日）を使用して構造的な強気パターンを検出。ローソク足パターンより長期の価格構造を捉えます。</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+        ${candleCard("カップウィズハンドル", "U字底→ブレイク", "#60a5fa", chartSvg_cupHandle())}
+        ${candleCard("アセンディング△", "水平抵抗+上昇支持", "#60a5fa", chartSvg_ascTriangle())}
+        ${candleCard("逆ヘッド&ショルダー", "3谷反転パターン", "#60a5fa", chartSvg_invHS())}
+        ${candleCard("ブルペナント", "急騰後の収束→上放れ", "#60a5fa", chartSvg_pennant())}
+        ${candleCard("フォーリングウェッジ", "下降収束→上方ブレイク", "#60a5fa", chartSvg_fallingWedge())}
       </div>
     </div>
 
@@ -184,4 +207,52 @@ function candleSvg_volumeSurge() {
 }
 function candleSvg_doubleBottom() {
   return `<svg width="80" height="70" viewBox="0 0 80 70"><path d="M5 20 Q20 55 35 30 Q50 55 65 20" fill="none" stroke="#f59e0b" stroke-width="2"/><line x1="0" y1="52" x2="80" y2="52" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="3"/><circle cx="20" cy="52" r="3" fill="none" stroke="#f59e0b" stroke-width="1.5"/><circle cx="50" cy="52" r="3" fill="none" stroke="#f59e0b" stroke-width="1.5"/></svg>`;
+}
+// ── 日足チャートパターンSVG ──
+function chartSvg_cupHandle() {
+  return `<svg width="90" height="70" viewBox="0 0 90 70">
+    <path d="M5 18 Q15 18 25 45 Q40 62 55 18 L62 18 Q65 28 70 22" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <line x1="55" y1="18" x2="75" y2="18" stroke="#60a5fa" stroke-width="0.5" stroke-dasharray="2"/>
+    <path d="M70 22 L80 12" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="80" y="10" font-size="8" fill="#22c55e">↑</text>
+  </svg>`;
+}
+function chartSvg_ascTriangle() {
+  return `<svg width="90" height="70" viewBox="0 0 90 70">
+    <line x1="10" y1="18" x2="80" y2="18" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
+    <path d="M10 60 L30 40 L50 30 L70 22" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <path d="M10 20 L30 20 L50 19 L70 18" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
+    <path d="M70 18 L85 8" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="10" y="64" font-size="7" fill="#94a3b8">支持↑</text>
+    <text x="60" y="14" font-size="7" fill="#ef4444">抵抗—</text>
+  </svg>`;
+}
+function chartSvg_invHS() {
+  return `<svg width="90" height="70" viewBox="0 0 90 70">
+    <path d="M5 20 L20 42 L30 25 L45 58 L55 25 L65 42 L80 15" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <line x1="20" y1="25" x2="65" y2="25" stroke="#f59e0b" stroke-width="1" stroke-dasharray="2"/>
+    <text x="32" y="22" font-size="7" fill="#f59e0b">NL</text>
+    <circle cx="20" cy="42" r="2" fill="#94a3b8"/>
+    <circle cx="45" cy="58" r="2.5" fill="#60a5fa"/>
+    <circle cx="65" cy="42" r="2" fill="#94a3b8"/>
+  </svg>`;
+}
+function chartSvg_pennant() {
+  return `<svg width="90" height="70" viewBox="0 0 90 70">
+    <path d="M5 60 L25 15" stroke="#22c55e" stroke-width="2.5"/>
+    <path d="M25 15 L50 22 L65 25" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
+    <path d="M25 25 L50 22 L65 25" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
+    <polygon points="25,15 65,25 25,25" fill="#60a5fa22" stroke="none"/>
+    <path d="M65 25 L80 10" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="7" y="42" font-size="7" fill="#22c55e" transform="rotate(-65,12,42)">pole</text>
+  </svg>`;
+}
+function chartSvg_fallingWedge() {
+  return `<svg width="90" height="70" viewBox="0 0 90 70">
+    <path d="M10 10 L60 40" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
+    <path d="M10 30 L60 45" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
+    <path d="M10 12 L25 22 L40 30 L55 38 L65 25" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <path d="M65 25 L80 12" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="70" y="10" font-size="8" fill="#22c55e">↑</text>
+  </svg>`;
 }

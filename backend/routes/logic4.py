@@ -23,7 +23,8 @@ def get_logic4_picks():
                rsi, rsi_flag, macd_div_flag, fib_confluence, atr,
                verdict, confidence, composite_score, sector, current_price,
                holding_days_est, signals_json,
-               price_to_support_pct, h1_trigger, h4_structure
+               price_to_support_pct, h1_trigger, h4_structure,
+               chart_pattern
         FROM logic4_picks
         ORDER BY
             CASE verdict
@@ -58,8 +59,13 @@ def get_logic4_picks():
         h4_structure = r.get("h4_structure") or "neutral"
         price_to_support_pct = r.get("price_to_support_pct")
 
+        chart_pattern = r.get("chart_pattern")
+
         if h1_trigger:
             entry_reasons.append(h1_trigger)
+        if chart_pattern:
+            for cp in chart_pattern.split(", "):
+                entry_reasons.append(cp)
         if h4_structure == "bullish":
             entry_reasons.append("4H上昇構造")
 
@@ -91,6 +97,7 @@ def get_logic4_picks():
             "holding_days_est": r["holding_days_est"],
             "h1_trigger":      h1_trigger,
             "h4_structure":    h4_structure,
+            "chart_pattern":   chart_pattern,
             "price_to_support_pct": price_to_support_pct,
             # picks-table 互換
             # signals はオブジェクト配列 {label, win_rate, n} を期待するコンポーネント向け

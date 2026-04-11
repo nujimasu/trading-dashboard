@@ -23,7 +23,8 @@ def get_logic3_picks():
                rsi, rsi_flag, macd_div_flag, fib_confluence, atr,
                verdict, confidence, composite_score, sector, current_price,
                holding_days_est, signals_json,
-               price_to_support_pct, h4_trigger, h4_structure
+               price_to_support_pct, h4_trigger, h4_structure,
+               chart_pattern
         FROM logic3_picks
         ORDER BY
             CASE verdict
@@ -57,8 +58,13 @@ def get_logic3_picks():
         h4_structure = r.get("h4_structure") or "neutral"
         price_to_support_pct = r.get("price_to_support_pct")
 
+        chart_pattern = r.get("chart_pattern")
+
         if h4_trigger:
             entry_reasons.append(h4_trigger)
+        if chart_pattern:
+            for cp in chart_pattern.split(", "):
+                entry_reasons.append(cp)
         if h4_structure == "bullish":
             entry_reasons.append("4H上昇構造")
 
@@ -90,6 +96,7 @@ def get_logic3_picks():
             "holding_days_est": r["holding_days_est"],
             "h4_trigger":      h4_trigger,
             "h4_structure":    h4_structure,
+            "chart_pattern":   chart_pattern,
             "price_to_support_pct": price_to_support_pct,
             "verdict":         verdict,
             "daily_verdict":   verdict,

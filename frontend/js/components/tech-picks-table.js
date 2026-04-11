@@ -351,6 +351,7 @@ function _buildDetailPanelLogic4(p, idx) {
       }
       ${p.trigger_bonus > 0 ? `<div class="kv-row"><span class="kv-key">トリガーボーナス</span><span class="kv-val"><span style="color:var(--accent-green);font-weight:bold">+${(p.trigger_bonus * 100).toFixed(0)}%</span></span></div>` : ''}
       ${p.h4_triggers_all && p.h4_triggers_all.length > 1 ? `<div class="kv-row"><span class="kv-key">検出トリガー(全)</span><span class="kv-val">${p.h4_triggers_all.map(t => `<span class="sig-tag sig-tag--active">${t}</span>`).join(' ')}</span></div>` : ''}
+      ${p.chart_pattern ? `<div class="kv-row"><span class="kv-key">チャートパターン</span><span class="kv-val">${p.chart_pattern.split(', ').map(cp => `<span class="sig-tag sig-tag--active" style="background:var(--accent-blue,#3b82f6);color:#fff">${cp}</span>`).join(' ')}</span></div>` : ''}
     </div>
 
     <!-- テクニカル指標 -->

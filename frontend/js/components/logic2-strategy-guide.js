@@ -71,6 +71,16 @@ export function renderLogic2StrategyGuide(container) {
             <li><strong>ダブルボトム(4H厳選)</strong>: スイングロー2点の乖離 < 1.5%</li>
             <li>全パターン: サポート価格の<span style="color:var(--accent-green)">±3%以内</span>で発生したもののみ</li>
           </ul>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-weight:700;color:#60a5fa;margin-bottom:6px">📊 ��足チャートパターン（厳格版 — NEW）</div>
+            <ul style="margin:6px 0 0 16px;">
+              <li><strong style="color:#60a5fa">カップウィズハンドル(厳選)</strong>: 深さ10〜30%、右リム97%回復、ハンドル最大10%</li>
+              <li><strong style="color:#60a5fa">アセンディングトライアングル(厳選)</strong>: レジスタンス±1.5%、スイング3点以上</li>
+              <li><strong style="color:#60a5fa">逆ヘッドアンドショルダー(厳選)</strong>: 両肩±4%、ネックライン99%突破</li>
+              <li><strong style="color:#60a5fa">ブルペナント(厳選)</strong>: ポール上昇12%以上、レンジ縮小60%以下</li>
+              <li><strong style="color:#60a5fa">フォーリングウェッジ(厳選)</strong>: 収束50%以下、完全ブレイク確認</li>
+            </ul>
+          </div>
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>
         <div style="background:var(--bg-card);border:1px solid var(--accent-green);border-radius:6px;padding:12px;">
@@ -99,6 +109,21 @@ export function renderLogic2StrategyGuide(container) {
         ${_candleCard("明けの明星", "b2<30%/b3>60%", "var(--accent-green)")}
         ${_candleCard("赤三兵", "実体≥レンジ50%", "var(--accent-green)")}
         ${_candleCard("ダブルボトム", "乖離<1.5%", "var(--accent-green)")}
+      </div>
+    </div>
+
+    <!-- 日足チャートパターン図鑑 -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>📊 日足チャートパターン図鑑（厳格版 — 5パターン NEW）</h3>
+      <p style="color:var(--text-muted);margin-bottom:12px;font-size:.85em">
+        日足データ（60〜250日）を使用した構造的な強気パターン検出。標準版より厳しい閾値を使用。
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+        ${_candleCard("カップウィズハンドル", "深さ10-30%/回復97%", "#60a5fa")}
+        ${_candleCard("アセンディング△", "レジ±1.5%/3点以上", "#60a5fa")}
+        ${_candleCard("逆H&S", "両肩±4%/NL99%", "#60a5fa")}
+        ${_candleCard("ブルペナント", "ポール12%↑/縮小60%", "#60a5fa")}
+        ${_candleCard("フォーリングウェッジ", "収束50%/完全ブレイク", "#60a5fa")}
       </div>
     </div>
 
@@ -193,6 +218,39 @@ export function renderLogic2StrategyGuide(container) {
             <td>1.5%</td>
             <td>1.5%</td>
             <td>1.0%</td>
+          </tr>
+          <tr style="border-top:2px solid #334155">
+            <td colspan="4" style="color:#60a5fa;font-weight:700;padding:8px 0 4px">📊 日足チャートパターン（NEW）</td>
+          </tr>
+          <tr>
+            <td>カップ&ハンドル 深さ</td>
+            <td style="color:var(--accent-green)">10〜30%</td>
+            <td>8〜40%</td>
+            <td>8〜40%</td>
+          </tr>
+          <tr>
+            <td>アセンディング△ スイング数</td>
+            <td style="color:var(--accent-green)">3点以上</td>
+            <td>2点以上</td>
+            <td>2点以上</td>
+          </tr>
+          <tr>
+            <td>逆H&S 両肩許容差</td>
+            <td style="color:var(--accent-green)">±4%</td>
+            <td>±6%</td>
+            <td>±6%</td>
+          </tr>
+          <tr>
+            <td>ブルペナント ポール上昇</td>
+            <td style="color:var(--accent-green)">12%以上</td>
+            <td>8%以上</td>
+            <td>8%以上</td>
+          </tr>
+          <tr>
+            <td>フォーリングウェッジ 収束</td>
+            <td style="color:var(--accent-green)">50%以下</td>
+            <td>60%以下</td>
+            <td>60%以下</td>
           </tr>
           <tr>
             <td>信頼度ボーナス</td>

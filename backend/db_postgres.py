@@ -503,6 +503,9 @@ def init_db():
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS price_to_support_pct REAL",
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h1_trigger TEXT",
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h4_structure TEXT DEFAULT 'neutral'",
+        "ALTER TABLE logic2_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
+        "ALTER TABLE logic3_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
+        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
     ]
     for m in pg_migrations:
         try:

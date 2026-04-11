@@ -163,6 +163,211 @@ def _find_swing_lows(L, lookback=3):
             lows.append(i)
     return lows
 
+# ── 日足チャートパターン検出（厳格版） ─────────────────────────────────────────
+
+def _detect_cup_and_handle_strict(H, L, C, i, lookback=60):
+    """
+    カップウィズハンドル（厳格）: 深さ10〜30%、右リムが左リムの97%以上回復。
+    """
+    if i < lookback:
+        return False
+    start = i - lookback
+
+    left_rim_idx = start
+    left_rim = H[start]
+    for j in range(start, start + lookback // 4):
+        if H[j] > left_rim:
+            left_rim = H[j]
+            left_rim_idx = j
+
+    cup_mid_start = start + lookback // 4
+    cup_mid_end = start + lookback * 3 // 4
+    if cup_mid_end > i:
+        cup_mid_end = i
+    cup_bottom = min(L[cup_mid_start:cup_mid_end]) if cup_mid_start < cup_mid_end else L[i]
+    cup_bottom_idx = cup_mid_start + L[cup_mid_start:cup_mid_end].index(cup_bottom) if cup_mid_start < cup_mid_end else i
+
+    depth = (left_rim - cup_bottom) / left_rim if left_rim > 0 else 0
+    if depth < 0.10 or depth > 0.30:  # 厳格: 10〜30%（標準: 8〜40%）
+        return False
+
+    right_section = H[cup_bottom_idx:i + 1]
+    if not right_section:
+        return False
+    right_rim = max(right_section)
+    if right_rim < left_rim * 0.97:  # 厳格: 97%回復（標準: 93%）
+        return False
+
+    handle_bars = min(15, i - cup_bottom_idx)
+    if handle_bars < 3:
+        return False
+    handle_low = min(L[i - handle_bars:i + 1])
+    handle_depth = (right_rim - handle_low) / right_rim if right_rim > 0 else 0
+    if handle_depth < 0.02 or handle_depth > 0.10:  # 厳格: 最大10%（標準: 15%）
+        return False
+
+    handle_high = max(H[i - handle_bars:i + 1])
+    if C[i] >= handle_high * 0.99:
+        return True
+    return False
+
+
+def _detect_ascending_triangle_strict(H, L, C, i, lookback=30):
+    """
+    アセンディングトライアングル（厳格）: レジスタンス±1.5%、スイング3点以上。
+    """
+    if i < lookback:
+        return False
+    start = i - lookback
+
+    swing_highs = _find_swing_highs(H[start:i + 1], lookback=2)
+    if len(swing_highs) < 3:  # 厳格: 3点以上（標準: 2点）
+        return False
+
+    high_vals = [H[start + idx] for idx in swing_highs[-4:]]
+    avg_high = sum(high_vals) / len(high_vals)
+    if any(abs(h - avg_high) / avg_high > 0.015 for h in high_vals):  # 厳格: 1.5%（標準: 2%）
+        return False
+
+    swing_lows = _find_swing_lows(L[start:i + 1], lookback=2)
+    if len(swing_lows) < 3:  # 厳格: 3点以上
+        return False
+
+    low_vals = [L[start + idx] for idx in swing_lows[-4:]]
+    ascending = all(low_vals[j] <= low_vals[j + 1] for j in range(len(low_vals) - 1))
+    if not ascending:
+        return False
+
+    if C[i] >= avg_high * 0.98:
+        return True
+    return False
+
+
+def _detect_inverse_head_shoulders_strict(H, L, C, i, lookback=50):
+    """
+    逆ヘッドアンドショルダー（厳格）: 両肩±4%、ネックライン超え。
+    """
+    if i < lookback:
+        return False
+    start = i - lookback
+
+    swing_lows = _find_swing_lows(L[start:i + 1], lookback=3)
+    if len(swing_lows) < 3:
+        return False
+
+    s1_idx, s2_idx, s3_idx = swing_lows[-3], swing_lows[-2], swing_lows[-1]
+    s1 = L[start + s1_idx]
+    s2 = L[start + s2_idx]
+    s3 = L[start + s3_idx]
+
+    if not (s2 < s1 and s2 < s3):
+        return False
+
+    shoulder_avg = (s1 + s3) / 2
+    if abs(s1 - s3) / shoulder_avg > 0.04:  # 厳格: 4%（標準: 6%）
+        return False
+
+    between_1_2 = H[start + s1_idx:start + s2_idx + 1]
+    between_2_3 = H[start + s2_idx:start + s3_idx + 1]
+    if not between_1_2 or not between_2_3:
+        return False
+    neckline_l = max(between_1_2)
+    neckline_r = max(between_2_3)
+    neckline = min(neckline_l, neckline_r)
+
+    if C[i] >= neckline * 0.99:  # 厳格: 99%（標準: 98%）
+        return True
+    return False
+
+
+def _detect_bull_pennant_strict(H, L, C, i, lookback=30):
+    """
+    ブルペナント（厳格）: ポール上昇12%以上、レンジ縮小60%以下。
+    """
+    if i < lookback:
+        return False
+
+    pole_start = i - lookback
+    pole_end = i - lookback // 2
+    pole_low = min(L[pole_start:pole_end + 1])
+    pole_high = max(H[pole_start:pole_end + 1])
+
+    pole_gain = (pole_high - pole_low) / pole_low if pole_low > 0 else 0
+    if pole_gain < 0.12:  # 厳格: 12%（標準: 8%）
+        return False
+
+    pennant_start = pole_end
+    pennant_bars = i - pennant_start
+    if pennant_bars < 5:  # 厳格: 最低5本（標準: 4本）
+        return False
+
+    pennant_highs = [H[j] for j in range(pennant_start, i + 1)]
+    pennant_lows = [L[j] for j in range(pennant_start, i + 1)]
+
+    high_declining = pennant_highs[-1] < pennant_highs[0]
+    low_rising = pennant_lows[-1] > pennant_lows[0]
+    if not (high_declining and low_rising):
+        return False
+
+    early_range = pennant_highs[0] - pennant_lows[0]
+    late_range = pennant_highs[-1] - pennant_lows[-1]
+    if early_range <= 0 or late_range / early_range > 0.6:  # 厳格: 60%（標準: 70%）
+        return False
+
+    if C[i] >= pennant_highs[-1] * 0.99:
+        return True
+    return False
+
+
+def _detect_falling_wedge_strict(H, L, C, i, lookback=30):
+    """
+    フォーリングウェッジ（厳格）: 収束50%以下、ブレイク確認。
+    """
+    if i < lookback:
+        return False
+    start = i - lookback
+
+    swing_highs = _find_swing_highs(H[start:i + 1], lookback=2)
+    swing_lows = _find_swing_lows(L[start:i + 1], lookback=2)
+
+    if len(swing_highs) < 3 or len(swing_lows) < 3:  # 厳格: 3点以上
+        return False
+
+    sh_vals = [H[start + idx] for idx in swing_highs[-4:]]
+    highs_declining = all(sh_vals[j] > sh_vals[j + 1] for j in range(len(sh_vals) - 1))
+
+    sl_vals = [L[start + idx] for idx in swing_lows[-4:]]
+    lows_declining = all(sl_vals[j] > sl_vals[j + 1] for j in range(len(sl_vals) - 1))
+
+    if not (highs_declining and lows_declining):
+        return False
+
+    early_spread = sh_vals[0] - sl_vals[0] if sl_vals[0] < sh_vals[0] else 0
+    late_spread = sh_vals[-1] - sl_vals[-1] if sl_vals[-1] < sh_vals[-1] else 0
+    if early_spread <= 0 or late_spread / early_spread > 0.5:  # 厳格: 50%（標準: 60%）
+        return False
+
+    if C[i] > sh_vals[-1]:  # 厳格: 完全ブレイク（標準: 99%）
+        return True
+    return False
+
+
+def _detect_daily_chart_patterns_strict(H, L, C, i):
+    """日足チャートパターンを検出（厳格版）。"""
+    patterns = []
+    if _detect_cup_and_handle_strict(H, L, C, i):
+        patterns.append("カップウィズハンドル(厳選)")
+    if _detect_ascending_triangle_strict(H, L, C, i):
+        patterns.append("アセンディングトライアングル(厳選)")
+    if _detect_inverse_head_shoulders_strict(H, L, C, i):
+        patterns.append("逆ヘッドアンドショルダー(厳選)")
+    if _detect_bull_pennant_strict(H, L, C, i):
+        patterns.append("ブルペナント(厳選)")
+    if _detect_falling_wedge_strict(H, L, C, i):
+        patterns.append("フォーリングウェッジ(厳選)")
+    return patterns
+
+
 # ── ダウ理論判定 ─────────────────────────────────────────────────────────────
 
 def _dow_theory(H, L, C, i, lookback=60):
@@ -813,6 +1018,10 @@ def run():
 
             adopted += 1
 
+            # 日足チャートパターン検出（厳格版）
+            chart_patterns = _detect_daily_chart_patterns_strict(H, L, C, i)
+            chart_pattern = ", ".join(chart_patterns) if chart_patterns else None
+
             # セクター（起動時に一括取得済み）
             sector = sector_map.get(ticker)
 
@@ -851,6 +1060,7 @@ def run():
                 "current_price":   round(C[i], 2),
                 "holding_days_est": holding_days,
                 "signals_json":    json.dumps(support_reasons[:3], ensure_ascii=False),
+                "chart_pattern":   chart_pattern,
             })
 
         except Exception as e:
@@ -895,8 +1105,11 @@ def run():
             # 判定をインデイタイムフレームで更新
             near_support = price_to_support is not None and price_to_support <= 3.0
             has_trigger  = triggers is not None and len(triggers) > 0
+            has_chart_pattern = bool(p.get("chart_pattern"))
 
-            if has_trigger and near_support:
+            if (has_trigger or has_chart_pattern) and near_support:
+                p["verdict"] = "最優先候補"
+            elif has_chart_pattern:
                 p["verdict"] = "最優先候補"
             elif near_support:
                 p["verdict"] = "サポート接近中"
@@ -922,7 +1135,7 @@ def run():
                  verdict, confidence, composite_score, sector, current_price,
                  holding_days_est, signals_json,
                  price_to_support_pct, h4_trigger, h4_structure,
-                 h4_triggers_all, trigger_bonus)
+                 h4_triggers_all, trigger_bonus, chart_pattern)
             VALUES
                 (:ticker, :scan_date, :perfect_order, :perf_3m, :perf_6m, :avg_vol_20d,
                  :dow_trend, :support_price, :confluence, :support_reasons, :reji_sapo,
@@ -931,7 +1144,7 @@ def run():
                  :verdict, :confidence, :composite_score, :sector, :current_price,
                  :holding_days_est, :signals_json,
                  :price_to_support_pct, :h4_trigger, :h4_structure,
-                 :h4_triggers_all, :trigger_bonus)
+                 :h4_triggers_all, :trigger_bonus, :chart_pattern)
         """, p)
     conn.commit()
     conn.close()
