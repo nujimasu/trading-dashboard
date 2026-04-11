@@ -102,6 +102,21 @@ export function renderLogic3StrategyGuide(container) {
       </div>
     </div>
 
+    <!-- ローソクパターン図鑑 -->
+    <div class="card" style="margin-bottom:20px">
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">🕯️ ローソクパターン図鑑（検出対象8パターン）</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
+        ${candleCard("ピンバー", "1本足・強気", "#10b981", candleSvg_hammer())}
+        ${candleCard("逆ハンマー", "1本足・強気", "#10b981", candleSvg_inverseHammer())}
+        ${candleCard("強気エンガルフィング", "2本足・強気", "#3b82f6", candleSvg_engulfing())}
+        ${candleCard("切り込み線", "2本足・強気", "#3b82f6", candleSvg_piercing())}
+        ${candleCard("明けの明星", "3本足・強気", "#8b5cf6", candleSvg_morningStar())}
+        ${candleCard("赤三兵", "3本足・強気", "#8b5cf6", candleSvg_threeWhite())}
+        ${candleCard("出来高急増", "1本足+出来高", "#f59e0b", candleSvg_volumeSurge())}
+        ${candleCard("ダブルボトム", "複数足・反転", "#f59e0b", candleSvg_doubleBottom())}
+      </div>
+    </div>
+
     <!-- 注意事項 -->
     <div class="card">
       <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">⚠️ 重要な注意事項</h3>
@@ -128,4 +143,45 @@ function filter(title, cond, color, desc) {
 
 function badge(text, color) {
   return `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:.72rem;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}44;margin-right:4px">${text}</span>`;
+}
+
+// ── ローソクSVGヘルパー ──────────────────────────────────────────────────────
+function _candle(x, o, h, l, c, w=14) {
+  const bull = c >= o;
+  const top = Math.min(o,c), bot = Math.max(o,c);
+  const fill = bull ? "#22c55e" : "#ef4444";
+  const cx = x + w/2;
+  return `<line x1="${cx}" y1="${h}" x2="${cx}" y2="${l}" stroke="${fill}" stroke-width="1.5"/>
+          <rect x="${x}" y="${top}" width="${w}" height="${Math.max(bot-top,1)}" fill="${fill}" rx="1"/>`;
+}
+function candleCard(title, subtitle, color, svg) {
+  return `<div style="background:rgba(30,41,59,.7);border:1px solid ${color}44;border-radius:8px;padding:10px;text-align:center">
+    <div style="height:80px;display:flex;align-items:center;justify-content:center">${svg}</div>
+    <div style="font-size:.78rem;font-weight:700;color:${color};margin-top:6px">${title}</div>
+    <div style="font-size:.68rem;color:#64748b">${subtitle}</div>
+  </div>`;
+}
+function candleSvg_hammer() {
+  return `<svg width="40" height="70" viewBox="0 0 40 70"><${_candle(13, 50, 20, 65, 25)}><line x1="0" y1="58" x2="40" y2="58" stroke="#475569" stroke-width="0.5" stroke-dasharray="2"/></svg>`;
+}
+function candleSvg_inverseHammer() {
+  return `<svg width="40" height="70" viewBox="0 0 40 70">${_candle(13, 55, 10, 62, 50)}</svg>`;
+}
+function candleSvg_engulfing() {
+  return `<svg width="60" height="70" viewBox="0 0 60 70">${_candle(8, 25, 18, 50, 45, 12)}${_candle(28, 50, 12, 55, 20, 18)}</svg>`;
+}
+function candleSvg_piercing() {
+  return `<svg width="60" height="70" viewBox="0 0 60 70">${_candle(8, 20, 15, 55, 48, 14)}${_candle(30, 52, 22, 58, 30, 14)}<line x1="0" y1="34" x2="60" y2="34" stroke="#f59e0b" stroke-width="0.5" stroke-dasharray="2"/></svg>`;
+}
+function candleSvg_morningStar() {
+  return `<svg width="76" height="70" viewBox="0 0 76 70">${_candle(4, 15, 10, 55, 50, 14)}${_candle(26, 52, 48, 58, 54, 10)}${_candle(44, 48, 12, 52, 18, 14)}</svg>`;
+}
+function candleSvg_threeWhite() {
+  return `<svg width="76" height="70" viewBox="0 0 76 70">${_candle(4, 50, 42, 60, 45, 14)}${_candle(26, 42, 30, 48, 34, 14)}${_candle(48, 32, 18, 38, 22, 14)}</svg>`;
+}
+function candleSvg_volumeSurge() {
+  return `<svg width="60" height="70" viewBox="0 0 60 70"><rect x="5" y="50" width="10" height="15" fill="#475569" rx="1"/><rect x="20" y="48" width="10" height="17" fill="#475569" rx="1"/><rect x="35" y="30" width="14" height="35" fill="#22c55e55" rx="1"/>${_candle(37, 35, 15, 50, 20, 10)}</svg>`;
+}
+function candleSvg_doubleBottom() {
+  return `<svg width="80" height="70" viewBox="0 0 80 70"><path d="M5 20 Q20 55 35 30 Q50 55 65 20" fill="none" stroke="#f59e0b" stroke-width="2"/><line x1="0" y1="52" x2="80" y2="52" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="3"/><circle cx="20" cy="52" r="3" fill="none" stroke="#f59e0b" stroke-width="1.5"/><circle cx="50" cy="52" r="3" fill="none" stroke="#f59e0b" stroke-width="1.5"/></svg>`;
 }

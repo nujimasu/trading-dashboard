@@ -84,6 +84,24 @@ export function renderLogic2StrategyGuide(container) {
       </div>
     </div>
 
+    <!-- ローソクパターン図鑑 -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>ローソクパターン図鑑（厳格版 — 検出対象8パターン）</h3>
+      <p style="color:var(--text-muted);margin-bottom:12px;font-size:.85em">
+        ロジック３/４と同じ8パターンを検出しますが、各パラメータが厳格化されています。
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+        ${_candleCard("ピンバー", "下ヒゲ≥3倍", "var(--accent-green)")}
+        ${_candleCard("逆ハンマー", "上ヒゲ≥3倍", "var(--accent-green)")}
+        ${_candleCard("強気エンガルフィング", "全レンジ包み", "var(--accent-green)")}
+        ${_candleCard("切り込み線", "61.8%以上戻し", "var(--accent-green)")}
+        ${_candleCard("出来高急増", "平均の2.0倍", "var(--accent-green)")}
+        ${_candleCard("明けの明星", "b2<30%/b3>60%", "var(--accent-green)")}
+        ${_candleCard("赤三兵", "実体≥レンジ50%", "var(--accent-green)")}
+        ${_candleCard("ダブルボトム", "乖離<1.5%", "var(--accent-green)")}
+      </div>
+    </div>
+
     <!-- 信頼度ボーナス -->
     <div class="card" style="margin-bottom:16px;">
       <h3>信頼度ボーナス（改善C）</h3>
@@ -276,4 +294,12 @@ export function renderLogic2StrategyGuide(container) {
 
   </div>
   `;
+}
+
+// ── ヘルパー ─────────────────────────────────────────────────────────────────
+function _candleCard(title, param, color) {
+  return `<div style="background:var(--bg-card);border:1px solid ${color}44;border-radius:6px;padding:10px;text-align:center">
+    <div style="font-size:.8rem;font-weight:700;color:${color}">${title}</div>
+    <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">${param}</div>
+  </div>`;
 }
