@@ -42,6 +42,29 @@ def _run_daily_in_background():
         print(f"[Startup] 日次調整エラー: {e}")
 
 
+_pipeline_running = {"logic2": False, "logic3": False, "logic4": False}
+
+def _run_logic_pipeline(logic_name):
+    """指定ロジックのパイプラインをバックグラウンド実行。"""
+    try:
+        _pipeline_running[logic_name] = True
+        if logic_name == "logic2":
+            from pipeline.logic2_scan import run as logic_run
+        elif logic_name == "logic3":
+            from pipeline.logic3_scan import run as logic_run
+        elif logic_name == "logic4":
+            from pipeline.logic4_scan import run as logic_run
+        else:
+            return
+        print(f"[Pipeline] {logic_name} 手動実行開始...")
+        logic_run()
+        print(f"[Pipeline] {logic_name} 手動実行完了")
+    except Exception as e:
+        print(f"[Pipeline] {logic_name} エラー: {e}")
+    finally:
+        _pipeline_running[logic_name] = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # サーバー起動時: weekly_picks があれば日次調整を非同期実行
@@ -102,6 +125,16 @@ def create_app() -> FastAPI:
         app.mount("/css", StaticFiles(directory=str(FRONTEND_DIR / "css")), name="css")
     if (FRONTEND_DIR / "js").exists():
         app.mount("/js",  StaticFiles(directory=str(FRONTEND_DIR / "js")),  name="js")
+
+    @app.post("/api/pipeline/trigger/{logic_name}")
+    async def trigger_pipeline(logic_name: str):
+        if logic_name not in ("logic2", "logic3", "logic4"):
+            return {"error": f"Unknown logic: {logic_name}"}
+        if _pipeline_running.get(logic_name):
+            return {"status": "already_running", "logic": logic_name}
+        t = threading.Thread(target=_run_logic_pipeline, args=(logic_name,), daemon=True)
+        t.start()
+        return {"status": "started", "logic": logic_name}
 
     @app.get("/", include_in_schema=False)
     async def serve_index():
