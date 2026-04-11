@@ -73,6 +73,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         ${wrCell}
         <td>${fmt(p.risk_reward)}</td>
         <td class="sig-tags-cell">${sigList}</td>
+        ${isLogic4 ? `<td>${p.sector || "—"}</td>` : ""}
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
         <td colspan="100">${isLogic4 ? _buildDetailPanelLogic4(p, i) : _buildDetailPanel(p, i)}</td>
@@ -93,7 +94,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
           <tr>
             <th>銘柄</th><th>方向</th>${verdictHeader}<th>保有期間</th>${stageHeader}
             <th>信頼度</th>${wrHeader}<th>RR</th>
-            <th>シグナル</th>
+            <th>シグナル</th>${isLogic4 ? "<th>セクター</th>" : ""}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -355,6 +356,7 @@ function _buildDetailPanelLogic4(p, idx) {
     <!-- テクニカル指標 -->
     <div class="detail-block">
       <h4>テクニカル指標</h4>
+      ${kv("セクター",      p.sector || "—")}
       ${kv("RSI",          p.rsi ? p.rsi.toFixed(1) : "—")}
       ${kv("RR",           p.risk_reward ? p.risk_reward.toFixed(2) : "—")}
       ${kv("サポート価格",  p.support_price ? "$"+fmt(p.support_price) : "—")}

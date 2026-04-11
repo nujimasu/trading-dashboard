@@ -31,6 +31,7 @@ def get_logic2_picks():
                 WHEN 'サポート接近中' THEN 1
                 ELSE 2
             END,
+            confidence DESC,
             risk_reward DESC
     """)
     rows = [dict(r) for r in cur.fetchall()]

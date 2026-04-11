@@ -32,6 +32,7 @@ def get_logic4_picks():
                 WHEN '押し目待ち'    THEN 2
                 ELSE 3
             END,
+            confidence DESC,
             risk_reward DESC
     """)
     rows = [dict(r) for r in cur.fetchall()]
