@@ -25,8 +25,6 @@ from backend.routes.tech_weekly   import router as tech_weekly_router
 from backend.routes.chart              import router as chart_router
 from backend.routes.entry_candidates   import router as entry_candidates_router
 from backend.routes.logic2             import router as logic2_router
-from backend.routes.logic3             import router as logic3_router
-from backend.routes.logic4             import router as logic4_router
 from backend.db import init_db
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -115,8 +113,6 @@ def create_app() -> FastAPI:
         chart_router,
         entry_candidates_router,
         logic2_router,
-        logic3_router,
-        logic4_router,
     ]:
         app.include_router(router)
 

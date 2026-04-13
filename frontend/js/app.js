@@ -5,8 +5,6 @@ import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=6";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
 import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=1";
-import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=2";
-import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=4";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
@@ -16,13 +14,9 @@ const SECTIONS = [
   // ── リスト ───────────────────────────────────────────────────────────────
   { id: "logic1", label: "ロジック１（ファンダ考慮）", icon: "🎯", load: loadLogic1, group: "list" },
   { id: "logic2", label: "ロジック２（厳選押し目買い）", icon: "🔥", load: loadLogic2, group: "list" },
-  { id: "logic3", label: "ロジック３（押し目買い・4H）", icon: "⚡", load: loadLogic3, group: "list" },
-  { id: "logic4", label: "ロジック４（押し目買い・1H）", icon: "🎯", load: loadLogic4, group: "list" },
   // ── ロジック説明 ──────────────────────────────────────────────────────────
   { id: "strategy-guide",       label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,       group: "guide" },
   { id: "logic2-strategy-guide",label: "ロジック２の説明", icon: "🔥", load: loadLogic2StrategyGuide, group: "guide" },
-  { id: "logic3-strategy-guide",label: "ロジック３の説明", icon: "⚡", load: loadLogic3StrategyGuide, group: "guide" },
-  { id: "logic4-strategy-guide",label: "ロジック４の説明", icon: "🎯", load: loadLogic4StrategyGuide, group: "guide" },
   // ─────────────────────────────────────────────────────────────────────────
   { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
@@ -148,17 +142,6 @@ function _mergeWeeklyDaily(weekly, daily) {
   return Object.values(map).sort((a, b) => (b.composite_score || 0) - (a.composite_score || 0));
 }
 
-// ロジック４: 押し目買いスクリーニング
-async function loadLogic4(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
-  try {
-    const picks = await apiFetch("/api/logic4-picks");
-    renderTechPicksTable(container, picks, "🎯 ロジック４（押し目買い）", "logic4");
-  } catch (e) {
-    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
-  }
-}
-
 // ロジック２: 厳選押し目買い（4H厳格トリガー版）
 async function loadLogic2(container) {
   container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
@@ -170,31 +153,12 @@ async function loadLogic2(container) {
   }
 }
 
-// ロジック３: 押し目買い（4Hトリガー版）
-async function loadLogic3(container) {
-  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
-  try {
-    const picks = await apiFetch("/api/logic3-picks");
-    renderTechPicksTable(container, picks, "⚡ ロジック３（押し目買い・4H）", "logic3");
-  } catch (e) {
-    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
-  }
-}
-
 function loadStrategyGuide(container) {
   renderStrategyGuide(container);
 }
 
 function loadLogic2StrategyGuide(container) {
   renderLogic2StrategyGuide(container);
-}
-
-function loadLogic3StrategyGuide(container) {
-  renderLogic3StrategyGuide(container);
-}
-
-function loadLogic4StrategyGuide(container) {
-  renderLogic4StrategyGuide(container);
 }
 
 function loadSearch(container) {
