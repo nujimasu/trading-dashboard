@@ -340,19 +340,19 @@ def init_db():
             perf_6m              REAL,
             avg_vol_20d          REAL,
             dow_trend            TEXT,
-            support_price        REAL,
-            confluence           INTEGER DEFAULT 0,
-            support_reasons      TEXT DEFAULT '[]',
-            reji_sapo            TEXT DEFAULT 'none',
+            base_pattern         TEXT,
+            base_length          INTEGER,
+            base_depth_pct       REAL,
+            pivot_price          REAL,
+            breakout_confirmed   INTEGER DEFAULT 0,
+            breakout_volume_ratio REAL,
+            distance_from_pivot_pct REAL,
             risk_reward          REAL,
             entry_price          REAL,
             stop_price           REAL,
             tp1_price            REAL,
             target_price         REAL,
             rsi                  REAL,
-            rsi_flag             INTEGER DEFAULT 0,
-            macd_div_flag        INTEGER DEFAULT 0,
-            fib_confluence       TEXT,
             atr                  REAL,
             verdict              TEXT,
             confidence           REAL,
@@ -360,10 +360,7 @@ def init_db():
             sector               TEXT,
             current_price        REAL,
             holding_days_est     INTEGER DEFAULT 14,
-            signals_json         TEXT DEFAULT '[]',
-            price_to_support_pct REAL,
-            h4_trigger           TEXT,
-            h4_structure         TEXT DEFAULT 'neutral'
+            signals_json         TEXT DEFAULT '[]'
         )
         """,
         """
@@ -444,12 +441,11 @@ def init_db():
         cur.execute(stmt)
 
     # Column migrations for existing tables
-    # logic3_picks のスキーマが旧28シグナル版から押し目買い4H版に変更
-    # 旧テーブルを削除して新スキーマで再作成
+    # logic3_picks: 押し目買い4H版 → ブレイクアウト版にスキーマ変更
     try:
         cur.execute("""
             SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'logic3_picks' AND column_name = 'h4_trigger'
+            WHERE table_name = 'logic3_picks' AND column_name = 'base_pattern'
         """)
         if not cur.fetchone():
             cur.execute("DROP TABLE IF EXISTS logic3_picks")
@@ -462,19 +458,19 @@ def init_db():
                     perf_6m              REAL,
                     avg_vol_20d          REAL,
                     dow_trend            TEXT,
-                    support_price        REAL,
-                    confluence           INTEGER DEFAULT 0,
-                    support_reasons      TEXT DEFAULT '[]',
-                    reji_sapo            TEXT DEFAULT 'none',
+                    base_pattern         TEXT,
+                    base_length          INTEGER,
+                    base_depth_pct       REAL,
+                    pivot_price          REAL,
+                    breakout_confirmed   INTEGER DEFAULT 0,
+                    breakout_volume_ratio REAL,
+                    distance_from_pivot_pct REAL,
                     risk_reward          REAL,
                     entry_price          REAL,
                     stop_price           REAL,
                     tp1_price            REAL,
                     target_price         REAL,
                     rsi                  REAL,
-                    rsi_flag             INTEGER DEFAULT 0,
-                    macd_div_flag        INTEGER DEFAULT 0,
-                    fib_confluence       TEXT,
                     atr                  REAL,
                     verdict              TEXT,
                     confidence           REAL,
@@ -482,14 +478,11 @@ def init_db():
                     sector               TEXT,
                     current_price        REAL,
                     holding_days_est     INTEGER DEFAULT 14,
-                    signals_json         TEXT DEFAULT '[]',
-                    price_to_support_pct REAL,
-                    h4_trigger           TEXT,
-                    h4_structure         TEXT DEFAULT 'neutral'
+                    signals_json         TEXT DEFAULT '[]'
                 )
             """)
             conn.commit()
-            print("[DB] logic3_picks table recreated with new schema (4H trigger)")
+            print("[DB] logic3_picks table recreated with breakout schema")
     except Exception as e:
         conn.rollback()
         print(f"[DB] logic3_picks migration error: {e}")
@@ -504,8 +497,6 @@ def init_db():
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h1_trigger TEXT",
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h4_structure TEXT DEFAULT 'neutral'",
         "ALTER TABLE logic2_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
-        "ALTER TABLE logic3_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
-        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
     ]
     for m in pg_migrations:
         try:

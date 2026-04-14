@@ -4,35 +4,29 @@
 export function renderLogic2StrategyGuide(container) {
   container.innerHTML = `
   <div class="strategy-guide" style="max-width:900px;margin:0 auto;padding:16px;">
-    <h2>ロジック２ — 厳選押し目買い（4H厳格トリガー版）</h2>
+    <h2 style="margin-bottom:6px">ロジック２ — 厳選押し目買い（4H厳格トリガー版）</h2>
     <p style="color:var(--text-muted);margin-bottom:20px;">
-      ロジック３/４をベースに、<strong>3つの改善</strong>を適用した高確信度バージョン。
-      トリガー条件を厳格化し、ノイズを排除して厳選された銘柄のみを表示します。
+      上昇トレンド中の銘柄がサポートに押した際、<strong>4時間足の厳格なローソク足パターン</strong>で反発を確認してエントリーする戦略。
+      ノイズを徹底排除し、高確信度の候補のみを表示します。
     </p>
 
-    <!-- ロジック３/４との違い -->
+    <!-- 戦略の特徴 -->
     <div class="card" style="margin-bottom:16px;">
-      <h3>ロジック３/４との違い</h3>
-      <table class="guide-table">
-        <thead><tr><th>改善項目</th><th>ロジック３/４</th><th>ロジック２（本ロジック）</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>A. リスト絞り込み</strong></td>
-            <td>トリガー未検出でも「押し目待ち」「サポート接近中」として表示</td>
-            <td><span style="color:var(--accent-green)">「押し目待ち」を完全除外</span>。トリガー検出 or サポート接近中のみ表示</td>
-          </tr>
-          <tr>
-            <td><strong>B. 4Hトリガー厳格化</strong></td>
-            <td>ピンバー2倍ヒゲ、エンガルフィング実体包み、出来高1.5倍、サポート±5%</td>
-            <td><span style="color:var(--accent-green)">ピンバー3倍ヒゲ、エンガルフィング全レンジ包み、出来高2.0倍、サポート±3%</span></td>
-          </tr>
-          <tr>
-            <td><strong>C. 信頼度ボーナス</strong></td>
-            <td>トリガーの質は信頼度に反映されない</td>
-            <td><span style="color:var(--accent-green)">トリガーの組み合わせに応じて信頼度ボーナスを加算</span></td>
-          </tr>
-        </tbody>
-      </table>
+      <h3>戦略の特徴</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+        <div style="background:var(--bg-card);border-left:3px solid var(--accent-green);border-radius:6px;padding:12px;">
+          <div style="font-size:.85rem;font-weight:700;color:var(--accent-green)">厳格なトリガー条件</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">ピンバー3倍ヒゲ、エンガルフィング全レンジ包み、出来高2.0倍など標準より厳しい閾値</div>
+        </div>
+        <div style="background:var(--bg-card);border-left:3px solid #60a5fa;border-radius:6px;padding:12px;">
+          <div style="font-size:.85rem;font-weight:700;color:#60a5fa">ノイズ除外</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">「押し目待ち」銘柄を完全除外。トリガー検出 or サポート接近中のみ表示</div>
+        </div>
+        <div style="background:var(--bg-card);border-left:3px solid #8b5cf6;border-radius:6px;padding:12px;">
+          <div style="font-size:.85rem;font-weight:700;color:#8b5cf6">信頼度ボーナス</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">トリガーの組み合わせに応じて信頼度を加算。質の高いシグナルを優先表示</div>
+        </div>
+      </div>
     </div>
 
     <!-- フィルタリングフロー -->
@@ -40,7 +34,7 @@ export function renderLogic2StrategyGuide(container) {
       <h3>フィルタリングフロー</h3>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;">
-          <strong>Step 1: 一次フィルター（ロジック３/４と同一）</strong>
+          <strong>Step 1: 一次フィルター</strong>
           <ul style="margin:8px 0 0 16px;color:var(--text-muted);">
             <li>週足: 20EMA > 200EMA</li>
             <li>日足: パーフェクトオーダー（株価 > 20EMA > 50EMA > 200EMA）</li>
@@ -50,7 +44,7 @@ export function renderLogic2StrategyGuide(container) {
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;">
-          <strong>Step 2: 二次フィルター（ロジック３/４と同一）</strong>
+          <strong>Step 2: 二次フィルター</strong>
           <ul style="margin:8px 0 0 16px;color:var(--text-muted);">
             <li>ダウ理論: broken以外（strong / early）</li>
             <li>サポートライン: コンフルエンス >= 1</li>
@@ -59,7 +53,7 @@ export function renderLogic2StrategyGuide(container) {
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>
         <div style="background:var(--bg-card);border:1px solid var(--accent-green);border-radius:6px;padding:12px;">
-          <strong>Step 3: 厳格4Hトリガー検出（改善B）</strong>
+          <strong>Step 3: 厳格4Hトリガー検出</strong>
           <ul style="margin:8px 0 0 16px;">
             <li><strong>ピンバー(4H厳選)</strong>: 下ヒゲ >= 実体の<span style="color:var(--accent-green)">3倍</span>、陽線</li>
             <li><strong>逆ハンマー(4H厳選)</strong>: 上ヒゲ >= 実体の<span style="color:var(--accent-green)">3倍</span>、下ヒゲ極小</li>
@@ -72,7 +66,7 @@ export function renderLogic2StrategyGuide(container) {
             <li>全パターン: サポート価格の<span style="color:var(--accent-green)">±3%以内</span>で発生したもののみ</li>
           </ul>
           <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-            <div style="font-weight:700;color:#60a5fa;margin-bottom:6px">📊 ��足チャートパターン（厳格版 — NEW）</div>
+            <div style="font-weight:700;color:#60a5fa;margin-bottom:6px">日足チャートパターン（厳格版）</div>
             <ul style="margin:6px 0 0 16px;">
               <li><strong style="color:#60a5fa">カップウィズハンドル(厳選)</strong>: 深さ10〜30%、右リム97%回復、ハンドル最大10%</li>
               <li><strong style="color:#60a5fa">アセンディングトライアングル(厳選)</strong>: レジスタンス±1.5%、スイング3点以上</li>
@@ -84,7 +78,7 @@ export function renderLogic2StrategyGuide(container) {
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>
         <div style="background:var(--bg-card);border:1px solid var(--accent-green);border-radius:6px;padding:12px;">
-          <strong>Step 4: リスト絞り込み（改善A）</strong>
+          <strong>Step 4: リスト絞り込み</strong>
           <ul style="margin:8px 0 0 16px;">
             <li><strong style="color:var(--accent-green)">最優先候補</strong>: 4Hトリガー検出 + サポート接近（3%以内）</li>
             <li><strong style="color:var(--accent-yellow)">サポート接近中</strong>: トリガー未検出だがサポート3%以内（もうすぐトリガー発生の可能性）</li>
@@ -97,9 +91,6 @@ export function renderLogic2StrategyGuide(container) {
     <!-- ローソクパターン図鑑 -->
     <div class="card" style="margin-bottom:16px;">
       <h3>ローソクパターン図鑑（厳格版 — 検出対象8パターン）</h3>
-      <p style="color:var(--text-muted);margin-bottom:12px;font-size:.85em">
-        ロジック３/４と同じ8パターンを検出しますが、各パラメータが厳格化されています。
-      </p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
         ${_candleCard("ピンバー", "下ヒゲ≥3倍", "var(--accent-green)")}
         ${_candleCard("逆ハンマー", "上ヒゲ≥3倍", "var(--accent-green)")}
@@ -114,9 +105,9 @@ export function renderLogic2StrategyGuide(container) {
 
     <!-- 日足チャートパターン図鑑 -->
     <div class="card" style="margin-bottom:16px;">
-      <h3>📊 日足チャートパターン図鑑（厳格版 — 5パターン NEW）</h3>
+      <h3>日足チャートパターン図鑑（厳格版 — 5パターン）</h3>
       <p style="color:var(--text-muted);margin-bottom:12px;font-size:.85em">
-        日足データ（60〜250日）を使用した構造的な強気パターン検出。標準版より厳しい閾値を使用。
+        日足データ（60〜250日）を使用した構造的な強気パターン検出。
       </p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
         ${_candleCard("カップウィズハンドル", "深さ10-30%/回復97%", "#60a5fa")}
@@ -129,7 +120,7 @@ export function renderLogic2StrategyGuide(container) {
 
     <!-- 信頼度ボーナス -->
     <div class="card" style="margin-bottom:16px;">
-      <h3>信頼度ボーナス（改善C）</h3>
+      <h3>信頼度ボーナス</h3>
       <p style="color:var(--text-muted);margin-bottom:12px;">
         トリガーの質が高い場合、信頼度スコアにボーナスを加算します。
         同じ「最優先候補」内でもトリガーの組み合わせで優先順位が変わります。
@@ -155,139 +146,60 @@ export function renderLogic2StrategyGuide(container) {
         </tbody>
       </table>
       <p style="color:var(--text-muted);margin-top:8px;font-size:0.85em;">
-        ※ ベースの信頼度はロジック３/４と同一の算出ロジック。ボーナスは上限0.99まで。
+        ※ ボーナスは上限0.99まで。
       </p>
     </div>
 
-    <!-- 4Hトリガー比較表 -->
+    <!-- 4Hトリガー パラメータ詳細 -->
     <div class="card" style="margin-bottom:16px;">
-      <h3>4Hトリガー パラメータ比較</h3>
+      <h3>4Hトリガー パラメータ詳細</h3>
       <table class="guide-table">
-        <thead><tr><th>パラメータ</th><th>ロジック２（厳格）</th><th>ロジック３（標準4H）</th><th>ロジック４（1H）</th></tr></thead>
+        <thead><tr><th>パラメータ</th><th>設定値</th><th>理由</th></tr></thead>
         <tbody>
           <tr>
             <td>ピンバー下ヒゲ比率</td>
             <td style="color:var(--accent-green)">>=3倍</td>
-            <td>>=2倍</td>
-            <td>>=2倍</td>
-          </tr>
-          <tr>
-            <td>エンガルフィング条件</td>
-            <td style="color:var(--accent-green)">全レンジ包み（H-L）</td>
-            <td>実体包み（O-C）</td>
-            <td>実体包み（O-C）</td>
-          </tr>
-          <tr>
-            <td>出来高閾値</td>
-            <td style="color:var(--accent-green)">2.0倍</td>
-            <td>1.5倍</td>
-            <td>1.5倍</td>
-          </tr>
-          <tr>
-            <td>サポート近傍範囲</td>
-            <td style="color:var(--accent-green)">±3%</td>
-            <td>±5%</td>
-            <td>±5%</td>
+            <td>強い買い圧力の確認</td>
           </tr>
           <tr>
             <td>逆ハンマー上ヒゲ比率</td>
             <td style="color:var(--accent-green)">>=3倍、下ヒゲ極小</td>
-            <td>>=2倍</td>
-            <td>>=2倍</td>
+            <td>高値試しの後の支持確認</td>
+          </tr>
+          <tr>
+            <td>エンガルフィング条件</td>
+            <td style="color:var(--accent-green)">全レンジ包み（H-L）</td>
+            <td>完全な逆転パターン</td>
           </tr>
           <tr>
             <td>切り込み線 戻し水準</td>
             <td style="color:var(--accent-green)">61.8%以上</td>
-            <td>50%以上</td>
-            <td>50%以上</td>
+            <td>フィボナッチ水準での反転確認</td>
+          </tr>
+          <tr>
+            <td>出来高閾値</td>
+            <td style="color:var(--accent-green)">2.0倍</td>
+            <td>機関投資家の参入確認</td>
           </tr>
           <tr>
             <td>明けの明星 b2実体/b3戻し</td>
             <td style="color:var(--accent-green)">30%未満/60%以上</td>
-            <td>40%未満/50%以上</td>
-            <td>40%未満/50%以上</td>
+            <td>強い3本足反転パターン</td>
           </tr>
           <tr>
             <td>赤三兵 実体条件</td>
             <td style="color:var(--accent-green)">レンジの50%以上</td>
-            <td>条件なし</td>
-            <td>条件なし</td>
+            <td>ヒゲが小さく実体が大きい=強い買い</td>
           </tr>
           <tr>
             <td>ダブルボトム tolerance</td>
             <td>1.5%</td>
-            <td>1.5%</td>
-            <td>1.0%</td>
-          </tr>
-          <tr style="border-top:2px solid #334155">
-            <td colspan="4" style="color:#60a5fa;font-weight:700;padding:8px 0 4px">📊 日足チャートパターン（NEW）</td>
+            <td>精度の高い二底形成</td>
           </tr>
           <tr>
-            <td>カップ&ハンドル 深さ</td>
-            <td style="color:var(--accent-green)">10〜30%</td>
-            <td>8〜40%</td>
-            <td>8〜40%</td>
-          </tr>
-          <tr>
-            <td>アセンディング△ スイング数</td>
-            <td style="color:var(--accent-green)">3点以上</td>
-            <td>2点以上</td>
-            <td>2点以上</td>
-          </tr>
-          <tr>
-            <td>逆H&S 両肩許容差</td>
-            <td style="color:var(--accent-green)">±4%</td>
-            <td>±6%</td>
-            <td>±6%</td>
-          </tr>
-          <tr>
-            <td>ブルペナント ポール上昇</td>
-            <td style="color:var(--accent-green)">12%以上</td>
-            <td>8%以上</td>
-            <td>8%以上</td>
-          </tr>
-          <tr>
-            <td>フォーリングウェッジ 収束</td>
-            <td style="color:var(--accent-green)">50%以下</td>
-            <td>60%以下</td>
-            <td>60%以下</td>
-          </tr>
-          <tr>
-            <td>信頼度ボーナス</td>
-            <td style="color:var(--accent-green)">あり（最大+0.15）</td>
-            <td>なし</td>
-            <td>なし</td>
-          </tr>
-          <tr>
-            <td>「押し目待ち」表示</td>
-            <td style="color:var(--accent-green)">除外</td>
-            <td>表示する</td>
-            <td>表示する</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- 使い分けガイド -->
-    <div class="card" style="margin-bottom:16px;">
-      <h3>ロジック２/３/４ 使い分けガイド</h3>
-      <table class="guide-table">
-        <thead><tr><th>ロジック</th><th>特徴</th><th>向いているシーン</th></tr></thead>
-        <tbody>
-          <tr>
-            <td><strong>ロジック２（厳選4H）</strong></td>
-            <td>厳格なトリガー条件 + ノイズ除外。少数精鋭のリスト</td>
-            <td>ポジション集中度が高い時、高確信度エントリーに絞りたい時</td>
-          </tr>
-          <tr>
-            <td><strong>ロジック３（標準4H）</strong></td>
-            <td>4Hトリガーで検出。監視リストとしても使える幅広いリスト</td>
-            <td>来週の候補を広く探したい時、ウォッチリスト構築時</td>
-          </tr>
-          <tr>
-            <td><strong>ロジック４（1H）</strong></td>
-            <td>1Hトリガーで検出。最も検出感度が高い</td>
-            <td>短期エントリーの即時判断、日中のトリガー確認</td>
+            <td>サポート近傍範囲</td>
+            <td style="color:var(--accent-green)">±3%</td>
+            <td>サポートに十分近い位置のみ採用</td>
           </tr>
         </tbody>
       </table>
@@ -312,8 +224,7 @@ export function renderLogic2StrategyGuide(container) {
         </tbody>
       </table>
       <p style="color:var(--text-muted);margin-top:8px;font-size:0.85em;">
-        ※「押し目待ち」はこのロジックでは表示されません（改善A）。
-        幅広い候補はロジック３/４で確認してください。
+        ※「押し目待ち」はこのロジックでは表示されません。
       </p>
     </div>
 
@@ -343,7 +254,7 @@ export function renderLogic2StrategyGuide(container) {
           </tr>
           <tr>
             <td colspan="4" style="border-top:2px solid var(--accent-green);">
-              <strong>＋ トリガー品質ボーナス（改善C）</strong>: 上記ベースに加算。最大+0.15。全体上限0.99
+              <strong>＋ トリガー品質ボーナス</strong>: 上記ベースに加算。最大+0.15。全体上限0.99
             </td>
           </tr>
         </tbody>

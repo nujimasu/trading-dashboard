@@ -4,7 +4,8 @@ import { renderPicksTable }         from "./components/picks-table.js?v=10";
 import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=6";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
-import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=1";
+import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=2";
+import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=4";
 import { apiFetch }                from "./utils/api.js?v=2";
 
 // ── Navigation config ─────────────────────────────────────────────────────
@@ -14,9 +15,11 @@ const SECTIONS = [
   // ── リスト ───────────────────────────────────────────────────────────────
   { id: "logic1", label: "ロジック１（ファンダ考慮）", icon: "🎯", load: loadLogic1, group: "list" },
   { id: "logic2", label: "ロジック２（厳選押し目買い）", icon: "🔥", load: loadLogic2, group: "list" },
+  { id: "logic3", label: "ロジック３（ブレイクアウト）", icon: "🚀", load: loadLogic3, group: "list" },
   // ── ロジック説明 ──────────────────────────────────────────────────────────
   { id: "strategy-guide",       label: "ロジック１の説明", icon: "📖", load: loadStrategyGuide,       group: "guide" },
   { id: "logic2-strategy-guide",label: "ロジック２の説明", icon: "🔥", load: loadLogic2StrategyGuide, group: "guide" },
+  { id: "logic3-strategy-guide",label: "ロジック３の説明", icon: "🚀", load: loadLogic3StrategyGuide, group: "guide" },
   // ─────────────────────────────────────────────────────────────────────────
   { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
@@ -159,6 +162,21 @@ function loadStrategyGuide(container) {
 
 function loadLogic2StrategyGuide(container) {
   renderLogic2StrategyGuide(container);
+}
+
+// ロジック３: ブレイクアウト・モメンタム
+async function loadLogic3(container) {
+  container.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
+  try {
+    const picks = await apiFetch("/api/logic3-picks");
+    renderTechPicksTable(container, picks, "\uD83D\uDE80 ロジック３（ブレイクアウト）", "logic3");
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
+  }
+}
+
+function loadLogic3StrategyGuide(container) {
+  renderLogic3StrategyGuide(container);
 }
 
 function loadSearch(container) {

@@ -1,258 +1,240 @@
 /**
- * Logic3 Strategy Guide — 押し目買い（4Hトリガー版）の説明ページ
+ * ロジック３（ブレイクアウト・モメンタム戦略）の説明ページ
  */
-
 export function renderLogic3StrategyGuide(container) {
   container.innerHTML = `
-    <div class="section-title">⚡ ロジック３ — ロジック説明（押し目買い・4Hトリガー版）</div>
+  <div class="strategy-guide" style="max-width:900px;margin:0 auto;padding:16px;">
+    <h2 style="margin-bottom:6px">ロジック３ — ブレイクアウト・モメンタム戦略</h2>
+    <p style="color:var(--text-muted);margin-bottom:20px;">
+      保ち合い（ベース）からの上抜けを狙うモメンタム戦略。
+      ロジック２（押し目買い）と正反対のタイミングで、<strong>レジスタンス突破後の加速</strong>を買います。
+    </p>
 
-    <!-- ロジック３ vs ロジック４ の違い -->
-    <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:18px 22px;margin-bottom:20px">
-      <div style="font-size:.95rem;font-weight:700;color:#a5b4fc;margin-bottom:8px">ロジック３とロジック４の違い</div>
-      <div style="font-size:.82rem;color:#94a3b8;line-height:1.7">
-        一次フィルター・二次フィルター・ボーナスフラグは<strong style="color:#e2e8f0">完全に同じ</strong>。<br>
-        違いは<strong style="color:#e2e8f0">エントリートリガーの時間軸</strong>のみ：
-        <div style="display:flex;gap:16px;margin-top:10px">
-          <div style="flex:1;background:rgba(30,41,59,.7);border:1px solid rgba(139,92,246,.3);border-radius:6px;padding:10px 14px">
-            <div style="font-weight:700;color:#a5b4fc;font-size:.82rem">ロジック３（4Hトリガー）</div>
-            <div style="font-size:.75rem;color:#94a3b8;margin-top:4px">4時間足でプライスアクションを検出。ノイズが少なく、確度が高い反面、シグナル発生頻度は低い。</div>
-          </div>
-          <div style="flex:1;background:rgba(30,41,59,.7);border:1px solid rgba(16,185,129,.3);border-radius:6px;padding:10px 14px">
-            <div style="font-weight:700;color:#6ee7b7;font-size:.82rem">ロジック４（1Hトリガー）</div>
-            <div style="font-size:.75rem;color:#94a3b8;margin-top:4px">1時間足でプライスアクションを検出。感度が高く、シグナルは多いが、ダマシも増える。</div>
-          </div>
+    <!-- ロジック２との違い -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>ロジック２（押し目買い）との違い</h3>
+      <table class="guide-table">
+        <thead><tr><th>項目</th><th>ロジック２（押し目買い）</th><th>ロジック３（ブレイクアウト）</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>タイミング</strong></td>
+            <td>サポートに接近 → 反発を買う</td>
+            <td><span style="color:var(--accent-green)">レジスタンス突破 → 加速を買う</span></td>
+          </tr>
+          <tr>
+            <td><strong>価格の動き</strong></td>
+            <td>下がっている時に買う</td>
+            <td><span style="color:var(--accent-green)">上がっている時に買う</span></td>
+          </tr>
+          <tr>
+            <td><strong>検出パターン</strong></td>
+            <td>4Hローソク足パターン（ピンバー等）</td>
+            <td><span style="color:var(--accent-green)">ベースパターン（VCP、フラットベース等）</span></td>
+          </tr>
+          <tr>
+            <td><strong>出来高の役割</strong></td>
+            <td>急増をトリガーとして使用</td>
+            <td><span style="color:var(--accent-green)">ブレイクアウト確認の必須条件（1.5倍以上）</span></td>
+          </tr>
+          <tr>
+            <td><strong>最低R:R</strong></td>
+            <td>1.5</td>
+            <td><span style="color:var(--accent-green)">2.0（ダマシリスク対策で厳格化）</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="color:var(--text-muted);margin-top:8px;font-size:0.85em;">
+        構造上、同じ銘柄が両方のリストに同時に出ることはほぼありません（押し目=下落中、ブレイクアウト=上昇中）。
+      </p>
+    </div>
+
+    <!-- フィルタリングフロー -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>フィルタリングフロー</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;">
+          <strong>Step 1: 一次フィルター（トレンド確認）</strong>
+          <ul style="margin:8px 0 0 16px;color:var(--text-muted);">
+            <li>週足: 20EMA > 200EMA（上昇トレンド確認）</li>
+            <li>日足: 株価 > 20EMA > 200EMA（準パーフェクトオーダー以上）</li>
+            <li>3ヶ月騰落率 > 0%</li>
+            <li>20日平均出来高 >= 50万株</li>
+          </ul>
+        </div>
+        <div style="text-align:center;font-size:20px;">↓</div>
+        <div style="background:var(--bg-card);border:1px solid #60a5fa;border-radius:6px;padding:12px;">
+          <strong>Step 2: ベースパターン検出</strong>
+          <p style="color:var(--text-muted);margin:6px 0 0 0;font-size:.85em">
+            4つのパターンを並列検出。複数該当時はR:Rが最も高いものを採用。
+          </p>
+          <ul style="margin:8px 0 0 16px;">
+            <li><strong style="color:#60a5fa">フラットベース</strong>: 15〜45日の値幅 &lt; ATR×3、深さ15%以内</li>
+            <li><strong style="color:#60a5fa">VCP</strong>: 2段階以上の値幅縮小（各70%以下に収縮）、深さ35%以内</li>
+            <li><strong style="color:#60a5fa">アセンディング△</strong>: 水平レジスタンス（±1.5%）に3回以上タッチ + 切り上がりロー</li>
+            <li><strong style="color:#60a5fa">カップ&ハンドル</strong>: 深さ10〜30%のU字回復、右リム97%回復、ハンドル最大10%</li>
+          </ul>
+        </div>
+        <div style="text-align:center;font-size:20px;">↓</div>
+        <div style="background:var(--bg-card);border:1px solid var(--accent-green);border-radius:6px;padding:12px;">
+          <strong>Step 3: ブレイクアウト確認</strong>
+          <ul style="margin:8px 0 0 16px;">
+            <li><strong style="color:var(--accent-green)">確認済み（最優先候補）</strong>: 終値 > ピボット + 出来高 >= 平均の1.5倍 + ピボットからの距離 0.3〜5%</li>
+            <li><strong style="color:var(--accent-yellow)">接近中</strong>: ピボットまで2%以内（まだ抜けていない）</li>
+            <li><span style="color:var(--text-muted);text-decoration:line-through">ベース形成中: リストに表示しない（ノイズ排除）</span></li>
+          </ul>
+        </div>
+        <div style="text-align:center;font-size:20px;">↓</div>
+        <div style="background:var(--bg-card);border:1px solid var(--accent-green);border-radius:6px;padding:12px;">
+          <strong>Step 4: R:R計算 + 最終判定</strong>
+          <ul style="margin:8px 0 0 16px;">
+            <li><strong>エントリー</strong>: 現在価格（ブレイクアウト直後）</li>
+            <li><strong>TP1</strong>: メジャードムーブ（ピボット + ベース深さ分の上昇）</li>
+            <li><strong>TP2</strong>: メジャードムーブ × 1.5</li>
+            <li><strong>SL</strong>: max(ベース下限×0.99, ピボット−ATR)（浅い方を採用）</li>
+            <li><strong style="color:var(--accent-green)">R:R >= 2.0 必須</strong>（ブレイクアウト確認済みの場合）</li>
+          </ul>
         </div>
       </div>
+    </div>
+
+    <!-- ベースパターン図鑑 -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>ベースパターン図鑑（検出対象4パターン）</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">
+        ${_patternCard("フラットベース", _svgFlatBase(), "値幅 < ATR×3", "深さ15%以内 / 15-45日", "#60a5fa")}
+        ${_patternCard("VCP", _svgVcp(), "2段階以上の収縮", "各段70%以下 / 深さ35%以内", "#60a5fa")}
+        ${_patternCard("アセンディング△", _svgAscTriangle(), "水平レジ3回タッチ", "切り上がりスイングロー", "#60a5fa")}
+        ${_patternCard("カップ&ハンドル", _svgCupHandle(), "U字回復97%以上", "ハンドル深さ10%以内", "#60a5fa")}
+      </div>
+    </div>
+
+    <!-- 信頼度スコアリング -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>信頼度スコアリング</h3>
+      <table class="guide-table">
+        <thead><tr><th>判定</th><th>ベーススコア</th><th>ボーナス条件</th><th>上限</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span style="color:var(--accent-green);font-weight:700">最優先候補</span></td>
+            <td>0.70</td>
+            <td>
+              出来高超過分: +0.05/0.5x（最大+0.10）<br>
+              R:R >= 3.0: +0.05<br>
+              VCP or カップ&ハンドル: +0.05
+            </td>
+            <td>0.95</td>
+          </tr>
+          <tr>
+            <td><span style="color:var(--accent-yellow);font-weight:700">ブレイクアウト接近</span></td>
+            <td>0.50</td>
+            <td>R:R >= 3.0: +0.05</td>
+            <td>0.65</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- 判定凡例 -->
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">📋 判定の見方（リスト画面）</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:10px">
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.4);border-radius:6px;padding:8px 14px">
-          <span style="font-weight:700;color:#10b981">最優先候補</span>
-          <span style="font-size:.75rem;color:#94a3b8">サポートから≤3% かつ 4Hトリガー確認済み → 即エントリー検討</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:8px 14px">
-          <span style="font-weight:700;color:#f59e0b">サポート接近中</span>
-          <span style="font-size:.75rem;color:#94a3b8">サポートから≤3% だがトリガー未確認 → 4Hシグナル出るまで待機</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.4);border-radius:6px;padding:8px 14px">
-          <span style="font-weight:700;color:#94a3b8">押し目待ち</span>
-          <span style="font-size:.75rem;color:#94a3b8">サポートまで>3% → まだ押し目途中、監視継続</span>
-        </div>
-      </div>
+    <div class="card" style="margin-bottom:16px;">
+      <h3>判定凡例</h3>
+      <table class="guide-table">
+        <thead><tr><th>判定</th><th>条件</th><th>推奨アクション</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="verdict-badge" style="background:var(--accent-green);color:#000;padding:2px 8px;border-radius:4px;">最優先候補</span></td>
+            <td>ブレイクアウト確認 + 出来高1.5倍以上 + R:R>=2.0</td>
+            <td>エントリー検討可。出来高倍率・ベースパターンの質を確認してサイジング</td>
+          </tr>
+          <tr>
+            <td><span class="verdict-badge" style="background:var(--accent-yellow);color:#000;padding:2px 8px;border-radius:4px;">ブレイクアウト接近</span></td>
+            <td>ピボットまで2%以内、まだ抜けていない</td>
+            <td>ウォッチリストに追加。出来高を伴う上抜けを待つ</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <!-- 一次フィルター -->
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">① 一次フィルター — ロジック４と同一</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
-        ${filter("週足トレンド", "週足 20EMA > 200EMA", "#10b981", "中長期的に上昇トレンドが継続していること。")}
-        ${filter("日足パーフェクトオーダー", "株価 > 20EMA > 50EMA > 200EMA", "#3b82f6", "短・中・長期の移動平均が上から順に並んでいる状態。")}
-        ${filter("3ヶ月パフォーマンス", "過去3ヶ月の騰落率 > 0%", "#8b5cf6", "直近の値動きがプラスであること。")}
-        ${filter("流動性", "20日平均出来高 ≥ 50万株", "#f59e0b", "出来高が低いとテクニカル分析が機能しにくいため除外。")}
-      </div>
+    <!-- エグジットルール -->
+    <div class="card" style="margin-bottom:16px;">
+      <h3>推奨エグジットルール</h3>
+      <table class="guide-table">
+        <thead><tr><th>条件</th><th>アクション</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>終値がSL（ストップ）を下回った</td>
+            <td>翌寄りで全決済</td>
+          </tr>
+          <tr>
+            <td>TP1（メジャードムーブ）到達</td>
+            <td>半分利確、残りトレーリングストップ</td>
+          </tr>
+          <tr>
+            <td>TP2（1.5倍ムーブ）到達</td>
+            <td>全決済</td>
+          </tr>
+          <tr>
+            <td>ブレイクアウト後3日以内にピボット下に戻った</td>
+            <td>ダマシ判定、即全決済</td>
+          </tr>
+          <tr>
+            <td>出来高が急減（平均以下に低下）</td>
+            <td>モメンタム喪失、ストップを切り上げ</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <!-- 二次フィルター（簡略） -->
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">② 二次フィルター — ロジック４と同一</h3>
-      <div style="font-size:.8rem;color:#94a3b8;line-height:1.7">
-        ダウ理論、サポートラインのコンフルエンス、レジサポ転換、R:R計算 — いずれもロジック４と同一のロジック。<br>
-        詳細は<strong style="color:#e2e8f0">ロジック４の説明</strong>を参照してください。
-      </div>
-    </div>
-
-    <!-- 4Hトリガー（ロジック３固有） -->
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">③ 4Hトリガー（ロジック３の特徴）</h3>
-      <div style="font-size:.8rem;color:#94a3b8;line-height:1.7;margin-bottom:12px">
-        日足フィルターを通過した後、<strong style="color:#a5b4fc">4時間足</strong>でサポートからの反発シグナルを確認する。<br>
-        1Hよりもノイズが少なく、確度の高いシグナルが得られる。
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div>
-          <div style="font-size:.8rem;font-weight:700;color:#e2e8f0;margin-bottom:8px">4時間足 構造チェック</div>
-          <div style="font-size:.78rem;color:#94a3b8;line-height:1.7">
-            直近4Hバーの線形回帰で方向性を判定:
-            <div style="margin-top:6px">
-              ${badge("bullish", "#10b981")} 上昇傾き＋陽線 → 反発の兆し<br>
-              ${badge("neutral", "#f59e0b")} 方向不明確<br>
-              ${badge("bearish", "#ef4444")} 下降傾き＋陰線 → まだ下落中
-            </div>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:.8rem;font-weight:700;color:#a5b4fc;margin-bottom:8px">4時間足 トリガーシグナル</div>
-          <div style="font-size:.78rem;color:#94a3b8;line-height:1.7">
-            サポート近傍（±5%）で以下を4H足で検出:
-            <ul style="margin:6px 0 0 16px;line-height:1.9">
-              <li><strong style="color:#a5b4fc">ピンバー(4H)</strong> — 下ヒゲ ≥ 実体×2、陽線</li>
-              <li><strong style="color:#a5b4fc">逆ハンマー(4H)</strong> — 上ヒゲ ≥ 実体×2、下ヒゲ小</li>
-              <li><strong style="color:#a5b4fc">強気エンガルフィング(4H)</strong> — 陰線を包む陽線</li>
-              <li><strong style="color:#a5b4fc">切り込み線(4H)</strong> — 陰線→陽線が前足中間以上まで戻す</li>
-              <li><strong style="color:#a5b4fc">出来高急増(4H)</strong> — 全4H平均×1.5倍以上の陽線</li>
-              <li><strong style="color:#a5b4fc">明けの明星(4H)</strong> — 大陰線→小実体→大陽線の3本反転</li>
-              <li><strong style="color:#a5b4fc">赤三兵(4H)</strong> — 3本連続陽線、各足が切り上がり</li>
-              <li><strong style="color:#a5b4fc">ダブルボトム(4H)</strong> — 1.5%以内の二底形成</li>
-            </ul>
-            <div style="margin-top:14px;padding-top:10px;border-top:1px solid #334155">
-              <div style="font-size:.78rem;font-weight:700;color:#60a5fa;margin-bottom:6px">📊 日足チャートパターン（NEW）</div>
-              <ul style="margin:6px 0 0 16px;line-height:1.9">
-                <li><strong style="color:#60a5fa">カップウィズハンドル</strong> — U字底＋小さな戻り→ブレイクアウト（60日）</li>
-                <li><strong style="color:#60a5fa">アセンディングトライアングル</strong> — 水平レジスタンス＋切り上がるサポート（30日）</li>
-                <li><strong style="color:#60a5fa">逆ヘッドアンドショルダー</strong> — 3つの谷（中央最深）→ネックライン突破（50日）</li>
-                <li><strong style="color:#60a5fa">ブルペナント</strong> — 急騰後の三角持ち合い→上放れ（30日）</li>
-                <li><strong style="color:#60a5fa">フォーリングウェッジ</strong> — 下降ウェッジ収束→上方ブレイク（30日）</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ローソクパターン図鑑 -->
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">🕯️ ローソクパターン図鑑（4Hトリガー: 8パターン）</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
-        ${candleCard("ピンバー", "1本足・強気", "#10b981", candleSvg_hammer())}
-        ${candleCard("逆ハンマー", "1本足・強気", "#10b981", candleSvg_inverseHammer())}
-        ${candleCard("強気エンガルフィング", "2本足・強気", "#3b82f6", candleSvg_engulfing())}
-        ${candleCard("切り込み線", "2本足・強気", "#3b82f6", candleSvg_piercing())}
-        ${candleCard("明けの明星", "3本足・強気", "#8b5cf6", candleSvg_morningStar())}
-        ${candleCard("赤三兵", "3本足・強気", "#8b5cf6", candleSvg_threeWhite())}
-        ${candleCard("出来高急増", "1本足+出来高", "#f59e0b", candleSvg_volumeSurge())}
-        ${candleCard("ダブルボトム", "複数足・反転", "#f59e0b", candleSvg_doubleBottom())}
-      </div>
-    </div>
-
-    <!-- 日足チャートパターン図鑑 -->
-    <div class="card" style="margin-bottom:20px">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:14px">📊 日足チャートパターン図鑑（5パターン — NEW）</h3>
-      <div style="font-size:.78rem;color:#94a3b8;margin-bottom:12px">日足データ（60〜250日）を使用して構造的な強気パターンを検出。ローソク足パターンより長期の価格構造を捉えます。</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px">
-        ${candleCard("カップウィズハンドル", "U字底→ブレイク", "#60a5fa", chartSvg_cupHandle())}
-        ${candleCard("アセンディング△", "水平抵抗+上昇支持", "#60a5fa", chartSvg_ascTriangle())}
-        ${candleCard("逆ヘッド&ショルダー", "3谷反転パターン", "#60a5fa", chartSvg_invHS())}
-        ${candleCard("ブルペナント", "急騰後の収束→上放れ", "#60a5fa", chartSvg_pennant())}
-        ${candleCard("フォーリングウェッジ", "下降収束→上方ブレイク", "#60a5fa", chartSvg_fallingWedge())}
-      </div>
-    </div>
-
-    <!-- 注意事項 -->
-    <div class="card">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">⚠️ 重要な注意事項</h3>
-      <div style="font-size:.8rem;color:#94a3b8;line-height:2">
-        <div>🚫 <strong style="color:#e2e8f0">R:R 1.5未満は推奨しない</strong></div>
-        <div>🚫 <strong style="color:#e2e8f0">低流動性銘柄は除外</strong></div>
-        <div>✅ <strong style="color:#e2e8f0">4Hトリガー待ち</strong> — 「サポート接近中」でも4Hシグナルが出るまでエントリーは見送り</div>
-        <div>✅ <strong style="color:#e2e8f0">ロジック４と比較</strong> — 両方で「最優先候補」ならエントリー確度が非常に高い</div>
-      </div>
-    </div>
+  </div>
   `;
 }
 
-// ── ヘルパー ─────────────────────────────────────────────────────────────────
+// ── SVG ヘルパー ─────────────────────────────────────────────────────────────
 
-function filter(title, cond, color, desc) {
-  return `
-    <div style="background:rgba(30,41,59,.7);border-left:3px solid ${color};border-radius:6px;padding:12px 14px">
-      <div style="font-size:.78rem;font-weight:700;color:${color};margin-bottom:4px">${title}</div>
-      <div style="font-size:.8rem;color:#e2e8f0;font-weight:600;margin-bottom:5px">${cond}</div>
-      <div style="font-size:.74rem;color:#64748b;line-height:1.5">${desc}</div>
-    </div>`;
-}
-
-function badge(text, color) {
-  return `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:.72rem;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}44;margin-right:4px">${text}</span>`;
-}
-
-// ── ローソクSVGヘルパー ──────────────────────────────────────────────────────
-function _candle(x, o, h, l, c, w=14) {
-  const bull = c >= o;
-  const top = Math.min(o,c), bot = Math.max(o,c);
-  const fill = bull ? "#22c55e" : "#ef4444";
-  const cx = x + w/2;
-  return `<line x1="${cx}" y1="${h}" x2="${cx}" y2="${l}" stroke="${fill}" stroke-width="1.5"/>
-          <rect x="${x}" y="${top}" width="${w}" height="${Math.max(bot-top,1)}" fill="${fill}" rx="1"/>`;
-}
-function candleCard(title, subtitle, color, svg) {
-  return `<div style="background:rgba(30,41,59,.7);border:1px solid ${color}44;border-radius:8px;padding:10px;text-align:center">
-    <div style="height:80px;display:flex;align-items:center;justify-content:center">${svg}</div>
-    <div style="font-size:.78rem;font-weight:700;color:${color};margin-top:6px">${title}</div>
-    <div style="font-size:.68rem;color:#64748b">${subtitle}</div>
+function _patternCard(title, svg, line1, line2, color) {
+  return `<div style="background:var(--bg-card);border:1px solid ${color}44;border-radius:8px;padding:10px;text-align:center">
+    <div style="height:70px;display:flex;align-items:center;justify-content:center">${svg}</div>
+    <div style="font-size:.85rem;font-weight:700;color:${color};margin-top:6px">${title}</div>
+    <div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">${line1}</div>
+    <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px">${line2}</div>
   </div>`;
 }
-function candleSvg_hammer() {
-  return `<svg width="40" height="70" viewBox="0 0 40 70"><${_candle(13, 50, 20, 65, 25)}><line x1="0" y1="58" x2="40" y2="58" stroke="#475569" stroke-width="0.5" stroke-dasharray="2"/></svg>`;
-}
-function candleSvg_inverseHammer() {
-  return `<svg width="40" height="70" viewBox="0 0 40 70">${_candle(13, 55, 10, 62, 50)}</svg>`;
-}
-function candleSvg_engulfing() {
-  return `<svg width="60" height="70" viewBox="0 0 60 70">${_candle(8, 25, 18, 50, 45, 12)}${_candle(28, 50, 12, 55, 20, 18)}</svg>`;
-}
-function candleSvg_piercing() {
-  return `<svg width="60" height="70" viewBox="0 0 60 70">${_candle(8, 20, 15, 55, 48, 14)}${_candle(30, 52, 22, 58, 30, 14)}<line x1="0" y1="34" x2="60" y2="34" stroke="#f59e0b" stroke-width="0.5" stroke-dasharray="2"/></svg>`;
-}
-function candleSvg_morningStar() {
-  return `<svg width="76" height="70" viewBox="0 0 76 70">${_candle(4, 15, 10, 55, 50, 14)}${_candle(26, 52, 48, 58, 54, 10)}${_candle(44, 48, 12, 52, 18, 14)}</svg>`;
-}
-function candleSvg_threeWhite() {
-  return `<svg width="76" height="70" viewBox="0 0 76 70">${_candle(4, 50, 42, 60, 45, 14)}${_candle(26, 42, 30, 48, 34, 14)}${_candle(48, 32, 18, 38, 22, 14)}</svg>`;
-}
-function candleSvg_volumeSurge() {
-  return `<svg width="60" height="70" viewBox="0 0 60 70"><rect x="5" y="50" width="10" height="15" fill="#475569" rx="1"/><rect x="20" y="48" width="10" height="17" fill="#475569" rx="1"/><rect x="35" y="30" width="14" height="35" fill="#22c55e55" rx="1"/>${_candle(37, 35, 15, 50, 20, 10)}</svg>`;
-}
-function candleSvg_doubleBottom() {
-  return `<svg width="80" height="70" viewBox="0 0 80 70"><path d="M5 20 Q20 55 35 30 Q50 55 65 20" fill="none" stroke="#f59e0b" stroke-width="2"/><line x1="0" y1="52" x2="80" y2="52" stroke="#ef4444" stroke-width="0.5" stroke-dasharray="3"/><circle cx="20" cy="52" r="3" fill="none" stroke="#f59e0b" stroke-width="1.5"/><circle cx="50" cy="52" r="3" fill="none" stroke="#f59e0b" stroke-width="1.5"/></svg>`;
-}
-// ── 日足チャートパターンSVG ──
-function chartSvg_cupHandle() {
-  return `<svg width="90" height="70" viewBox="0 0 90 70">
-    <path d="M5 18 Q15 18 25 45 Q40 62 55 18 L62 18 Q65 28 70 22" fill="none" stroke="#60a5fa" stroke-width="2"/>
-    <line x1="55" y1="18" x2="75" y2="18" stroke="#60a5fa" stroke-width="0.5" stroke-dasharray="2"/>
-    <path d="M70 22 L80 12" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
-    <text x="80" y="10" font-size="8" fill="#22c55e">↑</text>
+
+function _svgFlatBase() {
+  return `<svg width="90" height="60" viewBox="0 0 90 60">
+    <path d="M5 25 L15 22 L25 28 L35 24 L45 26 L55 23 L65 27 L75 24" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <line x1="5" y1="20" x2="75" y2="20" stroke="#f59e0b" stroke-width="1" stroke-dasharray="2"/>
+    <line x1="5" y1="30" x2="75" y2="30" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="2"/>
+    <path d="M75 24 L85 14" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="78" y="12" font-size="8" fill="#22c55e">↑</text>
+    <text x="30" y="42" font-size="7" fill="#94a3b8">tight range</text>
   </svg>`;
 }
-function chartSvg_ascTriangle() {
-  return `<svg width="90" height="70" viewBox="0 0 90 70">
-    <line x1="10" y1="18" x2="80" y2="18" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
-    <path d="M10 60 L30 40 L50 30 L70 22" fill="none" stroke="#60a5fa" stroke-width="2"/>
-    <path d="M10 20 L30 20 L50 19 L70 18" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
-    <path d="M70 18 L85 8" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
-    <text x="10" y="64" font-size="7" fill="#94a3b8">支持↑</text>
-    <text x="60" y="14" font-size="7" fill="#ef4444">抵抗—</text>
+
+function _svgVcp() {
+  return `<svg width="90" height="60" viewBox="0 0 90 60">
+    <path d="M5 10 L12 40 L22 15 L30 35 L40 18 L48 30 L55 20 L62 27 L68 22" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <line x1="5" y1="10" x2="68" y2="10" stroke="#f59e0b" stroke-width="0.5" stroke-dasharray="2"/>
+    <path d="M68 22 L80 8" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="10" y="50" font-size="6" fill="#94a3b8">wide</text>
+    <text x="42" y="38" font-size="6" fill="#94a3b8">tight</text>
   </svg>`;
 }
-function chartSvg_invHS() {
-  return `<svg width="90" height="70" viewBox="0 0 90 70">
-    <path d="M5 20 L20 42 L30 25 L45 58 L55 25 L65 42 L80 15" fill="none" stroke="#60a5fa" stroke-width="2"/>
-    <line x1="20" y1="25" x2="65" y2="25" stroke="#f59e0b" stroke-width="1" stroke-dasharray="2"/>
-    <text x="32" y="22" font-size="7" fill="#f59e0b">NL</text>
-    <circle cx="20" cy="42" r="2" fill="#94a3b8"/>
-    <circle cx="45" cy="58" r="2.5" fill="#60a5fa"/>
-    <circle cx="65" cy="42" r="2" fill="#94a3b8"/>
+
+function _svgAscTriangle() {
+  return `<svg width="90" height="60" viewBox="0 0 90 60">
+    <line x1="10" y1="15" x2="75" y2="15" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
+    <path d="M10 50 L25 15 L35 40 L50 16 L55 30 L70 15" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <path d="M70 15 L82 6" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="2" y="54" font-size="6" fill="#94a3b8">HL</text>
+    <text x="60" y="12" font-size="6" fill="#ef4444">R</text>
   </svg>`;
 }
-function chartSvg_pennant() {
-  return `<svg width="90" height="70" viewBox="0 0 90 70">
-    <path d="M5 60 L25 15" stroke="#22c55e" stroke-width="2.5"/>
-    <path d="M25 15 L50 22 L65 25" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
-    <path d="M25 25 L50 22 L65 25" fill="none" stroke="#60a5fa" stroke-width="1.5"/>
-    <polygon points="25,15 65,25 25,25" fill="#60a5fa22" stroke="none"/>
-    <path d="M65 25 L80 10" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
-    <text x="7" y="42" font-size="7" fill="#22c55e" transform="rotate(-65,12,42)">pole</text>
-  </svg>`;
-}
-function chartSvg_fallingWedge() {
-  return `<svg width="90" height="70" viewBox="0 0 90 70">
-    <path d="M10 10 L60 40" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
-    <path d="M10 30 L60 45" fill="none" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="3"/>
-    <path d="M10 12 L25 22 L40 30 L55 38 L65 25" fill="none" stroke="#60a5fa" stroke-width="2"/>
-    <path d="M65 25 L80 12" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
-    <text x="70" y="10" font-size="8" fill="#22c55e">↑</text>
+
+function _svgCupHandle() {
+  return `<svg width="90" height="60" viewBox="0 0 90 60">
+    <path d="M5 15 Q15 15 25 40 Q38 55 50 15 L58 15 Q62 25 66 20" fill="none" stroke="#60a5fa" stroke-width="2"/>
+    <line x1="50" y1="15" x2="70" y2="15" stroke="#f59e0b" stroke-width="0.5" stroke-dasharray="2"/>
+    <path d="M66 20 L78 8" stroke="#22c55e" stroke-width="2" stroke-dasharray="3"/>
+    <text x="72" y="7" font-size="8" fill="#22c55e">↑</text>
   </svg>`;
 }

@@ -25,6 +25,7 @@ from backend.routes.tech_weekly   import router as tech_weekly_router
 from backend.routes.chart              import router as chart_router
 from backend.routes.entry_candidates   import router as entry_candidates_router
 from backend.routes.logic2             import router as logic2_router
+from backend.routes.logic3             import router as logic3_router
 from backend.db import init_db
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -40,7 +41,7 @@ def _run_daily_in_background():
         print(f"[Startup] 日次調整エラー: {e}")
 
 
-_pipeline_running = {"logic2": False, "logic3": False, "logic4": False}
+_pipeline_running = {"logic2": False, "logic3": False}
 
 def _run_logic_pipeline(logic_name):
     """指定ロジックのパイプラインをバックグラウンド実行。"""
@@ -50,8 +51,6 @@ def _run_logic_pipeline(logic_name):
             from pipeline.logic2_scan import run as logic_run
         elif logic_name == "logic3":
             from pipeline.logic3_scan import run as logic_run
-        elif logic_name == "logic4":
-            from pipeline.logic4_scan import run as logic_run
         else:
             return
         print(f"[Pipeline] {logic_name} 手動実行開始...")
@@ -113,6 +112,7 @@ def create_app() -> FastAPI:
         chart_router,
         entry_candidates_router,
         logic2_router,
+        logic3_router,
     ]:
         app.include_router(router)
 
@@ -124,7 +124,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/pipeline/trigger/{logic_name}")
     async def trigger_pipeline(logic_name: str):
-        if logic_name not in ("logic2", "logic3", "logic4"):
+        if logic_name not in ("logic2", "logic3"):
             return {"error": f"Unknown logic: {logic_name}"}
         if _pipeline_running.get(logic_name):
             return {"status": "already_running", "logic": logic_name}
