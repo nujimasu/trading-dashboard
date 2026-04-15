@@ -60,6 +60,8 @@ PERF_6M_DAYS     = 126
 RR_MIN           = 2.0   # ブレイクアウトはダマシリスクが高いためRR>=2.0必須
 PIVOT_MAX_DIST   = 0.05  # ピボットから最大5%以内
 PIVOT_APPROACH   = 0.02  # ピボットまで2%以内 = ブレイクアウト接近
+SL_MAX_ATR_MULT  = 3.0   # SLは現在値から最大3×ATR下まで
+SL_MAX_PCT       = 0.08  # SLは現在値から最大8%下まで
 
 # ── テクニカル計算 ─────────────────────────────────────────────────────────
 
@@ -351,15 +353,23 @@ def _calc_rr_breakout(C, H, atr_arr, pivot, base_low, base_depth_pct, i):
     ブレイクアウト用R:R計算。
     TP = メジャードムーブ（ベース深さ分の上昇）
     SL = ベース下限×0.99 or ピボット − ATR（浅い方）
+        ただし現在値から 3×ATR or 8% を超えて離れない（フロア制限）
     """
     current = C[i]
     atr_v = atr_arr[i]
     if atr_v is None or atr_v <= 0:
         return None, None, None, None, None
 
+    # --- SL候補 ---
     sl_from_base = base_low * 0.99
     sl_from_atr  = pivot - atr_v
     sl = max(sl_from_base, sl_from_atr)
+
+    # --- SLフロア: 現在値から離れすぎないよう制限 ---
+    sl_floor_atr = current - atr_v * SL_MAX_ATR_MULT   # 現在値 - 3ATR
+    sl_floor_pct = current * (1 - SL_MAX_PCT)           # 現在値 × 0.92
+    sl_floor = max(sl_floor_atr, sl_floor_pct)           # 高い方をフロアに
+    sl = max(sl, sl_floor)
 
     if sl >= current:
         return None, None, None, None, None
