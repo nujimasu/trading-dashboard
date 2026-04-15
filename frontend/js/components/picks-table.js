@@ -1,7 +1,7 @@
 /**
  * Shared picks table renderer — used by weekly-picks and daily-picks.
  */
-import { renderCandlestick } from "../utils/charts.js";
+import { renderCandlestick } from "../utils/charts.js?v=2";
 import { apiFetch } from "../utils/api.js";
 
 // ── Market health cache (shared across all detail panels) ───────────────────
@@ -119,12 +119,21 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
         // Render chart from /api/chart endpoint
         apiFetch(`/api/chart/${pick.ticker}?days=180`).then(chartResp => {
           if (chartResp && chartResp.data && chartResp.data.length > 0) {
+            const patternData = (pick.base_pattern && pick.pivot_price) ? {
+              pivot:          pick.pivot_price,
+              base_low:       pick.stop_price,
+              base_length:    pick.base_length || 30,
+              base_pattern:   pick.base_pattern,
+              base_depth_pct: pick.base_depth_pct,
+              breakout_confirmed: pick.breakout_confirmed,
+              breakout_volume_ratio: pick.breakout_volume_ratio,
+            } : null;
             renderCandlestick(`chart-${idx}`, chartResp.data, {
               entry:  pick.entry_price,
               stop:   pick.stop_price,
               tp1:    pick.tp1_price,
               target: pick.target_price,
-            });
+            }, patternData);
           }
         }).catch(() => {});
 
