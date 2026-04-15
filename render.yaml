@@ -33,14 +33,14 @@ services:
       - key: POLYGON_API_KEY
         sync: false
 
-  # ── 日次フルフィルタ（月〜金） ──────────────────────────────────────────
-  # 月〜金 22:30 UTC = 翌朝 7:30 JST（差分DL + Stage3-6再実行）
+  # ── 日次調整（月〜金） ───────────────────────────────────────────────────
+  # 月〜金 22:30 UTC = 翌朝 7:30 JST（米国市場クローズ後の最新値に更新）
   - type: cron
     name: daily-pipeline
     env: python
     schedule: "30 22 * * 1-5"
     buildCommand: pip install -r requirements.txt
-    startCommand: python pipeline/run_pipeline.py --daily-full
+    startCommand: python pipeline/run_pipeline.py --daily-only
     envVars:
       - key: DATABASE_URL
         sync: false
