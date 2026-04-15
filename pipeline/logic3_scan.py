@@ -62,6 +62,8 @@ PIVOT_MAX_DIST   = 0.05  # ピボットから最大5%以内
 PIVOT_APPROACH   = 0.02  # ピボットまで2%以内 = ブレイクアウト接近
 SL_MAX_ATR_MULT  = 3.0   # SLは現在値から最大3×ATR下まで
 SL_MAX_PCT       = 0.08  # SLは現在値から最大8%下まで
+TP_MAX_ATR_MULT  = 8.0   # TP1は現在値から最大8×ATR上まで
+TP_MAX_PCT       = 0.20  # TP1は現在値から最大20%上まで
 
 # ── テクニカル計算 ─────────────────────────────────────────────────────────
 
@@ -379,6 +381,13 @@ def _calc_rr_breakout(C, H, atr_arr, pivot, base_low, base_depth_pct, i):
     base_height = pivot - base_low
     tp1 = pivot + base_height
     tp2 = pivot + base_height * 1.5
+
+    # --- TPキャップ: 現在値から離れすぎないよう制限 ---
+    tp_cap_atr = current + atr_v * TP_MAX_ATR_MULT   # 現在値 + 8ATR
+    tp_cap_pct = current * (1 + TP_MAX_PCT)           # 現在値 × 1.20
+    tp_cap = min(tp_cap_atr, tp_cap_pct)              # 低い方をキャップに
+    tp1 = min(tp1, tp_cap)
+    tp2 = min(tp2, tp_cap * 1.15)                     # TP2もキャップの15%増まで
 
     reward = tp1 - current
     if reward <= 0 or risk <= 0:
