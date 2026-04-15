@@ -1,0 +1,41 @@
+name: Weekly Pipeline
+
+on:
+  schedule:
+    # 毎週日曜 22:30 UTC = 月曜 7:30 JST（米国金曜終値確定後）
+    - cron: "30 22 * * 0"
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run full pipeline (Stage 1-6 + News)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY:  ${{ secrets.FMP_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python pipeline/run_pipeline.py
+
+      - name: Run tech weekly scan
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FMP_API_KEY:  ${{ secrets.FMP_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python pipeline/run_pipeline.py --tech-weekly
