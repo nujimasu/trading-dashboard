@@ -60,8 +60,10 @@ PERF_6M_DAYS     = 126
 RR_MIN           = 2.0   # ブレイクアウトはダマシリスクが高いためRR>=2.0必須
 PIVOT_MAX_DIST   = 0.05  # ピボットから最大5%以内
 PIVOT_APPROACH   = 0.02  # ピボットまで2%以内 = ブレイクアウト接近
-SL_MAX_ATR_MULT  = 3.0   # SLは現在値から最大3×ATR下まで
+SL_MAX_ATR_MULT  = 3.0   # SLは現在値から最大3×ATR下まで（フロア: 遠すぎるSLを引き上げ）
 SL_MAX_PCT       = 0.08  # SLは現在値から最大8%下まで
+SL_MIN_ATR_MULT  = 1.5   # SLは現在値から最低1.5×ATR下に（天井: 近すぎるSLを引き下げ）
+SL_MIN_PCT       = 0.015 # SLは現在値から最低1.5%下に
 TP_MAX_ATR_MULT  = 8.0   # TP1は現在値から最大8×ATR上まで
 TP_MAX_PCT       = 0.20  # TP1は現在値から最大20%上まで
 
@@ -367,11 +369,17 @@ def _calc_rr_breakout(C, H, atr_arr, pivot, base_low, base_depth_pct, i):
     sl_from_atr  = pivot - atr_v
     sl = max(sl_from_base, sl_from_atr)
 
-    # --- SLフロア: 現在値から離れすぎないよう制限 ---
+    # --- SLフロア: 現在値から離れすぎないよう制限（遠すぎるSLを引き上げ）---
     sl_floor_atr = current - atr_v * SL_MAX_ATR_MULT   # 現在値 - 3ATR
     sl_floor_pct = current * (1 - SL_MAX_PCT)           # 現在値 × 0.92
     sl_floor = max(sl_floor_atr, sl_floor_pct)           # 高い方をフロアに
     sl = max(sl, sl_floor)
+
+    # --- SL天井: 現在値に近すぎないよう制限（近すぎるSLを引き下げ）---
+    sl_ceiling_atr = current - atr_v * SL_MIN_ATR_MULT  # 現在値 - 1.5ATR
+    sl_ceiling_pct = current * (1 - SL_MIN_PCT)          # 現在値 × 0.985
+    sl_ceiling = min(sl_ceiling_atr, sl_ceiling_pct)     # 低い方を天井に（より保守的）
+    sl = min(sl, sl_ceiling)
 
     if sl >= current:
         return None, None, None, None, None
