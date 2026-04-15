@@ -1,7 +1,7 @@
 /**
  * Tech picks table — signal-scanner-v5 ロジック由来のテクニカル重視ビュー
  */
-import { renderCandlestick } from "../utils/charts.js";
+import { renderCandlestick } from "../utils/charts.js?v=2";
 import { apiFetch } from "../utils/api.js";
 
 // market health cache（セクター動向表示用）
@@ -115,12 +115,21 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         // チャート
         apiFetch(`/api/chart/${p.ticker}?days=180`).then(chartResp => {
           if (chartResp && chartResp.data && chartResp.data.length > 0) {
+            const patternData = (p.base_pattern && p.pivot_price) ? {
+              pivot:          p.pivot_price,
+              base_low:       p.stop_price,
+              base_length:    p.base_length || 30,
+              base_pattern:   p.base_pattern,
+              base_depth_pct: p.base_depth_pct,
+              breakout_confirmed: p.breakout_confirmed,
+              breakout_volume_ratio: p.breakout_volume_ratio,
+            } : null;
             renderCandlestick(`tchart-${idx}`, chartResp.data, {
               entry:  p.entry_price,
               stop:   p.stop_price,
               tp1:    p.tp1_price,
               target: p.target_price,
-            });
+            }, patternData);
           }
         }).catch(() => {});
 

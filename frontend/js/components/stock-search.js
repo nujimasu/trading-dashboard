@@ -1,5 +1,5 @@
 import { apiFetch } from "../utils/api.js";
-import { renderCandlestick } from "../utils/charts.js";
+import { renderCandlestick } from "../utils/charts.js?v=2";
 
 export function renderSearchUI(container) {
   container.innerHTML = `

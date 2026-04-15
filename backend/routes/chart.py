@@ -27,6 +27,7 @@ def get_chart(ticker: str, days: int = 180):
             "high":   r["high"],
             "low":    r["low"],
             "close":  r["close"],
+            "volume": r["volume"],
         }
         for r in reversed(rows)
     ]

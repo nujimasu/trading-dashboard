@@ -1,7 +1,7 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
-import { renderPicksTable }         from "./components/picks-table.js?v=10";
-import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=6";
+import { renderPicksTable }         from "./components/picks-table.js?v=11";
+import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=7";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
 import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=2";
