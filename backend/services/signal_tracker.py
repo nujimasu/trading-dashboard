@@ -329,6 +329,110 @@ def get_logic_stats(logic_name: Optional[str] = None,
     }
 
 
+def get_tag_stats(logic_name: Optional[str] = None,
+                   since_days: Optional[int] = None,
+                   min_count: int = 3) -> dict:
+    """
+    シグナルに含まれていたタグ（active_signals / entry_reasons）ごとの戦績を集計。
+    各シグナルは複数タグを持ちうるため、1シグナルが複数行に展開される。
+
+    Returns:
+      [{ tag, count, win_rate, expectancy_r, total_r, profit_factor }, ...]
+    """
+    where_parts = ["status NOT IN ('open', 'invalid')"]
+    params: list = []
+    if logic_name:
+        where_parts.append("logic_name = ?")
+        params.append(logic_name)
+    if since_days is not None:
+        cutoff = (date.today() - timedelta(days=since_days)).isoformat()
+        where_parts.append("signal_date >= ?")
+        params.append(cutoff)
+    where_sql = " AND ".join(where_parts)
+
+    with db_cursor() as cur:
+        cur.execute(f"""
+            SELECT logic_name, meta, realized_r
+            FROM signal_log
+            WHERE {where_sql}
+        """, tuple(params))
+        rows = [dict(r) for r in cur.fetchall()]
+
+    by_tag: dict[str, list[float]] = {}
+    for r in rows:
+        meta = _parse_meta(r.get("meta"))
+        tags = _extract_tags(meta)
+        rr = float(r["realized_r"]) if r.get("realized_r") is not None else None
+        if rr is None:
+            continue
+        for t in tags:
+            by_tag.setdefault(t, []).append(rr)
+
+    out = []
+    for tag, rs in by_tag.items():
+        n = len(rs)
+        if n < min_count:
+            continue
+        wins   = [r for r in rs if r > 0]
+        losses = [r for r in rs if r <= 0]
+        total_r = sum(rs)
+        avg_r   = total_r / n
+        win_rate = len(wins) / n * 100
+        win_sum  = sum(wins)
+        loss_sum = abs(sum(losses))
+        pf = (win_sum / loss_sum) if loss_sum > 0 else None
+        out.append({
+            "tag":           tag,
+            "count":         n,
+            "win_rate":      round(win_rate, 1),
+            "expectancy_r":  round(avg_r, 3),
+            "total_r":       round(total_r, 2),
+            "profit_factor": round(pf, 2) if pf is not None else None,
+        })
+    out.sort(key=lambda x: -x["expectancy_r"])
+    return {"tags": out, "total_signals": len(rows)}
+
+
+def _parse_meta(meta) -> dict:
+    if meta is None:
+        return {}
+    if isinstance(meta, dict):
+        return meta
+    if isinstance(meta, str):
+        try:
+            return json.loads(meta)
+        except (TypeError, ValueError):
+            return {}
+    return {}
+
+
+def _extract_tags(meta: dict) -> list[str]:
+    """meta から関連タグを抽出する。重複は除去。"""
+    tags: set[str] = set()
+    # tech 系: active_signals (string array)
+    for key in ("active_signals",):
+        v = meta.get(key)
+        if isinstance(v, list):
+            for item in v:
+                if isinstance(item, str) and item.strip():
+                    tags.add(item.strip())
+    # tech 系: signals (object array, 各 obj は {label: ..., win_rate: ..., ...})
+    sigs = meta.get("signals")
+    if isinstance(sigs, list):
+        for s in sigs:
+            if isinstance(s, dict) and s.get("label"):
+                tags.add(str(s["label"]).strip())
+    # funda 系: technical_summary.entry_reasons
+    ts = meta.get("technical_summary")
+    if isinstance(ts, dict):
+        reasons = ts.get("entry_reasons")
+        if isinstance(reasons, list):
+            for r in reasons:
+                if isinstance(r, str) and r.strip():
+                    tags.add(r.strip())
+    return list(tags)
+
+
 def _compute_stats(rows: list[dict]) -> dict:
     n = len(rows)
     if n == 0:

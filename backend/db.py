@@ -291,6 +291,36 @@ else:
         );
         CREATE INDEX IF NOT EXISTS idx_signal_log_logic_date ON signal_log(logic_name, signal_date);
         CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status);
+        CREATE TABLE IF NOT EXISTS positions (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker            TEXT NOT NULL,
+            direction         TEXT NOT NULL DEFAULT 'LONG',
+            entry_date        TEXT NOT NULL,
+            entry_price       REAL NOT NULL,
+            shares            REAL NOT NULL,
+            stop_price        REAL,
+            tp1_price         REAL,
+            target_price      REAL,
+            source_logic      TEXT,
+            source_signal_id  INTEGER,
+            status            TEXT NOT NULL DEFAULT 'open',
+            exit_date         TEXT,
+            exit_price        REAL,
+            exit_reason       TEXT,
+            notes             TEXT,
+            created_at        TEXT DEFAULT (datetime('now')),
+            updated_at        TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status);
+        CREATE INDEX IF NOT EXISTS idx_positions_ticker ON positions(ticker);
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            position_id  INTEGER NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
+            entry_type   TEXT NOT NULL DEFAULT 'note',
+            body         TEXT NOT NULL,
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_journal_position ON journal_entries(position_id, created_at);
         CREATE TABLE IF NOT EXISTS logic2_picks (
             ticker          TEXT PRIMARY KEY,
             scan_date       TEXT,
