@@ -37,3 +37,8 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: python pipeline/run_pipeline.py --daily-full
+
+      - name: Evaluate open backtest signals
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/evaluate_signals.py

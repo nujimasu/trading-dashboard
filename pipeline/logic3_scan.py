@@ -619,6 +619,13 @@ def run():
     conn.commit()
     conn.close()
 
+    # ── バックテスト用シグナルログ ──────────────────────────────────────────
+    try:
+        from backend.services.signal_tracker import log_signals
+        log_signals("logic3", [{**p, "direction": "LONG"} for p in picks])
+    except Exception as e:
+        print(f"[Logic3] signal_log 記録エラー: {e}")
+
     verdict_order = {"最優先候補": 0, "ブレイクアウト接近": 1}
     picks.sort(key=lambda x: (
         verdict_order.get(x["verdict"], 3),

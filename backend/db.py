@@ -265,6 +265,32 @@ else:
             holding_days_est INTEGER DEFAULT 14,
             signals_json    TEXT DEFAULT '[]'
         );
+        CREATE TABLE IF NOT EXISTS signal_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            logic_name      TEXT NOT NULL,
+            ticker          TEXT NOT NULL,
+            signal_date     TEXT NOT NULL,
+            direction       TEXT NOT NULL DEFAULT 'LONG',
+            entry_price     REAL,
+            stop_price      REAL,
+            tp1_price       REAL,
+            target_price    REAL,
+            confidence      REAL,
+            meta            TEXT,
+            status          TEXT DEFAULT 'open',
+            exit_date       TEXT,
+            exit_price      REAL,
+            realized_r      REAL,
+            days_held       INTEGER,
+            mae_pct         REAL,
+            mfe_pct         REAL,
+            hit_tp1         INTEGER DEFAULT 0,
+            evaluated_at    TEXT,
+            created_at      TEXT DEFAULT (datetime('now')),
+            UNIQUE(logic_name, ticker, signal_date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_signal_log_logic_date ON signal_log(logic_name, signal_date);
+        CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status);
         CREATE TABLE IF NOT EXISTS logic2_picks (
             ticker          TEXT PRIMARY KEY,
             scan_date       TEXT,
