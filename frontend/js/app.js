@@ -1,7 +1,6 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
-import { renderPicksTable }         from "./components/picks-table.js?v=11";
-import { renderTechPicksTable }    from "./components/tech-picks-table.js?v=7";
+import { renderPickList }          from "./components/pick-list.js?v=1";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
 import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=2";
@@ -159,7 +158,7 @@ function loadLogic1(container) {
           ]);
           const merged = _mergeWeeklyDaily(weekly, daily);
           const entries = merged.filter(p => p.daily_verdict !== "PASSED" && p.direction !== "SHORT");
-          renderPicksTable(el, entries, "🎯 ロジック１（ファンダ考慮）", "hybrid-entry");
+          renderPickList(el, entries, "🎯 ロジック１（ファンダ考慮）", "hybrid-entry");
         } catch (e) {
           el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
         }
@@ -195,7 +194,7 @@ function loadLogic2(container) {
         el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
         try {
           const picks = await apiFetch("/api/logic2-picks");
-          renderTechPicksTable(el, picks, "🔥 ロジック２（厳選押し目買い）", "logic2");
+          renderPickList(el, picks, "🔥 ロジック２（厳選押し目買い）", "logic2");
         } catch (e) {
           el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
         }
@@ -217,7 +216,7 @@ function loadLogic3(container) {
         el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
         try {
           const picks = await apiFetch("/api/logic3-picks");
-          renderTechPicksTable(el, picks, "🚀 ロジック３（ブレイクアウト）", "logic3");
+          renderPickList(el, picks, "🚀 ロジック３（ブレイクアウト）", "logic3");
         } catch (e) {
           el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
         }

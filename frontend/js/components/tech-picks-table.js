@@ -160,7 +160,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
 }
 
 
-function _buildDetailPanel(p, idx) {
+export function _buildDetailPanel(p, idx) {
   const stageMeta = STAGE_LABEL[p.stage] || STAGE_LABEL[0];
   const isShort   = p.direction === "SHORT";
   const rr1 = p.entry_price && p.stop_price && p.tp1_price
@@ -292,7 +292,7 @@ function _buildDetailPanel(p, idx) {
 
 // ── ロジック４専用 詳細パネル ─────────────────────────────────
 
-function _buildDetailPanelBreakout(p, idx) {
+export function _buildDetailPanelBreakout(p, idx) {
   const rr1 = p.entry_price && p.stop_price && p.tp1_price
     ? Math.abs((p.tp1_price - p.entry_price) / (p.entry_price - p.stop_price)).toFixed(2)
     : "2.00";
@@ -354,7 +354,7 @@ function _buildDetailPanelBreakout(p, idx) {
   </div>`;
 }
 
-function _buildDetailPanelLogic4(p, idx) {
+export function _buildDetailPanelLogic4(p, idx) {
   const isShort = p.direction === "SHORT";
   const rr1 = p.entry_price && p.stop_price && p.tp1_price
     ? Math.abs((p.tp1_price - p.entry_price) / (p.entry_price - p.stop_price)).toFixed(2)
