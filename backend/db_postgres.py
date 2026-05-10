@@ -435,6 +435,34 @@ def init_db():
             trigger_bonus        REAL DEFAULT 0
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS signal_log (
+            id              SERIAL PRIMARY KEY,
+            logic_name      TEXT NOT NULL,
+            ticker          TEXT NOT NULL,
+            signal_date     DATE NOT NULL,
+            direction       TEXT NOT NULL DEFAULT 'LONG',
+            entry_price     NUMERIC,
+            stop_price      NUMERIC,
+            tp1_price       NUMERIC,
+            target_price    NUMERIC,
+            confidence      NUMERIC,
+            meta            JSONB,
+            status          TEXT DEFAULT 'open',
+            exit_date       DATE,
+            exit_price      NUMERIC,
+            realized_r      NUMERIC,
+            days_held       INTEGER,
+            mae_pct         NUMERIC,
+            mfe_pct         NUMERIC,
+            hit_tp1         BOOLEAN DEFAULT FALSE,
+            evaluated_at    TIMESTAMPTZ,
+            created_at      TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE UNIQUE INDEX IF NOT EXISTS uniq_signal_log_logic_ticker_date ON signal_log(logic_name, ticker, signal_date)",
+        "CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status) WHERE status = 'open'",
+        "CREATE INDEX IF NOT EXISTS idx_signal_log_logic_signal_date ON signal_log(logic_name, signal_date DESC)",
     ]
 
     for stmt in statements:

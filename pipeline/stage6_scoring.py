@@ -370,6 +370,13 @@ def run(tickers: list[str]) -> list[str]:
     compute_market_health(conn, today)
     conn.close()
 
+    # ── バックテスト用シグナルログ（Logic 1: weekly_picks ベース）──────────────
+    try:
+        from backend.services.signal_tracker import log_signals
+        log_signals("logic1", picks)
+    except Exception as e:
+        print(f"[Stage6] signal_log 記録エラー: {e}")
+
     print(f"\n[Stage6] Weekly Picks — {len(picks)} long (SHORTは除外):")
     for p in picks[:12]:
         print(f"  📈 {p['ticker']:6s} | Score={p['composite_score']:5.1f} | {p['tier']} | RR={p['risk_reward']:.2f} | {p['verdict']}")
