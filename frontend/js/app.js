@@ -7,6 +7,7 @@ import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.j
 import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=4";
 import { renderBacktest }          from "./components/backtest.js?v=2";
 import { renderPositions }         from "./components/positions.js?v=1";
+import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=1";
 import { apiFetch }                from "./utils/api.js?v=3";
 
 // ── Navigation config ─────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ const SECTIONS = [
   { id: "logic2",        label: "ロジック２（厳選押し目買い）", icon: "🔥", load: loadLogic2 },
   { id: "logic3",        label: "ロジック３（ブレイクアウト）", icon: "🚀", load: loadLogic3 },
   { id: "positions",     label: "保有ポジション", icon: "💼", load: loadPositions },
+  { id: "trade-analytics", label: "取引分析", icon: "📈", load: loadTradeAnalytics },
   { id: "backtest",      label: "戦績", icon: "📊", load: loadBacktest },
   { id: "search",        label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
@@ -243,6 +245,10 @@ async function loadBacktest(container) {
 
 async function loadPositions(container) {
   await renderPositions(container);
+}
+
+async function loadTradeAnalytics(container) {
+  await renderTradeAnalytics(container);
 }
 
 // ── Pipeline status (header) ──────────────────────────────────────────────
