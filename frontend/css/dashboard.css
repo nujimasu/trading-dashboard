@@ -98,6 +98,53 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* ── Section tabs (in-page sub-navigation) ───────────────── */
+.section-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.section-tabs::-webkit-scrollbar { display: none; }
+
+.section-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: .875rem;
+  font-weight: 500;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.section-tab:hover {
+  color: var(--text-primary);
+  background: rgba(255,255,255,.03);
+}
+.section-tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+.section-tab:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+.section-tab-icon { font-size: 1rem; }
+
+.section-tab-content { display: none; }
+.section-tab-content.active { display: block; }
+
 /* ── Cards ────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);
@@ -1200,6 +1247,10 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   /* 検索バー */
   .search-bar { flex-direction: column; }
   .search-input { max-width: 100%; }
+
+  /* ロジック内タブ — 小さめパディング */
+  .section-tab { padding: 9px 12px; font-size: .82rem; }
+  .section-tabs { margin-bottom: 12px; }
 }
 
 /* ── Pick chart container ────────────────────────────────────── */
