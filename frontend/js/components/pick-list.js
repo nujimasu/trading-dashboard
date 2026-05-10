@@ -13,7 +13,7 @@ import {
   _buildDetailPanelBreakout,
   _buildDetailPanelLogic4,
 } from "./tech-picks-table.js?v=7";
-import { renderCandlestick } from "../utils/charts.js?v=2";
+import { renderCandlestick } from "../utils/charts.js?v=3";
 import { apiFetch } from "../utils/api.js";
 import {
   normalizePick,
@@ -122,6 +122,25 @@ function _toggleDetail(container, card, idx, rawPick, mode) {
   card.classList.add("expanded");
   card.insertAdjacentHTML("afterend",
     `<div class="pick-detail" data-idx="${idx}">${detailHtml}</div>`);
+
+  // detail-block の h4 をアコーディオン化
+  const detailEl = card.nextElementSibling;
+  detailEl.querySelectorAll(".detail-block h4").forEach(h => {
+    h.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      h.parentElement.classList.toggle("collapsed");
+    });
+  });
+
+  // セクター動向の「読み込み中…」を 8 秒でフォールバック表示に
+  setTimeout(() => {
+    detailEl.querySelectorAll('[id^="sector-slot-"], [id^="tsector-slot-"]').forEach(slot => {
+      const txt = slot.textContent || "";
+      if (txt.includes("読み込み中")) {
+        slot.innerHTML = `<div class="sector-loading-failed">— セクターデータ未取得</div>`;
+      }
+    });
+  }, 8000);
 
   _hydrateDetail(container, idx, rawPick, mode);
 }

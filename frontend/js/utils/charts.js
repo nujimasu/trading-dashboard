@@ -77,21 +77,23 @@ export function renderCandlestick(containerId, chartData, levels = {}, pattern =
   }
 
   // ── Trade level lines (entry / stop / tp) ──────────────────────────────
-  if (levels.entry) {
-    const s = chart.addLineSeries({ color: "#3b82f6", lineWidth: 1, lineStyle: 1 });
-    s.setData(chartData.map(d => ({ time: d.time, value: levels.entry })));
-  }
-  if (levels.stop) {
-    const s = chart.addLineSeries({ color: "#ef4444", lineWidth: 1, lineStyle: 2 });
-    s.setData(chartData.map(d => ({ time: d.time, value: levels.stop })));
-  }
-  if (levels.tp1) {
-    const s = chart.addLineSeries({ color: "#f97316", lineWidth: 1, lineStyle: 2 });
-    s.setData(chartData.map(d => ({ time: d.time, value: levels.tp1 })));
-  }
-  if (levels.target) {
-    const s = chart.addLineSeries({ color: "#22c55e", lineWidth: 1, lineStyle: 2 });
-    s.setData(chartData.map(d => ({ time: d.time, value: levels.target })));
+  // createPriceLine は title 表示で値の重複を回避できる。
+  const PRICE_LINES = [
+    { key: "entry",  price: levels.entry,  color: "#3b82f6", title: "Entry", style: 0 },
+    { key: "stop",   price: levels.stop,   color: "#ef4444", title: "SL",    style: 2 },
+    { key: "tp1",    price: levels.tp1,    color: "#f97316", title: "TP1",   style: 2 },
+    { key: "target", price: levels.target, color: "#22c55e", title: "TP2",   style: 2 },
+  ];
+  for (const line of PRICE_LINES) {
+    if (line.price == null) continue;
+    candleSeries.createPriceLine({
+      price: Number(line.price),
+      color: line.color,
+      lineWidth: 1,
+      lineStyle: line.style,
+      axisLabelVisible: true,
+      title: line.title,
+    });
   }
 
   // ── Pattern overlays ───────────────────────────────────────────────────
@@ -100,6 +102,19 @@ export function renderCandlestick(containerId, chartData, levels = {}, pattern =
   }
 
   chart.timeScale().fitContent();
+
+  // ── 凡例（チャート下の説明） ──────────────────────────────────────────
+  const legendItems = [];
+  if (levels.entry  != null) legendItems.push(`<span class="chart-legend-item"><span class="chart-legend-swatch" style="background:#3b82f6"></span>Entry $${(+levels.entry).toFixed(2)}</span>`);
+  if (levels.stop   != null) legendItems.push(`<span class="chart-legend-item"><span class="chart-legend-swatch" style="background:#ef4444"></span>SL $${(+levels.stop).toFixed(2)}</span>`);
+  if (levels.tp1    != null) legendItems.push(`<span class="chart-legend-item"><span class="chart-legend-swatch" style="background:#f97316"></span>TP1 $${(+levels.tp1).toFixed(2)}</span>`);
+  if (levels.target != null) legendItems.push(`<span class="chart-legend-item"><span class="chart-legend-swatch" style="background:#22c55e"></span>TP2 $${(+levels.target).toFixed(2)}</span>`);
+  if (legendItems.length > 0) {
+    const legend = document.createElement("div");
+    legend.className = "chart-legend";
+    legend.innerHTML = legendItems.join("");
+    container.appendChild(legend);
+  }
 
   // Responsive resize
   const ro = new ResizeObserver(() => {

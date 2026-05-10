@@ -243,17 +243,31 @@ async function loadBacktest(container) {
 async function loadPipelineStatus() {
   try {
     const status = await apiFetch("/api/pipeline/status");
-    const el     = document.getElementById("pipeline-status");
     const mh     = status.market_health;
     const signal = mh ? mh.overall_signal : "No Data";
-    const picks  = status.weekly_picks_count;
-    const tickers = status.price_data_tickers;
 
-    el.innerHTML = `
-      市場: <span>${signal}</span> &nbsp;|&nbsp;
-      週次ピック: <span>${picks}</span> &nbsp;|&nbsp;
-      価格DB: <span>${tickers}</span> 銘柄`;
-  } catch (e) {
-    // silently ignore
+    _setMarketBadge(signal);
+
+    const picksEl   = document.getElementById("hs-picks");
+    const tickersEl = document.getElementById("hs-tickers");
+    if (picksEl)   picksEl.textContent   = status.weekly_picks_count ?? "—";
+    if (tickersEl) tickersEl.textContent = status.price_data_tickers ?? "—";
+  } catch {
+    _setMarketBadge("No Data");
   }
+}
+
+function _setMarketBadge(signal) {
+  const badge = document.getElementById("market-badge");
+  if (!badge) return;
+
+  const norm = String(signal || "").toLowerCase();
+  let cls, icon, label;
+  if (norm.includes("bull"))      { cls = "market-bullish"; icon = "✓"; label = "Bullish"; }
+  else if (norm.includes("bear")) { cls = "market-bearish"; icon = "⚠"; label = "Bearish"; }
+  else if (norm.includes("neutral")) { cls = "market-neutral"; icon = "—"; label = "Neutral"; }
+  else                            { cls = "market-no-data"; icon = "?"; label = "No Data"; }
+
+  badge.className = "market-badge " + cls;
+  badge.innerHTML = `<span class="market-icon">${icon}</span><span class="market-label">${label}</span>`;
 }
