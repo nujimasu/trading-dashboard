@@ -6,7 +6,7 @@ import { apiFetch } from "../utils/api.js";
 
 // ── Market health cache (shared across all detail panels) ───────────────────
 let _mhCache = null;
-async function _getMarketHealth() {
+export async function _getMarketHealth() {
   if (!_mhCache) {
     try { _mhCache = await apiFetch("/api/market-health"); } catch { _mhCache = {}; }
   }
@@ -167,7 +167,7 @@ export function renderPicksTable(container, picks, title, mode = "weekly") {
   });
 }
 
-function buildDetailPanel(p, idx, mode = "weekly") {
+export function buildDetailPanel(p, idx, mode = "weekly") {
   const ts = p.technical_summary   || {};
   const fs = p.fundamental_summary || {};
 
