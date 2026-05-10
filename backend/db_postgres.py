@@ -463,6 +463,41 @@ def init_db():
         "CREATE UNIQUE INDEX IF NOT EXISTS uniq_signal_log_logic_ticker_date ON signal_log(logic_name, ticker, signal_date)",
         "CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status) WHERE status = 'open'",
         "CREATE INDEX IF NOT EXISTS idx_signal_log_logic_signal_date ON signal_log(logic_name, signal_date DESC)",
+        """
+        CREATE TABLE IF NOT EXISTS positions (
+            id                SERIAL PRIMARY KEY,
+            ticker            TEXT NOT NULL,
+            direction         TEXT NOT NULL DEFAULT 'LONG',
+            entry_date        DATE NOT NULL,
+            entry_price       NUMERIC NOT NULL,
+            shares            NUMERIC NOT NULL,
+            stop_price        NUMERIC,
+            tp1_price         NUMERIC,
+            target_price      NUMERIC,
+            source_logic      TEXT,
+            source_signal_id  INTEGER,
+            status            TEXT NOT NULL DEFAULT 'open',
+            exit_date         DATE,
+            exit_price        NUMERIC,
+            exit_reason       TEXT,
+            notes             TEXT,
+            created_at        TIMESTAMPTZ DEFAULT NOW(),
+            updated_at        TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status)",
+        "CREATE INDEX IF NOT EXISTS idx_positions_ticker ON positions(ticker)",
+        "CREATE INDEX IF NOT EXISTS idx_positions_entry_date ON positions(entry_date DESC)",
+        """
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            id           SERIAL PRIMARY KEY,
+            position_id  INTEGER NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
+            entry_type   TEXT NOT NULL DEFAULT 'note',
+            body         TEXT NOT NULL,
+            created_at   TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_journal_position ON journal_entries(position_id, created_at DESC)",
     ]
 
     for stmt in statements:

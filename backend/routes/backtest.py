@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 
-from backend.services.signal_tracker import get_logic_stats
+from backend.services.signal_tracker import get_logic_stats, get_tag_stats
 
 router = APIRouter()
 
@@ -14,6 +14,16 @@ def get_stats(
 ):
     """ロジック別戦績の集計を返す。"""
     return get_logic_stats(logic_name=logic, since_days=days)
+
+
+@router.get("/api/backtest/tag-stats")
+def get_tag_stats_route(
+    logic:     Optional[str] = Query(None),
+    days:      Optional[int] = Query(None, ge=1, le=3650),
+    min_count: int            = Query(3, ge=1, le=100),
+):
+    """シグナルタグ別の戦績集計。最低件数 min_count 未満のタグは除外。"""
+    return get_tag_stats(logic_name=logic, since_days=days, min_count=min_count)
 
 
 @router.get("/api/backtest/recent")

@@ -100,10 +100,17 @@ async function _loadStats(container) {
       return;
     }
 
+    // タグ別勝率も並行取得
+    let tagStats = null;
+    try {
+      tagStats = await apiFetch(`/api/backtest/tag-stats?${params.toString()}&min_count=3`);
+    } catch (_) { /* ignore */ }
+
     content.innerHTML = `
       ${_renderSummary(stats.summary)}
       ${_state.logic === null ? _renderByLogic(stats.by_logic) : ""}
       ${_renderEquityCurve(stats.summary.equity_curve || [])}
+      ${tagStats && tagStats.tags && tagStats.tags.length ? _renderTagStats(tagStats.tags) : ""}
       ${_renderRecentSignals(recent.signals)}
     `;
   } catch (e) {
@@ -191,6 +198,32 @@ function _renderEquityCurve(points) {
       </svg>
     </div>`;
 }
+
+function _renderTagStats(tags) {
+  // 期待値降順で上位30件
+  const top = tags.slice(0, 30);
+  const rows = top.map(t => `
+    <tr>
+      <td><span class="sig-tag">${_esc(t.tag)}</span></td>
+      <td>${t.count}</td>
+      <td style="color:${_winRateColor(t.win_rate)}">${t.win_rate}%</td>
+      <td style="color:${_rColor(t.expectancy_r)};font-weight:700">${_signR(t.expectancy_r)}R</td>
+      <td>${t.profit_factor != null ? t.profit_factor.toFixed(2) : "—"}</td>
+      <td style="color:${_rColor(t.total_r)}">${_signR(t.total_r)}R</td>
+    </tr>`).join("");
+  return `
+    <h3 class="bt-section-h">シグナルタグ別勝率 <span style="color:var(--text-muted);font-weight:400;font-size:.8rem">（最低3件以上、期待値順）</span></h3>
+    <div class="bt-table-wrap">
+      <table class="bt-table">
+        <thead>
+          <tr><th>タグ</th><th>件数</th><th>勝率</th><th>期待値</th><th>PF</th><th>累積R</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function _esc(s) { return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 function _renderRecentSignals(signals) {
   if (!signals.length) return "";

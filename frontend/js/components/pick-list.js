@@ -34,27 +34,105 @@ export function renderPickList(container, picks, title, mode = "weekly") {
   }
 
   const normalized = picks.map(p => normalizePick(p, mode));
+  // ソート/フィルタ用のセクター候補（重複除去）
+  const sectors = Array.from(new Set(normalized.map(n => n.sector).filter(Boolean))).sort();
 
-  const cardsHtml = normalized.map((n, i) => _renderCard(n, i)).join("");
+  const state = {
+    search: "",
+    sort:   "confidence-desc",
+    direction: "all",
+    sector: "all",
+  };
 
   container.innerHTML = `
     <div class="section-title">${title}
-      <span class="tech-count-badge">${picks.length}件</span>
+      <span class="tech-count-badge" id="pl-count">${picks.length}件</span>
     </div>
-    <div class="pick-list">
-      ${cardsHtml}
-    </div>`;
+    <div class="pick-controls">
+      <input type="search" class="pick-search" placeholder="銘柄/セクター検索..." />
+      <select class="pick-sort">
+        <option value="confidence-desc">信頼度↓</option>
+        <option value="confidence-asc">信頼度↑</option>
+        <option value="rr-desc">RR↓</option>
+        <option value="ticker-asc">銘柄名↑</option>
+      </select>
+      <select class="pick-filter-direction">
+        <option value="all">全方向</option>
+        <option value="LONG">▲ LONG</option>
+        <option value="SHORT">▼ SHORT</option>
+      </select>
+      <select class="pick-filter-sector">
+        <option value="all">全セクター</option>
+        ${sectors.map(s => `<option value="${_attr(s)}">${_esc(s)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="pick-list" id="pl-list"></div>`;
 
-  // クリックで詳細展開
+  const listEl  = container.querySelector("#pl-list");
+  const countEl = container.querySelector("#pl-count");
+  const searchEl = container.querySelector(".pick-search");
+  const sortEl   = container.querySelector(".pick-sort");
+  const dirEl    = container.querySelector(".pick-filter-direction");
+  const sectorEl = container.querySelector(".pick-filter-sector");
+
+  function rerender() {
+    let view = normalized.slice();
+
+    // 検索
+    const q = state.search.trim().toLowerCase();
+    if (q) {
+      view = view.filter(n =>
+        (n.ticker || "").toLowerCase().includes(q) ||
+        (n.sector || "").toLowerCase().includes(q));
+    }
+    // 方向
+    if (state.direction !== "all") {
+      view = view.filter(n => n.direction === state.direction);
+    }
+    // セクター
+    if (state.sector !== "all") {
+      view = view.filter(n => n.sector === state.sector);
+    }
+    // ソート
+    const sorters = {
+      "confidence-desc": (a, b) => (b.confidence || 0) - (a.confidence || 0),
+      "confidence-asc":  (a, b) => (a.confidence || 0) - (b.confidence || 0),
+      "rr-desc":         (a, b) => (b.rr || 0) - (a.rr || 0),
+      "ticker-asc":      (a, b) => (a.ticker || "").localeCompare(b.ticker || ""),
+    };
+    view.sort(sorters[state.sort] || sorters["confidence-desc"]);
+
+    countEl.textContent = `${view.length}件 / ${picks.length}件`;
+    if (view.length === 0) {
+      listEl.innerHTML = `<div class="empty-state">条件に合う銘柄がありません</div>`;
+      return;
+    }
+
+    // インデックスは「正規化前の picks」配列での位置に合わせる
+    const idxMap = view.map(n => normalized.indexOf(n));
+    listEl.innerHTML = view.map((n, viewIdx) => _renderCard(n, idxMap[viewIdx])).join("");
+    _bindCardClicks(container, picks, mode);
+  }
+
+  searchEl.addEventListener("input", () => { state.search = searchEl.value; rerender(); });
+  sortEl  .addEventListener("change", () => { state.sort = sortEl.value;     rerender(); });
+  dirEl   .addEventListener("change", () => { state.direction = dirEl.value; rerender(); });
+  sectorEl.addEventListener("change", () => { state.sector = sectorEl.value; rerender(); });
+
+  rerender();
+}
+
+function _bindCardClicks(container, picks, mode) {
   container.querySelectorAll(".pick-card").forEach(card => {
     card.addEventListener("click", (e) => {
-      // 詳細パネル内のクリックは無視
       if (e.target.closest(".pick-detail")) return;
       const idx = +card.dataset.idx;
       _toggleDetail(container, card, idx, picks[idx], mode);
     });
   });
 }
+
+function _attr(s) { return _esc(s).replace(/"/g, "&quot;"); }
 
 // ── サマリーカードを描画 ─────────────────────────────────────────
 function _renderCard(n, idx) {
