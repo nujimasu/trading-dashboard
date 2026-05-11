@@ -321,6 +321,20 @@ else:
             created_at   TEXT DEFAULT (datetime('now'))
         );
         CREATE INDEX IF NOT EXISTS idx_journal_position ON journal_entries(position_id, created_at);
+        CREATE TABLE IF NOT EXISTS custom_insights (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            title         TEXT NOT NULL,
+            body          TEXT NOT NULL,
+            severity      TEXT NOT NULL DEFAULT 'info',
+            icon          TEXT DEFAULT '💡',
+            metrics       TEXT,
+            tags          TEXT,
+            source        TEXT DEFAULT 'claude',
+            pinned        INTEGER DEFAULT 0,
+            created_at    TEXT DEFAULT (datetime('now')),
+            dismissed_at  TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_custom_insights_active ON custom_insights(dismissed_at, created_at);
         CREATE TABLE IF NOT EXISTS logic2_picks (
             ticker          TEXT PRIMARY KEY,
             scan_date       TEXT,

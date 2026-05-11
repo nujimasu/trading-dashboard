@@ -498,6 +498,22 @@ def init_db():
         )
         """,
         "CREATE INDEX IF NOT EXISTS idx_journal_position ON journal_entries(position_id, created_at DESC)",
+        """
+        CREATE TABLE IF NOT EXISTS custom_insights (
+            id            SERIAL PRIMARY KEY,
+            title         TEXT NOT NULL,
+            body          TEXT NOT NULL,
+            severity      TEXT NOT NULL DEFAULT 'info',
+            icon          TEXT DEFAULT '💡',
+            metrics       JSONB,
+            tags          JSONB,
+            source        TEXT DEFAULT 'claude',
+            pinned        BOOLEAN DEFAULT false,
+            created_at    TIMESTAMPTZ DEFAULT NOW(),
+            dismissed_at  TIMESTAMPTZ
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_custom_insights_active ON custom_insights(created_at DESC) WHERE dismissed_at IS NULL",
     ]
 
     for stmt in statements:
