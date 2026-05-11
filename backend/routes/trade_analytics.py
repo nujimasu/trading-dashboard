@@ -1,5 +1,7 @@
 """取引分析（実取引ポジションベース）API"""
-from fastapi import APIRouter
+from typing import Optional
+
+from fastapi import APIRouter, Query
 
 from backend.services import trade_analytics as ta
 
@@ -19,6 +21,16 @@ def insights():
 @router.get("/api/trade-analytics/monthly")
 def monthly():
     return ta.get_monthly_breakdown()
+
+
+@router.get("/api/trade-analytics/compare")
+def compare(
+    a_start: Optional[str] = Query(None, description="YYYY-MM"),
+    a_end:   Optional[str] = Query(None, description="YYYY-MM"),
+    b_start: Optional[str] = Query(None, description="YYYY-MM"),
+    b_end:   Optional[str] = Query(None, description="YYYY-MM"),
+):
+    return ta.get_period_comparison(a_start, a_end, b_start, b_end)
 
 
 @router.get("/api/trade-analytics/holding-buckets")
