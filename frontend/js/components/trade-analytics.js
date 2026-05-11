@@ -72,6 +72,7 @@ export async function renderTradeAnalytics(container) {
     _bindFilterControls(root);
     _bindMonthlyClicks(root);
     _bindCompareControls(root);
+    _bindInsightActions(root, container);
     await _loadCompare(root);
     _bindCsvExport(root);
   } catch (e) {
@@ -513,26 +514,67 @@ function _cmpTickers(a, b) {
 function _renderInsights(cards) {
   if (!cards || !cards.length) return "";
   return `
-    <h3 class="ta-h">💡 自動インサイト</h3>
+    <h3 class="ta-h">💡 インサイト <span class="ta-h-sub">（🤖=自動ルール、✨=Claudeの分析、📌=ピン留め）</span></h3>
     <div class="ta-insight-grid">
-      ${cards.map(c => `
-        <div class="ta-insight ta-insight-${_esc(c.severity)}">
-          <div class="ta-insight-head">
-            <span class="ta-insight-icon">${_esc(c.icon || "💡")}</span>
-            <span class="ta-insight-title">${_esc(c.title)}</span>
-          </div>
-          <div class="ta-insight-body">${_esc(c.body)}</div>
-          ${c.metrics && c.metrics.length ? `
-            <div class="ta-insight-metrics">
-              ${c.metrics.map(m => `
-                <div class="ta-insight-metric">
-                  <span class="ta-insight-metric-label">${_esc(m.label)}</span>
-                  <span class="ta-insight-metric-value">${_esc(m.value)}</span>
-                </div>
-              `).join("")}
-            </div>` : ""}
-        </div>
-      `).join("")}
+      ${cards.map(c => _renderInsightCard(c)).join("")}
+    </div>`;
+}
+
+function _bindInsightActions(root, container) {
+  root.querySelectorAll(".ta-insight-btn-dismiss").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      if (!confirm("このインサイトを閉じますか？")) return;
+      try {
+        await apiFetch(`/api/trade-analytics/insights/${id}`, { method: "DELETE" });
+        await renderTradeAnalytics(container);
+      } catch (err) { alert("失敗: " + err.message); }
+    });
+  });
+  root.querySelectorAll(".ta-insight-btn-pin").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      try {
+        await apiFetch(`/api/trade-analytics/insights/${id}/pin`,
+          { method: "POST", headers: {"Content-Type":"application/json"}, body: "{}" });
+        await renderTradeAnalytics(container);
+      } catch (err) { alert("失敗: " + err.message); }
+    });
+  });
+}
+
+function _renderInsightCard(c) {
+  const isCustom = c.source && c.source !== "auto";
+  const sourceBadge = isCustom
+    ? `<span class="ta-insight-source ta-insight-source-custom" title="${_esc(c.source)}">✨</span>`
+    : `<span class="ta-insight-source ta-insight-source-auto" title="自動ルール">🤖</span>`;
+  const pinBadge = c.pinned ? `<span class="ta-insight-pin">📌</span>` : "";
+  const actions = isCustom && c.db_id ? `
+      <div class="ta-insight-actions">
+        <button class="ta-insight-btn-pin" data-id="${c.db_id}" data-pinned="${c.pinned}" title="${c.pinned ? "ピン解除" : "ピン留め"}">${c.pinned ? "📌" : "🔘"}</button>
+        <button class="ta-insight-btn-dismiss" data-id="${c.db_id}" title="閉じる">✕</button>
+      </div>` : "";
+  return `
+    <div class="ta-insight ta-insight-${_esc(c.severity)} ${c.pinned ? "ta-insight-pinned" : ""}">
+      ${actions}
+      <div class="ta-insight-head">
+        <span class="ta-insight-icon">${_esc(c.icon || "💡")}</span>
+        <span class="ta-insight-title">${_esc(c.title)}</span>
+        ${pinBadge}
+        ${sourceBadge}
+      </div>
+      <div class="ta-insight-body">${_esc(c.body)}</div>
+      ${c.metrics && c.metrics.length ? `
+        <div class="ta-insight-metrics">
+          ${c.metrics.map(m => `
+            <div class="ta-insight-metric">
+              <span class="ta-insight-metric-label">${_esc(m.label)}</span>
+              <span class="ta-insight-metric-value">${_esc(m.value)}</span>
+            </div>
+          `).join("")}
+        </div>` : ""}
     </div>`;
 }
 

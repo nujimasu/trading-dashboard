@@ -528,6 +528,44 @@ body {
 .ta-insight-warn { border-left-color: var(--red);    background: rgba(239,68,68,.04); }
 .ta-insight-good { border-left-color: var(--green);  background: rgba(34,197,94,.04); }
 .ta-insight-info { border-left-color: var(--blue);   background: rgba(59,130,246,.04); }
+.ta-insight-note { border-left-color: #a855f7;       background: rgba(168,85,247,.04); }
+.ta-insight-pinned {
+  box-shadow: 0 0 0 1px var(--blue);
+}
+.ta-insight {
+  position: relative;
+}
+.ta-insight-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+}
+.ta-insight-btn-dismiss,
+.ta-insight-btn-pin {
+  background: rgba(148,163,184,.1);
+  border: none;
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ta-insight-btn-dismiss:hover { background: rgba(239,68,68,.2); color: var(--red); }
+.ta-insight-btn-pin:hover     { background: rgba(59,130,246,.2); color: var(--blue); }
+.ta-insight-source {
+  margin-left: auto;
+  font-size: .85rem;
+  opacity: 0.7;
+}
+.ta-insight-pin {
+  font-size: .8rem;
+}
 .ta-insight-head {
   display: flex; align-items: center; gap: 6px;
   margin-bottom: 6px;

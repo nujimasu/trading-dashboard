@@ -18,6 +18,29 @@ def insights():
     return ta.get_insights()
 
 
+@router.post("/api/trade-analytics/insights")
+def add_insight(payload: dict):
+    try:
+        return ta.add_custom_insight(payload)
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/api/trade-analytics/insights/{insight_id}")
+def dismiss_insight(insight_id: int):
+    return ta.dismiss_custom_insight(insight_id)
+
+
+@router.post("/api/trade-analytics/insights/{insight_id}/pin")
+def pin_insight(insight_id: int):
+    try:
+        return ta.toggle_pin_custom_insight(insight_id)
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(404, str(e))
+
+
 @router.get("/api/trade-analytics/monthly")
 def monthly():
     return ta.get_monthly_breakdown()
