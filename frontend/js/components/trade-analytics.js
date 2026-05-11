@@ -1091,6 +1091,9 @@ function _bindFilterControls(root) {
         sel.value = tag;
       }
       _renderTradesTbody(root);
+      // 「トレード一覧」タブが別タブにあるので明示的に切替
+      _activateTab(root, "trades");
+      history.replaceState(null, "", "#tab=trades");
       const tbl = root.querySelector("#ta-trades-table");
       if (tbl) tbl.scrollIntoView({ behavior: "smooth", block: "start" });
     });
