@@ -199,10 +199,11 @@ def _next_week_actions(this_week: list[dict], all_closed: list[dict],
     if risky:
         risky.sort(key=lambda x: (x[2] if x[2] is not None else 0))
         p, hold, upct = risky[0]
+        upct_str = f"含み損 {upct:+.1f}% / " if upct is not None else ""
         actions.append({
             "priority": 1,
             "title": f"月曜寄りで {p['ticker']} を見直す",
-            "detail": f"保有{hold}日・含み損 {upct:+.1f}% — 損切り or 継続の判断。",
+            "detail": f"保有{hold}日 / {upct_str}損切り or 継続の判断。",
         })
 
     # 2) 今週の最大失血タグを来週減らす
