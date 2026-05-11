@@ -152,6 +152,157 @@ def _fetch_open() -> list[dict]:
 
 # ── 集計 API ────────────────────────────────────────────────
 
+def get_period_comparison(a_start: Optional[str], a_end: Optional[str],
+                           b_start: Optional[str], b_end: Optional[str]) -> dict:
+    """
+    2 つの期間 (YYYY-MM 〜 YYYY-MM) を比較。
+    各期間でサマリー / タイプ別 / 保有期間別 / ベスト/ワースト銘柄を集計し差分も返す。
+    """
+    closed = _fetch_closed()
+    a = _filter_by_month_range(closed, a_start, a_end)
+    b = _filter_by_month_range(closed, b_start, b_end)
+
+    def summary(items: list[dict]) -> dict:
+        if not items:
+            return {
+                "trades": 0, "wins": 0, "losses": 0, "win_rate": None,
+                "total_pnl": 0.0, "expectancy": None, "profit_factor": None,
+                "rr": None, "avg_win_pct": None, "avg_loss_pct": None,
+                "biggest_win": None, "biggest_loss": None, "avg_hold": None,
+                "lev_etf_pct": None, "intraday_pct": None,
+            }
+        wins   = [t for t in items if t["pnl"] > 0]
+        losses = [t for t in items if t["pnl"] <= 0]
+        total  = sum(t["pnl"] for t in items)
+        win_sum  = sum(t["pnl"] for t in wins)
+        loss_sum = abs(sum(t["pnl"] for t in losses))
+        avg_win  = sum(t["pct"] for t in wins) / len(wins) if wins else 0
+        avg_loss = sum(t["pct"] for t in losses) / len(losses) if losses else 0
+        lev_n   = sum(1 for t in items if t["is_lev"])
+        intra_n = sum(1 for t in items if t.get("hold_days") == 0)
+        return {
+            "trades":        len(items),
+            "wins":          len(wins),
+            "losses":        len(losses),
+            "win_rate":      round(len(wins) / len(items) * 100, 1),
+            "total_pnl":     round(total, 2),
+            "expectancy":    round(total / len(items), 2),
+            "profit_factor": round(win_sum / loss_sum, 2) if loss_sum > 0 else None,
+            "rr":            round(avg_win / abs(avg_loss), 2) if avg_loss != 0 else None,
+            "avg_win_pct":   round(avg_win, 2),
+            "avg_loss_pct":  round(avg_loss, 2),
+            "biggest_win":   round(max(t["pnl"] for t in items), 2),
+            "biggest_loss":  round(min(t["pnl"] for t in items), 2),
+            "avg_hold":      round(sum((t.get("hold_days") or 0) for t in items) / len(items), 1),
+            "lev_etf_pct":   round(lev_n / len(items) * 100, 1),
+            "intraday_pct":  round(intra_n / len(items) * 100, 1),
+        }
+
+    def by_type(items: list[dict]) -> list[dict]:
+        groups = {}
+        for t in items:
+            k = (t["type"], t["price_bucket"])
+            groups.setdefault(k, []).append(t)
+        out = []
+        for (typ, bucket), arr in groups.items():
+            wins = [x for x in arr if x["pnl"] > 0]
+            out.append({
+                "type":   typ,
+                "bucket": bucket,
+                "type_label":   "レバETF" if typ == "lev_etf" else "個別株",
+                "bucket_label": PRICE_BUCKET_LABEL[bucket],
+                "count":    len(arr),
+                "win_rate": round(len(wins) / len(arr) * 100, 1),
+                "total_pnl": round(sum(x["pnl"] for x in arr), 2),
+            })
+        out.sort(key=lambda x: -x["total_pnl"])
+        return out
+
+    def by_holding(items: list[dict]) -> list[dict]:
+        buckets = [
+            ("当日決済",  lambda d: d == 0),
+            ("1日(O/N)", lambda d: d == 1),
+            ("2-3日",    lambda d: 2 <= d <= 3),
+            ("4-7日",    lambda d: 4 <= d <= 7),
+            ("8日以上",  lambda d: d >= 8),
+        ]
+        out = []
+        for label, cond in buckets:
+            arr = [t for t in items if t["hold_days"] is not None and cond(t["hold_days"])]
+            if not arr:
+                out.append({"bucket": label, "count": 0, "win_rate": None, "total_pnl": 0})
+                continue
+            wins = [x for x in arr if x["pnl"] > 0]
+            out.append({
+                "bucket":    label,
+                "count":     len(arr),
+                "win_rate":  round(len(wins) / len(arr) * 100, 1),
+                "total_pnl": round(sum(x["pnl"] for x in arr), 2),
+            })
+        return out
+
+    def by_ticker(items: list[dict], best: bool = True, k: int = 5) -> list[dict]:
+        groups = {}
+        for t in items:
+            groups.setdefault(t["ticker"], []).append(t)
+        rows = []
+        for tk, arr in groups.items():
+            pnl = sum(x["pnl"] for x in arr)
+            rows.append({"ticker": tk, "count": len(arr),
+                         "total_pnl": round(pnl, 2),
+                         "win_rate": round(sum(1 for x in arr if x["pnl"] > 0) / len(arr) * 100, 1)})
+        rows.sort(key=lambda x: -x["total_pnl"] if best else x["total_pnl"])
+        return rows[:k]
+
+    sa, sb = summary(a), summary(b)
+    delta = {}
+    for key in ("trades", "win_rate", "total_pnl", "expectancy", "profit_factor",
+                "rr", "avg_win_pct", "avg_loss_pct", "biggest_win", "biggest_loss",
+                "avg_hold", "lev_etf_pct", "intraday_pct"):
+        va, vb = sa.get(key), sb.get(key)
+        if va is None or vb is None:
+            delta[key] = None
+        else:
+            d = vb - va
+            delta[key] = round(d, 2)
+
+    return {
+        "period_a": {
+            "label":       f"{a_start or 'all'} 〜 {a_end or 'all'}",
+            "summary":     sa,
+            "by_type":     by_type(a),
+            "by_holding":  by_holding(a),
+            "top_tickers": by_ticker(a, best=True),
+            "bot_tickers": by_ticker(a, best=False),
+        },
+        "period_b": {
+            "label":       f"{b_start or 'all'} 〜 {b_end or 'all'}",
+            "summary":     sb,
+            "by_type":     by_type(b),
+            "by_holding":  by_holding(b),
+            "top_tickers": by_ticker(b, best=True),
+            "bot_tickers": by_ticker(b, best=False),
+        },
+        "delta": delta,
+    }
+
+
+def _filter_by_month_range(items: list[dict], start: Optional[str], end: Optional[str]) -> list[dict]:
+    """entry_date が YYYY-MM〜YYYY-MM の範囲（inclusive）にあるものに絞る。"""
+    out = []
+    for t in items:
+        ed = t.get("entry_date") or ""
+        if len(ed) < 7:
+            continue
+        m = ed[:7]
+        if start and m < start:
+            continue
+        if end and m > end:
+            continue
+        out.append(t)
+    return out
+
+
 def get_monthly_breakdown() -> dict:
     """月別の集計。各月のベスト/ワースト銘柄も含む。"""
     closed = _fetch_closed()

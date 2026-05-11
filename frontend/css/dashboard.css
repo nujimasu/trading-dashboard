@@ -404,6 +404,113 @@ body {
   font-size: .76rem;
 }
 
+/* 期間比較 */
+.ta-cmp-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.ta-cmp-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ta-cmp-range select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: .8rem;
+  font-family: inherit;
+}
+.ta-cmp-vs {
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: .82rem;
+}
+.ta-cmp-sep { color: var(--text-muted); margin: 0 2px; }
+.ta-cmp-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: .72rem;
+  color: white;
+}
+.ta-cmp-tag-a { background: #6366f1; }
+.ta-cmp-tag-b { background: #f59e0b; }
+.ta-cmp-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.ta-cmp-preset {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: .76rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+.ta-cmp-preset:hover {
+  border-color: var(--blue);
+  color: var(--text-primary);
+}
+
+.ta-cmp-h {
+  font-size: .85rem;
+  font-weight: 700;
+  margin: 14px 0 6px;
+  color: var(--text-primary);
+}
+.ta-cmp-table th.ta-cmp-th-a { background: rgba(99,102,241,.12); }
+.ta-cmp-table th.ta-cmp-th-b { background: rgba(245,158,11,.12); }
+
+.ta-cmp-tickers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.ta-cmp-tickers-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.ta-cmp-tickers-head {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ta-cmp-tickers-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ta-cmp-tickers-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .82rem;
+}
+
 /* インサイトカード */
 .ta-insight-grid {
   display: grid;

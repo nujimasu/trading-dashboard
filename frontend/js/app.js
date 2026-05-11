@@ -7,7 +7,7 @@ import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.j
 import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=4";
 import { renderBacktest }          from "./components/backtest.js?v=2";
 import { renderPositions }         from "./components/positions.js?v=1";
-import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=2";
+import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=3";
 import { apiFetch }                from "./utils/api.js?v=3";
 
 // ── Navigation config ─────────────────────────────────────────────────────
