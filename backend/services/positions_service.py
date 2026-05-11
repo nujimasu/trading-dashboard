@@ -10,6 +10,7 @@ positions_service — 保有ポジションとトレード日誌の CRUD。
 """
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 from typing import Optional
 
@@ -100,14 +101,22 @@ def create_position(payload: dict) -> dict:
 
 
 def update_position(position_id: int, payload: dict) -> Optional[dict]:
-    """SL / TP1 / TP2 / notes を更新。決済は close_position を使う。"""
-    allowed = {"stop_price", "tp1_price", "target_price", "notes"}
+    """SL / TP1 / TP2 / notes / tags を更新。決済は close_position を使う。"""
+    allowed = {"stop_price", "tp1_price", "target_price", "notes", "tags"}
     sets: list = []
     params: list = []
     for k, v in payload.items():
-        if k in allowed:
+        if k not in allowed:
+            continue
+        if k == "tags":
+            sets.append("tags = ?")
+            params.append(json.dumps(_normalize_tag_list(v), ensure_ascii=False))
+        elif k == "notes":
+            sets.append("notes = ?")
+            params.append(v)
+        else:
             sets.append(f"{k} = ?")
-            params.append(_f(v) if k != "notes" else v)
+            params.append(_f(v))
     if not sets:
         return get_position(position_id)
     sets.append("updated_at = CURRENT_TIMESTAMP")
@@ -119,24 +128,42 @@ def update_position(position_id: int, payload: dict) -> Optional[dict]:
 
 
 def close_position(position_id: int, payload: dict) -> Optional[dict]:
-    """ポジションを決済。exit_date / exit_price / exit_reason を記録。"""
+    """ポジションを決済。exit_date / exit_price / exit_reason / tags を記録。"""
     exit_date   = payload.get("exit_date") or date.today().isoformat()
     exit_price  = _f(payload.get("exit_price"))
     exit_reason = payload.get("exit_reason") or ""
     if exit_price is None:
         raise ValueError("exit_price は必須です")
 
+    sets = ["status = 'closed'", "exit_date = ?", "exit_price = ?",
+            "exit_reason = ?", "updated_at = CURRENT_TIMESTAMP"]
+    params: list = [exit_date, exit_price, exit_reason]
+    if "tags" in payload:
+        sets.append("tags = ?")
+        params.append(json.dumps(_normalize_tag_list(payload["tags"]), ensure_ascii=False))
+    params.append(position_id)
+
     with db_cursor() as cur:
-        cur.execute("""
-            UPDATE positions
-            SET status = 'closed',
-                exit_date = ?,
-                exit_price = ?,
-                exit_reason = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """, (exit_date, exit_price, exit_reason, position_id))
+        cur.execute(f"UPDATE positions SET {', '.join(sets)} WHERE id = ?", tuple(params))
     return get_position(position_id)
+
+
+def _normalize_tag_list(v) -> list[str]:
+    """tags 入力（list / カンマ区切り str / None）を整列済みリストに正規化。"""
+    if v is None:
+        return []
+    if isinstance(v, str):
+        items = [s.strip() for s in v.split(",")]
+    elif isinstance(v, (list, tuple)):
+        items = [str(s).strip() for s in v]
+    else:
+        return []
+    seen, out = set(), []
+    for s in items:
+        if s and s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
 
 
 def delete_position(position_id: int) -> bool:
@@ -244,7 +271,7 @@ def _compute_pnl(p: dict) -> dict:
 
 
 def _normalize_row(d: dict) -> dict:
-    """日付/タイムスタンプを ISO 文字列化。"""
+    """日付/タイムスタンプを ISO 文字列化。tags は list に。"""
     for k, v in list(d.items()):
         if v is None:
             continue
@@ -252,6 +279,18 @@ def _normalize_row(d: dict) -> dict:
             d[k] = v.isoformat()
         elif isinstance(v, date):
             d[k] = v.isoformat()
+    # tags: SQLite は文字列で返るので JSON parse、Postgres はすでに list
+    raw = d.get("tags")
+    if raw is None:
+        d["tags"] = []
+    elif isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            d["tags"] = parsed if isinstance(parsed, list) else []
+        except (ValueError, TypeError):
+            d["tags"] = []
+    elif not isinstance(raw, list):
+        d["tags"] = []
     return d
 
 

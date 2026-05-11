@@ -279,11 +279,19 @@ async function _onClose(container, pos) {
   const exitPrice = prompt(`決済価格を入力（${pos.ticker}）`, pos.last_price || "");
   if (exitPrice === null || exitPrice === "") return;
   const reason = prompt("決済理由（任意）:", "") || "";
+  const presetHint = "ブレイクアウト, 押し目買い, スイング, デイトレ, オーバーナイト, レンジ, ニュース, 決算前, モメンタム追従, 逆張り";
+  const existing = (pos.tags || []).join(", ");
+  const tagsRaw = prompt(
+    `タグ（カンマ区切り、空欄OK）\n例: ${presetHint}`,
+    existing
+  );
+  const payload = {
+    exit_price: +exitPrice,
+    exit_reason: reason,
+  };
+  if (tagsRaw !== null) payload.tags = tagsRaw;  // null=キャンセル時は送らない
   try {
-    await apiFetch(`/api/positions/${pos.id}/close`, POST_OPTS({
-      exit_price: +exitPrice,
-      exit_reason: reason,
-    }));
+    await apiFetch(`/api/positions/${pos.id}/close`, POST_OPTS(payload));
     await _loadList(container);
   } catch (e) { alert("決済失敗: " + e.message); }
 }

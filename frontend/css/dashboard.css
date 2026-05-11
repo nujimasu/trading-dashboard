@@ -439,6 +439,130 @@ body {
   background: repeating-linear-gradient(to right, #fbbf24 0 4px, transparent 4px 7px) !important;
 }
 
+/* タグ */
+.ta-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+  background: rgba(96,165,250,.12);
+  color: #60a5fa;
+  border: 1px solid rgba(96,165,250,.3);
+  white-space: nowrap;
+}
+.ta-tag-preset {
+  background: rgba(168,85,247,.12);
+  color: #c084fc;
+  border-color: rgba(168,85,247,.3);
+}
+.ta-tag-custom {
+  background: rgba(251,191,36,.12);
+  color: #fbbf24;
+  border-color: rgba(251,191,36,.3);
+}
+.ta-tag-mini {
+  font-size: .68rem;
+  padding: 1px 6px;
+  margin-right: 2px;
+}
+.ta-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ta-tag-toggle {
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity .15s, transform .1s;
+}
+.ta-tag-toggle:hover { opacity: 0.85; transform: translateY(-1px); }
+.ta-tag-toggle.ta-tag-on { opacity: 1; box-shadow: 0 0 0 2px rgba(96,165,250,.4); }
+
+.ta-tag-edit-btn {
+  background: rgba(148,163,184,.1);
+  border: none;
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .72rem;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.ta-tag-edit-btn:hover { background: rgba(96,165,250,.2); color: #60a5fa; }
+
+.ta-tag-row-clk:hover { background: rgba(96,165,250,.06); }
+
+.ta-tt-mini {
+  display: inline-flex;
+  gap: 4px;
+  font-size: .72rem;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.ta-empty-tags {
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  color: var(--text-secondary);
+}
+
+/* タグ編集モーダル */
+.ta-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.ta-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.ta-modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.ta-modal-head h4 { margin: 0; font-size: 1rem; }
+.ta-modal-close, .ta-modal-cancel, .ta-modal-save, .ta-tag-add-btn {
+  background: rgba(148,163,184,.12);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: .8rem;
+}
+.ta-modal-save {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+}
+.ta-tag-add-row {
+  display: flex; gap: 6px; margin-top: 12px;
+}
+.ta-tag-add-input {
+  flex: 1;
+  background: var(--bg-input, rgba(0,0,0,.2));
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: .85rem;
+}
+.ta-modal-foot {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px;
+}
+
 /* 期間比較 */
 .ta-cmp-controls {
   display: flex;

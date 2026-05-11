@@ -481,6 +481,7 @@ def init_db():
             exit_price        NUMERIC,
             exit_reason       TEXT,
             notes             TEXT,
+            tags              JSONB DEFAULT '[]'::jsonb,
             created_at        TIMESTAMPTZ DEFAULT NOW(),
             updated_at        TIMESTAMPTZ DEFAULT NOW()
         )
@@ -488,6 +489,7 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status)",
         "CREATE INDEX IF NOT EXISTS idx_positions_ticker ON positions(ticker)",
         "CREATE INDEX IF NOT EXISTS idx_positions_entry_date ON positions(entry_date DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_positions_tags ON positions USING gin (tags)",
         """
         CREATE TABLE IF NOT EXISTS journal_entries (
             id           SERIAL PRIMARY KEY,

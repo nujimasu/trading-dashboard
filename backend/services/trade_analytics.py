@@ -73,7 +73,7 @@ def _fetch_closed() -> list[dict]:
         cur.execute("""
             SELECT id, ticker, direction, entry_date, exit_date,
                    entry_price, exit_price, shares,
-                   stop_price, source_logic, exit_reason, notes
+                   stop_price, source_logic, exit_reason, notes, tags
             FROM positions
             WHERE status = 'closed'
               AND exit_price IS NOT NULL
@@ -108,8 +108,24 @@ def _fetch_closed() -> list[dict]:
             "type":        "lev_etf" if is_leverage_etf(r["ticker"]) else "stock",
             "price_bucket": price_bucket(ep),
             "entry_value": round(ep * sh, 2),
+            "tags":        _decode_tags(r.get("tags")),
         })
     return out
+
+
+def _decode_tags(raw) -> list[str]:
+    """Postgres は list、SQLite は JSON 文字列で来る tags を list[str] に正規化。"""
+    if raw is None:
+        return []
+    if isinstance(raw, list):
+        return [str(t) for t in raw if t]
+    if isinstance(raw, str):
+        try:
+            v = json.loads(raw)
+            return [str(t) for t in v if t] if isinstance(v, list) else []
+        except (ValueError, TypeError):
+            return []
+    return []
 
 
 def _fetch_open() -> list[dict]:
@@ -463,6 +479,65 @@ def get_equity_curve() -> dict:
             "trading_days":        len(trade_day_pnls),
             "calendar_days":       len(points),
         },
+    }
+
+
+# タグのプリセット（フロントと共有）
+PRESET_TAGS = [
+    "ブレイクアウト", "押し目買い", "スイング", "デイトレ", "オーバーナイト",
+    "レンジ", "ニュース", "決算前", "モメンタム追従", "逆張り",
+]
+
+
+def get_by_tags() -> dict:
+    """タグごとの集計。1トレードが複数タグを持つ場合は各タグにカウントされる。"""
+    closed = _fetch_closed()
+    by_tag: dict[str, list[dict]] = {}
+    untagged: list[dict] = []
+    for t in closed:
+        tags = t.get("tags") or []
+        if not tags:
+            untagged.append(t)
+            continue
+        for tag in tags:
+            by_tag.setdefault(tag, []).append(t)
+
+    rows = []
+    for tag, items in by_tag.items():
+        wins   = [x for x in items if x["pnl"] > 0]
+        losses = [x for x in items if x["pnl"] <= 0]
+        total  = sum(x["pnl"] for x in items)
+        win_sum  = sum(x["pnl"] for x in wins)
+        loss_sum = abs(sum(x["pnl"] for x in losses))
+        avg_pct  = sum(x["pct"] for x in items) / len(items) if items else 0
+        avg_hold = sum((x.get("hold_days") or 0) for x in items) / len(items) if items else 0
+        # 上位2銘柄
+        ticker_pnl: dict[str, float] = {}
+        for x in items:
+            ticker_pnl[x["ticker"]] = ticker_pnl.get(x["ticker"], 0) + x["pnl"]
+        top_tickers = sorted(ticker_pnl.items(), key=lambda kv: -kv[1])[:3]
+        rows.append({
+            "tag":          tag,
+            "count":        len(items),
+            "wins":         len(wins),
+            "losses":       len(losses),
+            "win_rate":     round(len(wins) / len(items) * 100, 1),
+            "total_pnl":    round(total, 2),
+            "expectancy":   round(total / len(items), 2),
+            "avg_pct":      round(avg_pct, 2),
+            "avg_hold":     round(avg_hold, 1),
+            "profit_factor": round(win_sum / loss_sum, 2) if loss_sum > 0 else None,
+            "top_tickers":  [{"ticker": t, "pnl": round(p, 2)} for t, p in top_tickers],
+            "is_preset":    tag in PRESET_TAGS,
+        })
+    rows.sort(key=lambda r: -r["total_pnl"])
+
+    return {
+        "rows":            rows,
+        "presets":         PRESET_TAGS,
+        "untagged_count":  len(untagged),
+        "tagged_count":    sum(1 for t in closed if (t.get("tags") or [])),
+        "total_count":     len(closed),
     }
 
 

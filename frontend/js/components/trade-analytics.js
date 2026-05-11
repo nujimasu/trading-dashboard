@@ -11,12 +11,14 @@ import { apiFetch } from "../utils/api.js";
 const _state = {
   trades: { closed: [], open: [] },
   months: [],
+  tagPresets: [],
   filter: {
     search: "",
     result: "all",   // all | win | loss
     type:   "all",   // all | stock | lev_etf
     bucket: "all",   // all | low | mid | high | unknown
     month:  "all",   // all | YYYY-MM
+    tag:    "all",   // all | <tag name>
     sort:   "exit_date_desc",
   },
   compare: {
@@ -32,7 +34,7 @@ export async function renderTradeAnalytics(container) {
   const root = container.querySelector(".ta-content");
 
   try {
-    const [summary, monthly, equity, insights, hold, scatter, byType, trades] = await Promise.all([
+    const [summary, monthly, equity, insights, hold, scatter, byType, byTags, trades] = await Promise.all([
       apiFetch("/api/trade-analytics/summary"),
       apiFetch("/api/trade-analytics/monthly"),
       apiFetch("/api/trade-analytics/equity-curve"),
@@ -40,8 +42,10 @@ export async function renderTradeAnalytics(container) {
       apiFetch("/api/trade-analytics/holding-buckets"),
       apiFetch("/api/trade-analytics/scatter"),
       apiFetch("/api/trade-analytics/by-type"),
+      apiFetch("/api/trade-analytics/by-tags"),
       apiFetch("/api/trade-analytics/trades"),
     ]);
+    _state.tagPresets = byTags.presets || [];
     _state.trades = trades;
     _state.months = monthly.months || [];
     // 既定の比較期間: 前半 vs 後半
@@ -69,6 +73,7 @@ export async function renderTradeAnalytics(container) {
       ${_renderHolding(hold.buckets)}
       ${_renderScatter(scatter.points)}
       ${_renderByType(byType)}
+      ${_renderByTags(byTags)}
       ${_renderTradesTable(monthly.months)}
     `;
     _bindFilterControls(root);
@@ -866,6 +871,73 @@ function _renderByType({ groups, open_breakdown }) {
     </div>`;
 }
 
+// ── ⑤.5 タグ別パフォーマンス ─────────────────────────────
+function _renderByTags(data) {
+  const rows = data.rows || [];
+  const presets = data.presets || [];
+  const tagged   = data.tagged_count || 0;
+  const total    = data.total_count || 0;
+  const untagged = data.untagged_count || 0;
+
+  const presetChips = presets.map(p => `<span class="ta-tag ta-tag-preset">${_esc(p)}</span>`).join("");
+
+  if (!rows.length) {
+    return `
+      <h3 class="ta-h">🏷️ タグ別パフォーマンス
+        <span class="ta-h-sub">（決済時 or 全トレード表の 🏷️ から付与。複数タグOK）</span>
+      </h3>
+      <div class="ta-empty-tags">
+        <p>まだタグが付いたトレードがありません。</p>
+        <p style="margin-top:6px">プリセット例:</p>
+        <div class="ta-tag-row">${presetChips}</div>
+        <p style="margin-top:8px;color:var(--text-muted);font-size:.78rem">
+          ↓ 全トレード表の 🏷️ ボタンから既存トレードに後付けできます。
+        </p>
+      </div>`;
+  }
+
+  const tableRows = rows.map(r => {
+    const wrColor = r.win_rate >= 60 ? "var(--green)"
+                  : r.win_rate >= 45 ? "var(--text-primary)"
+                  : "var(--red)";
+    const pnlCls = r.total_pnl >= 0 ? "ta-pos" : "ta-neg";
+    const top = (r.top_tickers || []).map(t =>
+      `<span class="ta-tt-mini">${_esc(t.ticker)}<span class="${t.pnl >= 0 ? "ta-pos" : "ta-neg"}">$${_fmtNum(t.pnl, 0)}</span></span>`
+    ).join("");
+    const tagCls = r.is_preset ? "ta-tag-preset" : "ta-tag-custom";
+    return `
+      <tr class="ta-tag-row-clk" data-tag="${_esc(r.tag)}" style="cursor:pointer" title="クリックで全トレードをこのタグでフィルタ">
+        <td><span class="ta-tag ${tagCls}">${_esc(r.tag)}</span></td>
+        <td>${r.count}</td>
+        <td style="color:${wrColor};font-weight:700">${r.win_rate}%</td>
+        <td>${r.wins}/${r.losses}</td>
+        <td class="${pnlCls}">${r.total_pnl >= 0 ? "+" : ""}$${_fmtNum(r.total_pnl)}</td>
+        <td class="${r.expectancy >= 0 ? 'ta-pos' : 'ta-neg'}">$${_fmtNum(r.expectancy)}</td>
+        <td>${r.avg_pct >= 0 ? "+" : ""}${_fmtNum(r.avg_pct)}%</td>
+        <td>${r.profit_factor != null ? r.profit_factor : "—"}</td>
+        <td>${r.avg_hold}日</td>
+        <td>${top || "—"}</td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <h3 class="ta-h">🏷️ タグ別パフォーマンス
+      <span class="ta-h-sub">（${tagged}/${total}件にタグ付け、未タグ ${untagged}件 — 行クリックで全トレードをフィルタ）</span>
+    </h3>
+    <div class="ta-table-wrap">
+      <table class="ta-table">
+        <thead>
+          <tr>
+            <th>タグ</th><th>件数</th><th>勝率</th><th>勝/負</th>
+            <th>累計P/L</th><th>期待値/件</th><th>平均%</th><th>PF</th>
+            <th>平均保有</th><th>Top銘柄</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`;
+}
+
 // ── ⑥ 全トレードテーブル ─────────────────────────────────
 function _renderTradesTable(months = []) {
   const monthOptions = months
@@ -897,6 +969,11 @@ function _renderTradesTable(months = []) {
         <option value="mid">$30-100</option>
         <option value="high">&gt;$100</option>
       </select>
+      <select class="ta-tt-tag">
+        <option value="all">全タグ</option>
+        <option value="__none__">タグなし</option>
+        ${(_state.tagPresets || []).map(p => `<option value="${_esc(p)}">${_esc(p)}</option>`).join("")}
+      </select>
       <select class="ta-tt-sort">
         <option value="exit_date_desc">決済日↓</option>
         <option value="exit_date_asc">決済日↑</option>
@@ -915,7 +992,7 @@ function _renderTradesTable(months = []) {
           <tr>
             <th>決済日</th><th>銘柄</th><th>タイプ</th>
             <th>IN</th><th>OUT</th><th>株数</th><th>保有日数</th>
-            <th>P/L $</th><th>P/L %</th><th>注釈</th>
+            <th>P/L $</th><th>P/L %</th><th>タグ</th><th>注釈</th>
           </tr>
         </thead>
         <tbody id="ta-trades-tbody"></tbody>
@@ -932,12 +1009,32 @@ function _bindFilterControls(root) {
     type:   root.querySelector(".ta-tt-type"),
     bucket: root.querySelector(".ta-tt-bucket"),
     month:  root.querySelector(".ta-tt-month"),
+    tag:    root.querySelector(".ta-tt-tag"),
     sort:   root.querySelector(".ta-tt-sort"),
   };
   Object.entries(els).forEach(([key, el]) => {
     if (!el) return;
     const evt = el.tagName === "INPUT" ? "input" : "change";
     el.addEventListener(evt, () => { _state.filter[key] = el.value; _renderTradesTbody(root); });
+  });
+  // タグ別パフォーマンス行クリック → 全トレードをそのタグでフィルタ
+  root.querySelectorAll(".ta-tag-row-clk").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const tag = tr.dataset.tag;
+      _state.filter.tag = tag;
+      const sel = root.querySelector(".ta-tt-tag");
+      if (sel) {
+        // tag が <option> に存在しなければ追加
+        if (!Array.from(sel.options).some(o => o.value === tag)) {
+          const opt = document.createElement("option");
+          opt.value = tag; opt.textContent = tag; sel.appendChild(opt);
+        }
+        sel.value = tag;
+      }
+      _renderTradesTbody(root);
+      const tbl = root.querySelector("#ta-trades-table");
+      if (tbl) tbl.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
   _renderTradesTbody(root);
 }
@@ -952,13 +1049,16 @@ function _renderTradesTbody(root) {
     const q = f.search.toLowerCase();
     view = view.filter(t =>
       (t.ticker || "").toLowerCase().includes(q) ||
-      (t.notes || "").toLowerCase().includes(q));
+      (t.notes || "").toLowerCase().includes(q) ||
+      (t.tags || []).some(tg => tg.toLowerCase().includes(q)));
   }
   if (f.result === "win")  view = view.filter(t => t.pnl > 0);
   if (f.result === "loss") view = view.filter(t => t.pnl <= 0);
   if (f.type !== "all")    view = view.filter(t => t.type === f.type);
   if (f.bucket !== "all")  view = view.filter(t => t.price_bucket === f.bucket);
   if (f.month !== "all")   view = view.filter(t => (t.entry_date || "").startsWith(f.month));
+  if (f.tag === "__none__") view = view.filter(t => !(t.tags || []).length);
+  else if (f.tag && f.tag !== "all") view = view.filter(t => (t.tags || []).includes(f.tag));
 
   const sorters = {
     "exit_date_desc": (a,b) => (b.exit_date||"").localeCompare(a.exit_date||""),
@@ -977,6 +1077,10 @@ function _renderTradesTbody(root) {
   tbody.innerHTML = view.map(t => {
     const pnlCls = t.pnl >= 0 ? "ta-pos" : "ta-neg";
     const typeLbl = t.type === "lev_etf" ? "レバ" : "個別";
+    const tags = t.tags || [];
+    const tagChips = tags.length
+      ? tags.map(tg => `<span class="ta-tag ta-tag-mini">${_esc(tg)}</span>`).join(" ")
+      : `<span style="color:var(--text-muted);font-size:.72rem">—</span>`;
     return `
       <tr>
         <td>${t.exit_date || "—"}</td>
@@ -988,9 +1092,118 @@ function _renderTradesTbody(root) {
         <td>${t.hold_days != null ? t.hold_days + "d" : "—"}</td>
         <td class="${pnlCls}">${t.pnl >= 0 ? "+" : ""}$${_fmtNum(t.pnl)}</td>
         <td class="${pnlCls}">${t.pct >= 0 ? "+" : ""}${_fmtNum(t.pct)}%</td>
+        <td>
+          <button class="ta-tag-edit-btn" data-id="${t.id}" data-tags="${_esc(JSON.stringify(tags))}" title="タグを編集">🏷️</button>
+          ${tagChips}
+        </td>
         <td style="color:var(--text-muted);font-size:.74rem">${_esc(t.notes || "")}</td>
       </tr>`;
   }).join("");
+
+  // タグ編集ボタンをバインド
+  tbody.querySelectorAll(".ta-tag-edit-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      let current = [];
+      try { current = JSON.parse(btn.dataset.tags); } catch {}
+      _openTagEditor(root, id, current);
+    });
+  });
+}
+
+// ── タグ編集モーダル ─────────────────────────────────────
+function _openTagEditor(root, positionId, current) {
+  const presets = _state.tagPresets || [];
+  const cur = new Set(current);
+  // 既存タグ + プリセット を全て候補に
+  const allKnown = new Set([...presets, ...current]);
+  // 他トレードの既存タグも収集
+  (_state.trades.closed || []).forEach(t => (t.tags || []).forEach(tg => allKnown.add(tg)));
+  const knownArr = Array.from(allKnown);
+
+  const overlay = document.createElement("div");
+  overlay.className = "ta-modal-overlay";
+  overlay.innerHTML = `
+    <div class="ta-modal">
+      <div class="ta-modal-head">
+        <h4>🏷️ タグを編集</h4>
+        <button class="ta-modal-close">✕</button>
+      </div>
+      <div class="ta-modal-body">
+        <p style="color:var(--text-muted);font-size:.78rem;margin-bottom:8px">
+          チップをクリックで ON/OFF。下の入力で新規タグを追加できます。
+        </p>
+        <div class="ta-tag-row" id="ta-tag-chips">
+          ${knownArr.map(tg => `
+            <span class="ta-tag ta-tag-toggle ${cur.has(tg) ? "ta-tag-on" : ""}"
+                  data-tag="${_esc(tg)}">${_esc(tg)}</span>
+          `).join("")}
+        </div>
+        <div class="ta-tag-add-row">
+          <input type="text" class="ta-tag-add-input" placeholder="新規タグ名..." />
+          <button class="ta-tag-add-btn">＋ 追加</button>
+        </div>
+        <div class="ta-modal-foot">
+          <button class="ta-modal-cancel">キャンセル</button>
+          <button class="ta-modal-save">保存</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const chipsEl = overlay.querySelector("#ta-tag-chips");
+  const selected = new Set(cur);
+
+  chipsEl.addEventListener("click", (e) => {
+    const chip = e.target.closest(".ta-tag-toggle");
+    if (!chip) return;
+    const tg = chip.dataset.tag;
+    if (selected.has(tg)) { selected.delete(tg); chip.classList.remove("ta-tag-on"); }
+    else { selected.add(tg); chip.classList.add("ta-tag-on"); }
+  });
+
+  const input = overlay.querySelector(".ta-tag-add-input");
+  overlay.querySelector(".ta-tag-add-btn").addEventListener("click", () => {
+    const v = input.value.trim();
+    if (!v) return;
+    selected.add(v);
+    if (!chipsEl.querySelector(`[data-tag="${CSS.escape(v)}"]`)) {
+      const span = document.createElement("span");
+      span.className = "ta-tag ta-tag-toggle ta-tag-on";
+      span.dataset.tag = v;
+      span.textContent = v;
+      chipsEl.appendChild(span);
+    } else {
+      chipsEl.querySelector(`[data-tag="${CSS.escape(v)}"]`).classList.add("ta-tag-on");
+    }
+    input.value = "";
+    input.focus();
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); overlay.querySelector(".ta-tag-add-btn").click(); }
+  });
+
+  const close = () => overlay.remove();
+  overlay.querySelector(".ta-modal-close").addEventListener("click", close);
+  overlay.querySelector(".ta-modal-cancel").addEventListener("click", close);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+  overlay.querySelector(".ta-modal-save").addEventListener("click", async () => {
+    try {
+      await apiFetch(`/api/positions/${positionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: Array.from(selected) }),
+      });
+      close();
+      // 全画面再読み込み（集計も更新するため）
+      const container = root.parentElement;
+      if (container) await renderTradeAnalytics(container);
+    } catch (err) {
+      alert("保存失敗: " + err.message);
+    }
+  });
 }
 
 function _bindCsvExport(root) {
@@ -1000,9 +1213,9 @@ function _bindCsvExport(root) {
     const rows = _state.trades.closed;
     if (!rows.length) return;
     const headers = ["entry_date","exit_date","ticker","type","price_bucket",
-                     "entry_price","exit_price","shares","hold_days","pnl","pct","notes"];
+                     "entry_price","exit_price","shares","hold_days","pnl","pct","tags","notes"];
     const csv = [headers.join(",")].concat(rows.map(r =>
-      headers.map(h => _csvEscape(r[h])).join(",")
+      headers.map(h => _csvEscape(h === "tags" ? (r.tags || []).join("|") : r[h])).join(",")
     )).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
