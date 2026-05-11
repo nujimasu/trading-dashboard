@@ -46,6 +46,11 @@ def monthly():
     return ta.get_monthly_breakdown()
 
 
+@router.get("/api/trade-analytics/equity-curve")
+def equity_curve():
+    return ta.get_equity_curve()
+
+
 @router.get("/api/trade-analytics/compare")
 def compare(
     a_start: Optional[str] = Query(None, description="YYYY-MM"),

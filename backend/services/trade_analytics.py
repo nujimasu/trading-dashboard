@@ -12,7 +12,7 @@ trade_analytics — 実取引（positions テーブル）を多角的に分析�
 from __future__ import annotations
 
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from backend.db import db_cursor
@@ -354,6 +354,116 @@ def get_monthly_breakdown() -> dict:
         cum += row["total_pnl"]
         row["cumulative_pnl"] = round(cum, 2)
     return {"months": out}
+
+
+def get_equity_curve() -> dict:
+    """
+    決済日ベースの日次エクイティカーブ + ドローダウン系列を返す。
+    取引のない日はキャリーオーバー（直前値を継続）するので、
+    平坦区間はそのまま「動きがない期間」として表示される。
+    """
+    closed = _fetch_closed()
+    if not closed:
+        return {"points": [], "stats": {}}
+
+    # 決済日ごとに P/L を集計
+    daily_pnl: dict[str, float] = {}
+    daily_count: dict[str, int] = {}
+    for t in closed:
+        ds = t.get("exit_date")
+        if not ds:
+            continue
+        daily_pnl[ds] = daily_pnl.get(ds, 0.0) + t["pnl"]
+        daily_count[ds] = daily_count.get(ds, 0) + 1
+
+    if not daily_pnl:
+        return {"points": [], "stats": {}}
+
+    first_d = _to_date(min(daily_pnl.keys()))
+    last_d  = max(_to_date(max(daily_pnl.keys())), date.today())
+
+    points: list[dict] = []
+    equity = 0.0
+    peak = 0.0
+    peak_date = first_d.isoformat()
+    max_dd = 0.0
+    max_dd_date = first_d.isoformat()
+    # 「Max DD を生んだピーク」の日付（DD区間の左端）
+    dd_origin_peak_date = first_d.isoformat()
+    dd_origin_peak_value = 0.0
+
+    cur = first_d
+    while cur <= last_d:
+        ds = cur.isoformat()
+        day_pnl = daily_pnl.get(ds, 0.0)
+        equity += day_pnl
+        if equity > peak:
+            peak = equity
+            peak_date = ds
+        drawdown = equity - peak  # ≤ 0
+        if drawdown < max_dd:
+            max_dd = drawdown
+            max_dd_date = ds
+            dd_origin_peak_date = peak_date
+            dd_origin_peak_value = peak
+        points.append({
+            "date": ds,
+            "equity":   round(equity, 2),
+            "peak":     round(peak, 2),
+            "drawdown": round(drawdown, 2),
+            "day_pnl":  round(day_pnl, 2),
+            "trades":   daily_count.get(ds, 0),
+        })
+        cur += timedelta(days=1)
+
+    # 回復日数: max_dd_date 以降で初めて equity ≥ DD起点のピーク値 に達した日
+    recovery_days = None
+    recovery_date = None
+    md_d = _to_date(max_dd_date)
+    for p in points:
+        if p["date"] <= max_dd_date:
+            continue
+        if p["equity"] >= dd_origin_peak_value:
+            recovery_date = p["date"]
+            recovery_days = (_to_date(p["date"]) - md_d).days
+            break
+
+    # DD期間: 起点ピーク → 底
+    dd_duration_days = (md_d - _to_date(dd_origin_peak_date)).days if max_dd_date else None
+
+    total_pnl = points[-1]["equity"] if points else 0.0
+    recovery_factor = round(total_pnl / abs(max_dd), 2) if max_dd < 0 else None
+    current_dd = points[-1]["drawdown"] if points else 0.0
+
+    # トレード日のみで標準偏差 → 「1日あたり期待値 / 1日あたり標準偏差」を Sharpe風 として返す
+    trade_day_pnls = [v for v in daily_pnl.values()]
+    if len(trade_day_pnls) >= 2:
+        mean = sum(trade_day_pnls) / len(trade_day_pnls)
+        var  = sum((x - mean) ** 2 for x in trade_day_pnls) / (len(trade_day_pnls) - 1)
+        std  = var ** 0.5
+        sharpe_like = round(mean / std, 2) if std > 0 else None
+    else:
+        sharpe_like = None
+
+    return {
+        "points": points,
+        "stats": {
+            "max_dd":              round(max_dd, 2),
+            "max_dd_date":         max_dd_date,
+            "dd_peak_date":        dd_origin_peak_date,
+            "dd_peak_value":       round(dd_origin_peak_value, 2),
+            "dd_duration_days":    dd_duration_days,
+            "recovery_days":       recovery_days,
+            "recovery_date":       recovery_date,
+            "recovery_factor":     recovery_factor,
+            "current_dd":          round(current_dd, 2),
+            "current_equity":      round(total_pnl, 2),
+            "all_time_high":       round(max(p["peak"] for p in points), 2),
+            "sharpe_like_daily":   sharpe_like,
+            "trading_days":        len(trade_day_pnls),
+            "calendar_days":       len(points),
+        },
+    }
 
 
 def get_summary() -> dict:

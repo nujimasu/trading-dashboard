@@ -32,9 +32,10 @@ export async function renderTradeAnalytics(container) {
   const root = container.querySelector(".ta-content");
 
   try {
-    const [summary, monthly, insights, hold, scatter, byType, trades] = await Promise.all([
+    const [summary, monthly, equity, insights, hold, scatter, byType, trades] = await Promise.all([
       apiFetch("/api/trade-analytics/summary"),
       apiFetch("/api/trade-analytics/monthly"),
+      apiFetch("/api/trade-analytics/equity-curve"),
       apiFetch("/api/trade-analytics/insights"),
       apiFetch("/api/trade-analytics/holding-buckets"),
       apiFetch("/api/trade-analytics/scatter"),
@@ -62,6 +63,7 @@ export async function renderTradeAnalytics(container) {
     root.innerHTML = `
       ${_renderSummary(summary)}
       ${_renderMonthly(monthly.months)}
+      ${_renderEquityCurve(equity)}
       ${_renderCompareShell()}
       ${_renderInsights(insights.cards)}
       ${_renderHolding(hold.buckets)}
@@ -222,6 +224,153 @@ function _bindMonthlyClicks(root) {
   root.querySelectorAll(".ta-month-row").forEach(el => {
     el.addEventListener("click", () => select(el.dataset.month));
   });
+}
+
+// ── ①.6 日次エクイティ & ドローダウン ─────────────────────
+function _renderEquityCurve(eq) {
+  const pts = eq && eq.points;
+  const st  = eq && eq.stats;
+  if (!pts || pts.length < 2) return "";
+
+  const W = 720, PADL = 50, PADR = 16;
+  const H_EQ = 180, H_DD = 90, GAP = 24;
+  const PADT = 12, PADB = 28;
+  const totalH = PADT + H_EQ + GAP + H_DD + PADB;
+  const innerW = W - PADL - PADR;
+  const n = pts.length;
+
+  const xScale = i => PADL + (i / (n - 1)) * innerW;
+
+  // ── エクイティスケール ───────────────
+  const eqMin = Math.min(0, ...pts.map(p => p.equity));
+  const eqMax = Math.max(0, ...pts.map(p => p.peak));
+  const eqRange = (eqMax - eqMin) || 1;
+  const yEq = v => PADT + (1 - (v - eqMin) / eqRange) * H_EQ;
+  const yZeroEq = yEq(0);
+
+  // ── DDスケール ───────────────────────
+  const ddMin = Math.min(0, ...pts.map(p => p.drawdown));
+  const ddRange = Math.abs(ddMin) || 1;
+  const ddTop  = PADT + H_EQ + GAP;
+  const yDd = v => ddTop + ((-v) / ddRange) * H_DD;     // 0 → 上、ddMin → 下
+  const yZeroDd = yDd(0);
+
+  // ── パス生成 ─────────────────────────
+  const eqPath  = pts.map((p, i) => `${i ? "L" : "M"}${xScale(i).toFixed(1)},${yEq(p.equity).toFixed(1)}`).join("");
+  const peakPath = pts.map((p, i) => `${i ? "L" : "M"}${xScale(i).toFixed(1)},${yEq(p.peak).toFixed(1)}`).join("");
+  // DD は塗りつぶしエリア (下向き)
+  const ddArea = pts.map((p, i) => `${i ? "L" : "M"}${xScale(i).toFixed(1)},${yDd(p.drawdown).toFixed(1)}`).join("")
+                + ` L${xScale(n-1).toFixed(1)},${yZeroDd.toFixed(1)} L${xScale(0).toFixed(1)},${yZeroDd.toFixed(1)} Z`;
+
+  // ── X軸: 月ラベル (月初を見つける) ──
+  const monthTicks = [];
+  let lastMonth = "";
+  pts.forEach((p, i) => {
+    const m = p.date.slice(0, 7);
+    if (m !== lastMonth) {
+      monthTicks.push({ i, label: p.date.slice(2, 7) });  // YY-MM
+      lastMonth = m;
+    }
+  });
+  const xLabels = monthTicks.map(t => `
+    <text x="${xScale(t.i)}" y="${totalH - 8}" fill="var(--text-muted)" font-size="10" text-anchor="middle">${t.label}</text>
+    <line x1="${xScale(t.i)}" x2="${xScale(t.i)}" y1="${PADT}" y2="${ddTop + H_DD}" stroke="rgba(148,163,184,.08)" />
+  `).join("");
+
+  // ── マーカー: max_dd 点 / 起点ピーク点 ──
+  const idxByDate = d => pts.findIndex(p => p.date === d);
+  const iMaxDd  = idxByDate(st.max_dd_date);
+  const iPeak   = idxByDate(st.dd_peak_date);
+  const iRecov  = st.recovery_date ? idxByDate(st.recovery_date) : -1;
+
+  const marker = (i, color, label, yFn, val) => i < 0 ? "" : `
+    <circle cx="${xScale(i)}" cy="${yFn(val)}" r="4" fill="${color}" stroke="#0b1220" stroke-width="2" />
+    <text x="${xScale(i)}" y="${yFn(val) - 8}" fill="${color}" font-size="10" font-weight="700" text-anchor="middle">${label}</text>`;
+
+  const markers = `
+    ${marker(iPeak,  "#fbbf24", "Peak",  yEq, pts[iPeak]?.peak  || 0)}
+    ${marker(iMaxDd, "#ef4444", "Bottom", yEq, pts[iMaxDd]?.equity || 0)}
+    ${iRecov >= 0 ? marker(iRecov, "#22c55e", "Recover", yEq, pts[iRecov]?.equity || 0) : ""}
+  `;
+
+  // ── 軸: equity Y ────────────────────
+  const eqTicks = [eqMin, (eqMin + eqMax) / 2, eqMax].map(v => Math.round(v));
+  const ddTicks = [0, ddMin/2, ddMin].map(v => Math.round(v));
+  const eqYLabels = eqTicks.map(v => `
+    <line x1="${PADL}" x2="${W-PADR}" y1="${yEq(v)}" y2="${yEq(v)}" stroke="${v===0?'rgba(148,163,184,.5)':'rgba(148,163,184,.12)'}" stroke-dasharray="${v===0?'0':'3,3'}" />
+    <text x="${PADL-6}" y="${yEq(v)+4}" fill="var(--text-muted)" font-size="10" text-anchor="end">$${_fmtNum(v,0)}</text>
+  `).join("");
+  const ddYLabels = ddTicks.map(v => `
+    <line x1="${PADL}" x2="${W-PADR}" y1="${yDd(v)}" y2="${yDd(v)}" stroke="${v===0?'rgba(148,163,184,.5)':'rgba(148,163,184,.12)'}" stroke-dasharray="${v===0?'0':'3,3'}" />
+    <text x="${PADL-6}" y="${yDd(v)+4}" fill="var(--text-muted)" font-size="10" text-anchor="end">$${_fmtNum(v,0)}</text>
+  `).join("");
+
+  // ── 統計カード ──────────────────────
+  const ddPctOfPeak = st.dd_peak_value > 0
+      ? ` (${(st.max_dd / st.dd_peak_value * 100).toFixed(1)}%)`
+      : "";
+  const recoveryLbl = st.recovery_days != null
+      ? `${st.recovery_days}日`
+      : `未回復 🔻`;
+  const sharpeBadge = st.sharpe_like_daily == null ? "—"
+      : (st.sharpe_like_daily >= 0.3 ? `${st.sharpe_like_daily} 👍`
+      :  st.sharpe_like_daily >= 0    ? `${st.sharpe_like_daily}`
+      :                                 `${st.sharpe_like_daily} ⚠️`);
+
+  const stats = `
+    <div class="ta-eq-stats">
+      ${_metric("現在エクイティ", `$${_fmtNum(st.current_equity)}`, st.current_equity >= 0 ? "ta-pos" : "ta-neg")}
+      ${_metric("ATH",           `$${_fmtNum(st.all_time_high)}`,  "ta-pos")}
+      ${_metric("Max DD",        `$${_fmtNum(st.max_dd)}${ddPctOfPeak}`, "ta-neg")}
+      ${_metric("DD期間 (ピーク→底)", `${st.dd_duration_days || 0}日`)}
+      ${_metric("回復",          recoveryLbl, st.recovery_days != null ? "ta-pos" : "ta-neg")}
+      ${_metric("Recovery Factor", st.recovery_factor != null ? st.recovery_factor : "—")}
+      ${_metric("現在のDD",      `$${_fmtNum(st.current_dd)}`, st.current_dd < 0 ? "ta-neg" : "")}
+      ${_metric("日次Sharpe風",  sharpeBadge)}
+    </div>`;
+
+  return `
+    <h3 class="ta-h">📉 エクイティ & ドローダウン
+      <span class="ta-h-sub">（決済日ベースの日次累計。${st.trading_days}取引日 / ${st.calendar_days}カレンダー日）</span>
+    </h3>
+    ${stats}
+    <div class="ta-eq-chart">
+      <svg viewBox="0 0 ${W} ${totalH}" style="width:100%;height:auto;display:block">
+        ${xLabels}
+        ${eqYLabels}
+        ${ddYLabels}
+        <!-- equity area fill -->
+        <defs>
+          <linearGradient id="ta-eq-grad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%"  stop-color="#22c55e" stop-opacity="0.35" />
+            <stop offset="100%" stop-color="#22c55e" stop-opacity="0" />
+          </linearGradient>
+          <linearGradient id="ta-dd-grad" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%"  stop-color="#ef4444" stop-opacity="0.05" />
+            <stop offset="100%" stop-color="#ef4444" stop-opacity="0.45" />
+          </linearGradient>
+        </defs>
+        <!-- equity area -->
+        <path d="${eqPath} L${xScale(n-1)},${yZeroEq} L${xScale(0)},${yZeroEq} Z" fill="url(#ta-eq-grad)" />
+        <!-- peak (high-water-mark) reference line -->
+        <path d="${peakPath}" fill="none" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,3" opacity="0.7" />
+        <!-- equity line -->
+        <path d="${eqPath}" fill="none" stroke="#22c55e" stroke-width="2" />
+        <!-- markers -->
+        ${markers}
+        <!-- separator -->
+        <line x1="${PADL}" x2="${W-PADR}" y1="${ddTop - GAP/2}" y2="${ddTop - GAP/2}" stroke="rgba(148,163,184,.15)" />
+        <text x="${PADL}" y="${ddTop - 6}" fill="var(--text-muted)" font-size="10">Drawdown ($)</text>
+        <!-- drawdown filled area -->
+        <path d="${ddArea}" fill="url(#ta-dd-grad)" stroke="#ef4444" stroke-width="1.2" />
+      </svg>
+      <div class="ta-eq-legend">
+        <span><span class="ta-line-swatch" style="background:#22c55e"></span>エクイティ</span>
+        <span><span class="ta-line-swatch ta-line-dashed" style="background:#fbbf24"></span>HWM (高値水準)</span>
+        <span><span class="ta-line-swatch" style="background:#ef4444"></span>ドローダウン</span>
+        <span style="margin-left:auto;color:var(--text-muted)">🟡Peak → 🔴Bottom → 🟢Recover</span>
+      </div>
+    </div>`;
 }
 
 // ── ①.7 期間比較 ───────────────────────────────────────────
