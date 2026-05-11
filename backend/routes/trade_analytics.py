@@ -86,6 +86,12 @@ def cut_loss():
     return ta.get_cut_loss_analysis()
 
 
+@router.get("/api/trade-analytics/weekly-coaching")
+def weekly_coaching(week_offset: int = 0):
+    from backend.services import weekly_coaching as wc
+    return wc.get_weekly_coaching(week_offset=week_offset)
+
+
 @router.get("/api/trade-analytics/trades")
 def all_trades():
     return ta.get_all_trades()

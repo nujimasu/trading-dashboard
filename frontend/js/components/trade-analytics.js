@@ -28,6 +28,7 @@ const _state = {
 };
 
 const TABS = [
+  { id: "coaching", label: "📅 コーチング" },
   { id: "overview", label: "📊 概要" },
   { id: "strategy", label: "🔍 戦略分析" },
   { id: "compare",  label: "⚖️ 期間比較" },
@@ -37,7 +38,7 @@ const TABS = [
 function _readActiveTab() {
   const m = (typeof window !== "undefined" && window.location.hash || "").match(/tab=([a-z]+)/);
   const id = m && m[1];
-  return TABS.some(t => t.id === id) ? id : "overview";
+  return TABS.some(t => t.id === id) ? id : "coaching";
 }
 
 function _renderTabsNav(activeId) {
@@ -82,7 +83,8 @@ export async function renderTradeAnalytics(container) {
   const root = container.querySelector(".ta-content");
 
   try {
-    const [summary, monthly, equity, insights, hold, scatter, byType, byTags, cutLoss, trades] = await Promise.all([
+    const [coaching, summary, monthly, equity, insights, hold, scatter, byType, byTags, cutLoss, trades] = await Promise.all([
+      apiFetch("/api/trade-analytics/weekly-coaching"),
       apiFetch("/api/trade-analytics/summary"),
       apiFetch("/api/trade-analytics/monthly"),
       apiFetch("/api/trade-analytics/equity-curve"),
@@ -115,6 +117,9 @@ export async function renderTradeAnalytics(container) {
 
     root.innerHTML = `
       ${_renderTabsNav(_readActiveTab())}
+      <section class="ta-tab-panel" data-tab="coaching">
+        ${_renderCoaching(coaching)}
+      </section>
       <section class="ta-tab-panel" data-tab="overview">
         ${_renderSummary(summary)}
         ${_renderMonthly(monthly.months)}
@@ -146,6 +151,101 @@ export async function renderTradeAnalytics(container) {
   } catch (e) {
     root.innerHTML = `<div class="empty-state">読み込み失敗: ${_esc(e.message)}</div>`;
   }
+}
+
+// ── ⓪ 週次コーチング ──────────────────────────────────────
+function _renderCoaching(c) {
+  if (!c || !c.numbers) return `<div class="ta-empty-card">コーチングデータを取得できませんでした。</div>`;
+  const n = c.numbers;
+  const deltaCls = n.delta_pnl >= 0 ? "ta-pos" : "ta-neg";
+  const pnlCls   = n.total_pnl >= 0 ? "ta-pos" : "ta-neg";
+  const deltaSign = n.delta_pnl >= 0 ? "+" : "";
+
+  // 数字カード
+  const numbersCard = `
+    <div class="ta-co-card ta-co-numbers">
+      <div class="ta-co-card-head">📊 今週の数字</div>
+      <div class="ta-co-numbers-grid">
+        <div><div class="ta-co-num-label">トレード</div><div class="ta-co-num-value">${n.count}件</div></div>
+        <div><div class="ta-co-num-label">累計P/L</div><div class="ta-co-num-value ${pnlCls}">${n.total_pnl >= 0 ? "+" : ""}$${_fmtNum(n.total_pnl)}</div></div>
+        <div><div class="ta-co-num-label">勝率</div><div class="ta-co-num-value">${n.win_rate}%</div></div>
+        <div><div class="ta-co-num-label">平均保有</div><div class="ta-co-num-value">${n.avg_hold}d</div></div>
+      </div>
+      <div class="ta-co-delta ${deltaCls}">
+        先週比 ${deltaSign}$${_fmtNum(n.delta_pnl)} (先週: $${_fmtNum(n.prev_pnl)} / ${n.prev_count}件)
+      </div>
+    </div>`;
+
+  // シグナル
+  const sigItems = (c.signals || []).map(s => {
+    const cls = s.kind === "warn" ? "ta-co-sig-warn" : s.kind === "good" ? "ta-co-sig-good" : "ta-co-sig-note";
+    return `<li class="ta-co-sig ${cls}"><span class="ta-co-sig-icon">${s.icon || "•"}</span>${_esc(s.text)}</li>`;
+  }).join("");
+  const signalsCard = `
+    <div class="ta-co-card">
+      <div class="ta-co-card-head">🎯 今週見えた事</div>
+      <ul class="ta-co-list">${sigItems || '<li class="ta-co-sig ta-co-sig-note">特筆事項なし</li>'}</ul>
+    </div>`;
+
+  // 来週アクション
+  const actItems = (c.actions || []).map(a => `
+    <li class="ta-co-act">
+      <div class="ta-co-act-num">${a.priority}</div>
+      <div class="ta-co-act-body">
+        <div class="ta-co-act-title">${_esc(a.title)}</div>
+        <div class="ta-co-act-detail">${_esc(a.detail || "")}</div>
+      </div>
+    </li>
+  `).join("");
+  const actionsCard = `
+    <div class="ta-co-card">
+      <div class="ta-co-card-head">✅ 来週やること</div>
+      <ol class="ta-co-acts">${actItems}</ol>
+    </div>`;
+
+  // トレンド
+  const trend = c.trend || [];
+  const maxAbs = Math.max(...trend.map(t => Math.abs(t.total_pnl)), 1);
+  const trendBars = trend.map(t => {
+    const cls = t.total_pnl >= 0 ? "ta-pos" : "ta-neg";
+    const barCls = t.total_pnl >= 0 ? "ta-co-tbar-pos" : "ta-co-tbar-neg";
+    const w = Math.abs(t.total_pnl) / maxAbs * 100;
+    const isThis = t.label.includes("今週");
+    return `
+      <div class="ta-co-trend-row ${isThis ? 'ta-co-trend-row-active' : ''}">
+        <div class="ta-co-trend-label">${t.label}</div>
+        <div class="ta-co-trend-bar-wrap">
+          <div class="ta-co-tbar ${barCls}" style="width:${w}%"></div>
+          <div class="ta-co-trend-value ${cls}">${t.total_pnl >= 0 ? "+" : ""}$${_fmtNum(t.total_pnl)} <span class="ta-co-trend-sub">(${t.count}件)</span></div>
+        </div>
+      </div>`;
+  }).join("");
+  const trendCard = `
+    <div class="ta-co-card">
+      <div class="ta-co-card-head">📈 直近4週トレンド</div>
+      <div class="ta-co-trend">${trendBars}</div>
+    </div>`;
+
+  // LLM ひとこと(あれば)
+  const llmCard = c.llm_summary ? `
+    <div class="ta-co-card ta-co-llm">
+      <div class="ta-co-card-head">💭 今週のひとこと</div>
+      <div class="ta-co-llm-body">${_esc(c.llm_summary)}</div>
+    </div>` : "";
+
+  const week = c.week || {};
+  return `
+    <div class="ta-co-header">
+      <div class="ta-co-title">📅 今週のコーチング</div>
+      <div class="ta-co-week">${_esc(week.label || "")}</div>
+    </div>
+    <div class="ta-co-grid">
+      ${numbersCard}
+      ${signalsCard}
+      ${actionsCard}
+      ${trendCard}
+      ${llmCard}
+    </div>`;
 }
 
 // ── ① サマリー ────────────────────────────────────────────
