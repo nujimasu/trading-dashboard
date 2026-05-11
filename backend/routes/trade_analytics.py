@@ -16,6 +16,11 @@ def insights():
     return ta.get_insights()
 
 
+@router.get("/api/trade-analytics/monthly")
+def monthly():
+    return ta.get_monthly_breakdown()
+
+
 @router.get("/api/trade-analytics/holding-buckets")
 def holding_buckets():
     return ta.get_holding_buckets()

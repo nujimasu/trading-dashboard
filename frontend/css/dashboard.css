@@ -384,6 +384,26 @@ body {
   font-weight: 800;
 }
 
+/* 月次トレンド */
+.ta-monthly-chart {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.ta-month-bar:hover rect { fill-opacity: 1; }
+.ta-month-bar:hover { filter: drop-shadow(0 0 4px rgba(59,130,246,.5)); }
+.ta-month-row:hover { background: rgba(59,130,246,.06); }
+.ta-month-active rect { stroke: var(--blue); stroke-width: 2; }
+.ta-month-active { background: rgba(59,130,246,.12) !important; }
+.ta-month-best, .ta-month-worst {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .76rem;
+}
+
 /* インサイトカード */
 .ta-insight-grid {
   display: grid;
