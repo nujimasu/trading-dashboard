@@ -15,6 +15,7 @@ const _state = {
     result: "all",   // all | win | loss
     type:   "all",   // all | stock | lev_etf
     bucket: "all",   // all | low | mid | high | unknown
+    month:  "all",   // all | YYYY-MM
     sort:   "exit_date_desc",
   },
 };
@@ -26,8 +27,9 @@ export async function renderTradeAnalytics(container) {
   const root = container.querySelector(".ta-content");
 
   try {
-    const [summary, insights, hold, scatter, byType, trades] = await Promise.all([
+    const [summary, monthly, insights, hold, scatter, byType, trades] = await Promise.all([
       apiFetch("/api/trade-analytics/summary"),
+      apiFetch("/api/trade-analytics/monthly"),
       apiFetch("/api/trade-analytics/insights"),
       apiFetch("/api/trade-analytics/holding-buckets"),
       apiFetch("/api/trade-analytics/scatter"),
@@ -45,13 +47,15 @@ export async function renderTradeAnalytics(container) {
 
     root.innerHTML = `
       ${_renderSummary(summary)}
+      ${_renderMonthly(monthly.months)}
       ${_renderInsights(insights.cards)}
       ${_renderHolding(hold.buckets)}
       ${_renderScatter(scatter.points)}
       ${_renderByType(byType)}
-      ${_renderTradesTable()}
+      ${_renderTradesTable(monthly.months)}
     `;
     _bindFilterControls(root);
+    _bindMonthlyClicks(root);
     _bindCsvExport(root);
   } catch (e) {
     root.innerHTML = `<div class="empty-state">読み込み失敗: ${_esc(e.message)}</div>`;
@@ -85,6 +89,121 @@ function _metric(label, value, cls = "") {
       <div class="ta-metric-label">${label}</div>
       <div class="ta-metric-value ${cls}">${value}</div>
     </div>`;
+}
+
+// ── ①.5 月次トレンド ──────────────────────────────────────
+function _renderMonthly(months) {
+  if (!months || !months.length) return "";
+
+  // バーチャート用 SVG
+  const W = 720, H = 200, PADL = 50, PADR = 16, PADT = 12, PADB = 40;
+  const innerW = W - PADL - PADR;
+  const innerH = H - PADT - PADB;
+  const n = months.length;
+  const barW = innerW / n * 0.7;
+  const gap  = innerW / n * 0.3;
+  const maxAbs = Math.max(...months.map(m => Math.abs(m.total_pnl)), 1);
+  const yScale = v => PADT + innerH * (1 - (v + maxAbs) / (2 * maxAbs));
+  const yZero  = yScale(0);
+
+  // 累計エクイティライン
+  const cumMax = Math.max(...months.map(m => Math.abs(m.cumulative_pnl)), 1);
+  const yScaleCum = v => PADT + innerH * (1 - (v + cumMax) / (2 * cumMax));
+  const linePts = months.map((m, i) => {
+    const cx = PADL + (i + 0.5) * (barW + gap);
+    return `${cx},${yScaleCum(m.cumulative_pnl)}`;
+  }).join(" ");
+
+  const bars = months.map((m, i) => {
+    const x = PADL + i * (barW + gap) + gap/2;
+    const v = m.total_pnl;
+    const fill = v >= 0 ? "var(--green)" : "var(--red)";
+    const top = v >= 0 ? yScale(v) : yZero;
+    const h   = Math.abs(yScale(v) - yZero);
+    const dot = `<circle cx="${x + barW/2}" cy="${yScaleCum(m.cumulative_pnl)}" r="3" fill="#fbbf24" />`;
+    return `
+      <g class="ta-month-bar" data-month="${m.month}" style="cursor:pointer">
+        <rect x="${x}" y="${top}" width="${barW}" height="${h}" fill="${fill}" fill-opacity="0.85" rx="2">
+          <title>${m.month}
+件数: ${m.trades} (${m.wins}勝/${m.losses}敗)
+勝率: ${m.win_rate}%
+P/L: ${v >= 0 ? "+" : ""}$${v.toFixed(2)}
+累計: ${m.cumulative_pnl >= 0 ? "+" : ""}$${m.cumulative_pnl.toFixed(2)}
+ベスト: ${m.best.ticker} +$${m.best.pnl.toFixed(2)}
+ワースト: ${m.worst.ticker} $${m.worst.pnl.toFixed(2)}</title>
+        </rect>
+        ${dot}
+        <text x="${x + barW/2}" y="${H - PADB + 16}" fill="var(--text-muted)" font-size="11" text-anchor="middle">${m.month.slice(2)}</text>
+        <text x="${x + barW/2}" y="${v >= 0 ? top - 4 : top + h + 12}" fill="${v >= 0 ? 'var(--green)' : 'var(--red)'}" font-size="10" font-weight="700" text-anchor="middle">${v >= 0 ? "+" : ""}$${Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1)}</text>
+      </g>`;
+  }).join("");
+
+  // 月別テーブル
+  const rows = months.map(m => {
+    const pnlCls = m.total_pnl >= 0 ? "ta-pos" : "ta-neg";
+    const cumCls = m.cumulative_pnl >= 0 ? "ta-pos" : "ta-neg";
+    const wrColor = m.win_rate >= 50 ? "var(--green)"
+                  : m.win_rate >= 40 ? "var(--text-primary)"
+                  : "var(--red)";
+    return `
+      <tr class="ta-month-row" data-month="${m.month}" style="cursor:pointer">
+        <td><strong>${m.month}</strong></td>
+        <td>${m.trades}</td>
+        <td style="color:${wrColor};font-weight:700">${m.win_rate}%</td>
+        <td>${m.wins}/${m.losses}</td>
+        <td class="${pnlCls}">${m.total_pnl >= 0 ? "+" : ""}$${_fmtNum(m.total_pnl)}</td>
+        <td class="${cumCls}">${m.cumulative_pnl >= 0 ? "+" : ""}$${_fmtNum(m.cumulative_pnl)}</td>
+        <td>${m.avg_pct >= 0 ? "+" : ""}${_fmtNum(m.avg_pct)}%</td>
+        <td>${m.profit_factor != null ? m.profit_factor : "—"}</td>
+        <td><span class="ta-month-best">${_esc(m.best.ticker)} <span class="ta-pos">+$${_fmtNum(m.best.pnl)}</span></span></td>
+        <td><span class="ta-month-worst">${_esc(m.worst.ticker)} <span class="ta-neg">$${_fmtNum(m.worst.pnl)}</span></span></td>
+      </tr>`;
+  }).join("");
+
+  return `
+    <h3 class="ta-h">📅 月次トレンド <span class="ta-h-sub">（バー or 行をクリックで下の全トレードがその月にフィルタされます。黄点=累計エクイティ）</span></h3>
+    <div class="ta-monthly-chart">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+        <line x1="${PADL}" x2="${W-PADR}" y1="${yZero}" y2="${yZero}" stroke="rgba(148,163,184,.5)" stroke-width="1" />
+        <text x="${PADL-6}" y="${yZero+4}" fill="var(--text-muted)" font-size="10" text-anchor="end">$0</text>
+        ${bars}
+        <polyline points="${linePts}" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7" />
+      </svg>
+    </div>
+    <div class="ta-table-wrap">
+      <table class="ta-table">
+        <thead>
+          <tr>
+            <th>月</th><th>件数</th><th>勝率</th><th>勝/負</th>
+            <th>累計P/L</th><th>累計エクイティ</th><th>平均%</th><th>PF</th>
+            <th>ベスト</th><th>ワースト</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function _bindMonthlyClicks(root) {
+  const select = (month) => {
+    _state.filter.month = month;
+    const sel = root.querySelector(".ta-tt-month");
+    if (sel) sel.value = month;
+    // ハイライト更新
+    root.querySelectorAll(".ta-month-bar, .ta-month-row").forEach(el => {
+      el.classList.toggle("ta-month-active", el.dataset.month === month);
+    });
+    _renderTradesTbody(root);
+    // 全トレードまでスクロール
+    const tbl = root.querySelector("#ta-trades-table");
+    if (tbl) tbl.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  root.querySelectorAll(".ta-month-bar").forEach(el => {
+    el.addEventListener("click", () => select(el.dataset.month));
+  });
+  root.querySelectorAll(".ta-month-row").forEach(el => {
+    el.addEventListener("click", () => select(el.dataset.month));
+  });
 }
 
 // ── ② 自動インサイト ──────────────────────────────────────
@@ -254,11 +373,20 @@ function _renderByType({ groups, open_breakdown }) {
 }
 
 // ── ⑥ 全トレードテーブル ─────────────────────────────────
-function _renderTradesTable() {
+function _renderTradesTable(months = []) {
+  const monthOptions = months
+    .slice()
+    .reverse()
+    .map(m => `<option value="${m.month}">${m.month}</option>`)
+    .join("");
   return `
     <h3 class="ta-h">🔍 全トレード <span class="ta-h-sub">（フィルタ・ソート・CSV出力）</span></h3>
     <div class="ta-trades-controls">
       <input type="search" class="ta-tt-search" placeholder="銘柄/メモ検索..." />
+      <select class="ta-tt-month">
+        <option value="all">全期間</option>
+        ${monthOptions}
+      </select>
       <select class="ta-tt-result">
         <option value="all">勝/負 すべて</option>
         <option value="win">勝ちのみ</option>
@@ -309,6 +437,7 @@ function _bindFilterControls(root) {
     result: root.querySelector(".ta-tt-result"),
     type:   root.querySelector(".ta-tt-type"),
     bucket: root.querySelector(".ta-tt-bucket"),
+    month:  root.querySelector(".ta-tt-month"),
     sort:   root.querySelector(".ta-tt-sort"),
   };
   Object.entries(els).forEach(([key, el]) => {
@@ -335,6 +464,7 @@ function _renderTradesTbody(root) {
   if (f.result === "loss") view = view.filter(t => t.pnl <= 0);
   if (f.type !== "all")    view = view.filter(t => t.type === f.type);
   if (f.bucket !== "all")  view = view.filter(t => t.price_bucket === f.bucket);
+  if (f.month !== "all")   view = view.filter(t => (t.entry_date || "").startsWith(f.month));
 
   const sorters = {
     "exit_date_desc": (a,b) => (b.exit_date||"").localeCompare(a.exit_date||""),

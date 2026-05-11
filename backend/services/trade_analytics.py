@@ -152,6 +152,58 @@ def _fetch_open() -> list[dict]:
 
 # ── 集計 API ────────────────────────────────────────────────
 
+def get_monthly_breakdown() -> dict:
+    """月別の集計。各月のベスト/ワースト銘柄も含む。"""
+    closed = _fetch_closed()
+    by_month: dict[str, list[dict]] = {}
+    for t in closed:
+        ed = t.get("entry_date")
+        if not ed or len(ed) < 7:
+            continue
+        m = ed[:7]  # YYYY-MM
+        by_month.setdefault(m, []).append(t)
+
+    out = []
+    for m, items in sorted(by_month.items()):
+        wins   = [t for t in items if t["pnl"] > 0]
+        losses = [t for t in items if t["pnl"] <= 0]
+        total  = sum(t["pnl"] for t in items)
+        avg_pct = sum(t["pct"] for t in items) / len(items)
+        win_sum  = sum(t["pnl"] for t in wins)
+        loss_sum = abs(sum(t["pnl"] for t in losses))
+        pf = (win_sum / loss_sum) if loss_sum > 0 else None
+        best  = max(items, key=lambda t: t["pnl"])
+        worst = min(items, key=lambda t: t["pnl"])
+        avg_hold = sum((t.get("hold_days") or 0) for t in items) / len(items)
+        out.append({
+            "month":      m,
+            "trades":     len(items),
+            "wins":       len(wins),
+            "losses":     len(losses),
+            "win_rate":   round(len(wins) / len(items) * 100, 1),
+            "total_pnl":  round(total, 2),
+            "avg_pct":    round(avg_pct, 2),
+            "profit_factor": round(pf, 2) if pf is not None else None,
+            "avg_hold":   round(avg_hold, 1),
+            "best": {
+                "ticker": best["ticker"],
+                "pnl":    round(best["pnl"], 2),
+                "pct":    round(best["pct"], 2),
+            },
+            "worst": {
+                "ticker": worst["ticker"],
+                "pnl":    round(worst["pnl"], 2),
+                "pct":    round(worst["pct"], 2),
+            },
+        })
+    # 累計エクイティも返す（バー上の折れ線として使える）
+    cum = 0.0
+    for row in out:
+        cum += row["total_pnl"]
+        row["cumulative_pnl"] = round(cum, 2)
+    return {"months": out}
+
+
 def get_summary() -> dict:
     closed = _fetch_closed()
     open_ = _fetch_open()
