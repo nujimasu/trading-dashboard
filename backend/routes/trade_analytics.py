@@ -76,6 +76,11 @@ def by_type():
     return ta.get_by_type()
 
 
+@router.get("/api/trade-analytics/by-tags")
+def by_tags():
+    return ta.get_by_tags()
+
+
 @router.get("/api/trade-analytics/trades")
 def all_trades():
     return ta.get_all_trades()

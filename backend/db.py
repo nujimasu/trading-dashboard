@@ -308,6 +308,7 @@ else:
             exit_price        REAL,
             exit_reason       TEXT,
             notes             TEXT,
+            tags              TEXT DEFAULT '[]',
             created_at        TEXT DEFAULT (datetime('now')),
             updated_at        TEXT DEFAULT (datetime('now'))
         );
