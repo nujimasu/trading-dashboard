@@ -82,7 +82,7 @@ export async function renderTradeAnalytics(container) {
   const root = container.querySelector(".ta-content");
 
   try {
-    const [summary, monthly, equity, insights, hold, scatter, byType, byTags, trades] = await Promise.all([
+    const [summary, monthly, equity, insights, hold, scatter, byType, byTags, cutLoss, trades] = await Promise.all([
       apiFetch("/api/trade-analytics/summary"),
       apiFetch("/api/trade-analytics/monthly"),
       apiFetch("/api/trade-analytics/equity-curve"),
@@ -91,6 +91,7 @@ export async function renderTradeAnalytics(container) {
       apiFetch("/api/trade-analytics/scatter"),
       apiFetch("/api/trade-analytics/by-type"),
       apiFetch("/api/trade-analytics/by-tags"),
+      apiFetch("/api/trade-analytics/cut-loss"),
       apiFetch("/api/trade-analytics/trades"),
     ]);
     _state.tagPresets = byTags.presets || [];
@@ -121,6 +122,7 @@ export async function renderTradeAnalytics(container) {
         ${_renderInsights(insights.cards)}
       </section>
       <section class="ta-tab-panel" data-tab="strategy">
+        ${_renderCutLoss(cutLoss)}
         ${_renderHolding(hold.buckets)}
         ${_renderScatter(scatter.points)}
         ${_renderByType(byType)}
@@ -930,6 +932,99 @@ function _renderByType({ groups, open_breakdown }) {
     </div>`;
 }
 
+// ── ⑤.3 損切り遅延ドリルダウン ───────────────────────────
+function _renderCutLoss(data) {
+  const buckets = data.buckets || [];
+  const worst   = data.worst || [];
+  const s       = data.summary || {};
+  if (!buckets.length) return "";
+
+  // KPIカード3つ
+  const danger = s.danger_bucket || {};
+  const dangerLoss = danger.total_pnl != null ? danger.total_pnl : 0;
+  const ws = s.worst_single;
+
+  const cards = `
+    <div class="ta-cl-cards">
+      <div class="ta-cl-card ta-cl-danger">
+        <div class="ta-cl-card-label">⚠️ 持ちすぎゾーン (8-14d)</div>
+        <div class="ta-cl-card-value ta-neg">$${_fmtNum(dangerLoss)}</div>
+        <div class="ta-cl-card-sub">
+          ${danger.count || 0}件 / 勝率${danger.win_rate ?? '—'}%
+          ${danger.avg_loss != null ? ` / 負け平均 $${_fmtNum(danger.avg_loss)}` : ''}
+        </div>
+      </div>
+      <div class="ta-cl-card">
+        <div class="ta-cl-card-label">💀 ワースト1件</div>
+        <div class="ta-cl-card-value ta-neg">${ws ? `$${_fmtNum(ws.pnl)}` : '—'}</div>
+        <div class="ta-cl-card-sub">${ws ? `${_esc(ws.ticker)} / ${ws.hold_days}日保有 / ${ws.pct}%` : ''}</div>
+      </div>
+      <div class="ta-cl-card">
+        <div class="ta-cl-card-label">💡 救えた可能性</div>
+        <div class="ta-cl-card-value ta-pos">+$${_fmtNum(Math.abs(s.potential_saving || 0))}</div>
+        <div class="ta-cl-card-sub">
+          8d+負け${s.late_count}件を2-7d水準(平均$${_fmtNum(s.short_avg_loss)})で切れていれば
+        </div>
+      </div>
+    </div>`;
+
+  // バケットチャート (持ちすぎゾーンを赤帯で強調)
+  const maxAbs = Math.max(...buckets.map(b => Math.abs(b.total_pnl)), 1);
+  const barRows = buckets.map(b => {
+    const isDanger = b.is_danger;
+    const widthPct = Math.abs(b.total_pnl) / maxAbs * 100;
+    const isLoss = b.total_pnl < 0;
+    const barCls = isLoss ? (isDanger ? "ta-cl-bar-danger" : "ta-cl-bar-loss") : "ta-cl-bar-win";
+    return `
+      <div class="ta-cl-row ${isDanger ? 'ta-cl-row-danger' : ''}">
+        <div class="ta-cl-row-label">${b.bucket}${isDanger ? ' 🔥' : ''}</div>
+        <div class="ta-cl-row-bar-wrap">
+          <div class="ta-cl-row-bar ${barCls}" style="width:${widthPct}%"></div>
+          <div class="ta-cl-row-bar-value">$${_fmtNum(b.total_pnl)} <span class="ta-cl-row-sub">(${b.count}件・勝${b.wins}/負${b.losses}・負け平均 $${_fmtNum(b.avg_loss || 0)})</span></div>
+        </div>
+      </div>`;
+  }).join("");
+
+  // ワースト15
+  const worstRows = worst.slice(0, 15).map(t => `
+    <tr class="ta-cl-worst-row" data-id="${t.id}" data-ticker="${_esc(t.ticker)}" style="cursor:pointer" title="クリックで全トレード一覧で確認">
+      <td><strong>${_esc(t.ticker)}</strong></td>
+      <td>${t.entry_date}</td>
+      <td>${t.exit_date}</td>
+      <td><strong>${t.hold_days}d</strong></td>
+      <td class="ta-neg"><strong>$${_fmtNum(t.pnl)}</strong></td>
+      <td class="ta-neg">${t.pct}%</td>
+      <td>${t.shares}株 @ $${_fmtNum(t.entry_price)}→$${_fmtNum(t.exit_price)}</td>
+    </tr>`).join("");
+
+  return `
+    <h3 class="ta-h">⏳ 損切り遅延ドリルダウン
+      <span class="ta-h-sub">— 8d以上保有して大負けしたトレードを炙り出す</span>
+    </h3>
+    ${cards}
+    <div class="ta-cl-explainer">
+      <strong>💡 読み方:</strong>
+      <span class="ta-cl-bar-sample ta-cl-bar-danger"></span> = 持ちすぎゾーン /
+      <span class="ta-cl-bar-sample ta-cl-bar-loss"></span> = 通常の負け /
+      <span class="ta-cl-bar-sample ta-cl-bar-win"></span> = 勝ち
+    </div>
+    <div class="ta-cl-bars">${barRows}</div>
+
+    <h4 class="ta-cl-h2">💀 損切り遅延ワースト15 (8d+保有の負けトレード)</h4>
+    <div class="ta-table-wrap">
+      <table class="ta-table ta-cl-table">
+        <thead>
+          <tr>
+            <th>銘柄</th><th>エントリー</th><th>決済</th><th>保有</th>
+            <th>P/L</th><th>%</th><th>詳細</th>
+          </tr>
+        </thead>
+        <tbody>${worstRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 // ── ⑤.5 タグ別パフォーマンス ─────────────────────────────
 function _renderByTags(data) {
   const rows = data.rows || [];
@@ -1092,6 +1187,20 @@ function _bindFilterControls(root) {
       }
       _renderTradesTbody(root);
       // 「トレード一覧」タブが別タブにあるので明示的に切替
+      _activateTab(root, "trades");
+      history.replaceState(null, "", "#tab=trades");
+      const tbl = root.querySelector("#ta-trades-table");
+      if (tbl) tbl.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+  // 損切り遅延ワースト行クリック → 銘柄でフィルタ + トレード一覧へ
+  root.querySelectorAll(".ta-cl-worst-row").forEach(tr => {
+    tr.addEventListener("click", () => {
+      const ticker = tr.dataset.ticker;
+      _state.filter.search = ticker;
+      const inp = root.querySelector(".ta-tt-search");
+      if (inp) inp.value = ticker;
+      _renderTradesTbody(root);
       _activateTab(root, "trades");
       history.replaceState(null, "", "#tab=trades");
       const tbl = root.querySelector("#ta-trades-table");

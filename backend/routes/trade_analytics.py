@@ -81,6 +81,11 @@ def by_tags():
     return ta.get_by_tags()
 
 
+@router.get("/api/trade-analytics/cut-loss")
+def cut_loss():
+    return ta.get_cut_loss_analysis()
+
+
 @router.get("/api/trade-analytics/trades")
 def all_trades():
     return ta.get_all_trades()

@@ -607,6 +607,89 @@ def get_holding_buckets() -> dict:
     return {"buckets": out}
 
 
+def get_cut_loss_analysis() -> dict:
+    """損切り遅延ドリルダウン: 保有期間別の勝/負内訳 + 8d+負けワースト + 救えた額試算。"""
+    closed = _fetch_closed()
+    if not closed:
+        return {"buckets": [], "worst": [], "summary": {}}
+
+    # バケット定義 (holding_buckets と同じ粒度)
+    bucket_defs = [
+        ("0d (デイトレ)", lambda d: d == 0,           "daytrade"),
+        ("1d (O/N)",     lambda d: d == 1,           "overnight"),
+        ("2-7d",          lambda d: 2 <= d <= 7,      "short"),
+        ("8-14d",         lambda d: 8 <= d <= 14,     "danger"),  # 持ちすぎゾーン
+        ("15-30d",        lambda d: 15 <= d <= 30,    "long"),
+        ("31d+",          lambda d: d >= 31,          "verylong"),
+    ]
+    buckets = []
+    for label, cond, key in bucket_defs:
+        items = [t for t in closed if t.get("hold_days") is not None and cond(t["hold_days"])]
+        if not items:
+            buckets.append({"bucket": label, "key": key, "count": 0,
+                            "wins": 0, "losses": 0, "win_rate": None,
+                            "total_pnl": 0, "avg_win": None, "avg_loss": None,
+                            "is_danger": key == "danger"})
+            continue
+        wins   = [t for t in items if t["pnl"] > 0]
+        losses = [t for t in items if t["pnl"] <= 0]
+        buckets.append({
+            "bucket":    label,
+            "key":       key,
+            "count":     len(items),
+            "wins":      len(wins),
+            "losses":    len(losses),
+            "win_rate":  round(len(wins) / len(items) * 100, 1),
+            "total_pnl": round(sum(t["pnl"] for t in items), 2),
+            "avg_win":   round(sum(t["pnl"] for t in wins) / len(wins), 2) if wins else None,
+            "avg_loss":  round(sum(t["pnl"] for t in losses) / len(losses), 2) if losses else None,
+            "is_danger": key == "danger",
+        })
+
+    # 8d+ の負けトレード = 「損切り遅延候補」
+    late_losses = sorted(
+        [t for t in closed if (t.get("hold_days") or 0) >= 8 and t["pnl"] < 0],
+        key=lambda t: t["pnl"],
+    )
+    worst = [{
+        "id":         t["id"],
+        "ticker":     t["ticker"],
+        "entry_date": t["entry_date"],
+        "exit_date":  t["exit_date"],
+        "hold_days":  t["hold_days"],
+        "pnl":        round(t["pnl"], 2),
+        "pct":        round(t["pct"], 2),
+        "shares":     t["shares"],
+        "entry_price": t["entry_price"],
+        "exit_price":  t["exit_price"],
+    } for t in late_losses[:20]]
+
+    # 救えた額: 2-7d バケットの「負け平均」を基準に 8d+ 負け合計と比較
+    short_losses = [t for t in closed
+                    if t.get("hold_days") is not None and 2 <= t["hold_days"] <= 7 and t["pnl"] <= 0]
+    short_avg_loss = (sum(t["pnl"] for t in short_losses) / len(short_losses)) if short_losses else 0
+
+    late_total_pnl   = sum(t["pnl"] for t in late_losses)
+    late_count       = len(late_losses)
+    counterfactual   = short_avg_loss * late_count
+    potential_saving = late_total_pnl - counterfactual  # 通常マイナス値の差 (より小さい負け額になる差)
+
+    # 8-14d バケットを単独で抽出 (最大失血ゾーン)
+    danger = next((b for b in buckets if b["key"] == "danger"), None)
+
+    summary = {
+        "late_count":          late_count,
+        "late_total_loss":     round(late_total_pnl, 2),
+        "short_avg_loss":      round(short_avg_loss, 2),
+        "counterfactual_loss": round(counterfactual, 2),
+        "potential_saving":    round(potential_saving, 2),
+        "danger_bucket":       danger,
+        "worst_single": worst[0] if worst else None,
+    }
+
+    return {"buckets": buckets, "worst": worst, "summary": summary}
+
+
 def get_scatter_data() -> dict:
     """各クローズドトレードの (hold_days, pct, ticker, type) を返す。"""
     closed = _fetch_closed()
