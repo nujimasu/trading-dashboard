@@ -27,6 +27,54 @@ const _state = {
   },
 };
 
+const TABS = [
+  { id: "overview", label: "📊 概要" },
+  { id: "strategy", label: "🔍 戦略分析" },
+  { id: "compare",  label: "⚖️ 期間比較" },
+  { id: "trades",   label: "📋 トレード一覧" },
+];
+
+function _readActiveTab() {
+  const m = (typeof window !== "undefined" && window.location.hash || "").match(/tab=([a-z]+)/);
+  const id = m && m[1];
+  return TABS.some(t => t.id === id) ? id : "overview";
+}
+
+function _renderTabsNav(activeId) {
+  return `
+    <nav class="ta-tabs" role="tablist">
+      ${TABS.map(t => `
+        <button class="ta-tab ${t.id === activeId ? "ta-tab-active" : ""}"
+                data-tab="${t.id}" role="tab" aria-selected="${t.id === activeId}">
+          ${t.label}
+        </button>`).join("")}
+    </nav>`;
+}
+
+function _activateTab(root, id) {
+  root.querySelectorAll(".ta-tab").forEach(b => {
+    const on = b.dataset.tab === id;
+    b.classList.toggle("ta-tab-active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  root.querySelectorAll(".ta-tab-panel").forEach(p => {
+    p.classList.toggle("ta-tab-panel-active", p.dataset.tab === id);
+  });
+}
+
+function _bindTabs(root) {
+  root.querySelectorAll(".ta-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.tab;
+      _activateTab(root, id);
+      const newHash = `#tab=${id}`;
+      if (window.location.hash !== newHash) {
+        history.replaceState(null, "", newHash);
+      }
+    });
+  });
+}
+
 export async function renderTradeAnalytics(container) {
   container.innerHTML = `
     <div class="section-title">📈 取引分析</div>
@@ -65,17 +113,28 @@ export async function renderTradeAnalytics(container) {
     }
 
     root.innerHTML = `
-      ${_renderSummary(summary)}
-      ${_renderMonthly(monthly.months)}
-      ${_renderEquityCurve(equity)}
-      ${_renderCompareShell()}
-      ${_renderInsights(insights.cards)}
-      ${_renderHolding(hold.buckets)}
-      ${_renderScatter(scatter.points)}
-      ${_renderByType(byType)}
-      ${_renderByTags(byTags)}
-      ${_renderTradesTable(monthly.months)}
+      ${_renderTabsNav(_readActiveTab())}
+      <section class="ta-tab-panel" data-tab="overview">
+        ${_renderSummary(summary)}
+        ${_renderMonthly(monthly.months)}
+        ${_renderEquityCurve(equity)}
+        ${_renderInsights(insights.cards)}
+      </section>
+      <section class="ta-tab-panel" data-tab="strategy">
+        ${_renderHolding(hold.buckets)}
+        ${_renderScatter(scatter.points)}
+        ${_renderByType(byType)}
+        ${_renderByTags(byTags)}
+      </section>
+      <section class="ta-tab-panel" data-tab="compare">
+        ${_renderCompareShell()}
+      </section>
+      <section class="ta-tab-panel" data-tab="trades">
+        ${_renderTradesTable(monthly.months)}
+      </section>
     `;
+    _activateTab(root, _readActiveTab());
+    _bindTabs(root);
     _bindFilterControls(root);
     _bindMonthlyClicks(root);
     _bindCompareControls(root);
