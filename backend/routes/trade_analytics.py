@@ -95,3 +95,26 @@ def weekly_coaching(week_offset: int = 0):
 @router.get("/api/trade-analytics/trades")
 def all_trades():
     return ta.get_all_trades()
+
+
+# ────────────────────────────────────────────────────────────────────
+# ロジック検証 (ペーパートレード) — ユーザー判断と独立した戦績
+# 既存の backend.services.signal_tracker (毎晩 GitHub Actions cron で評価)
+# をHTTPから手動トリガー / 集計参照できるように露出する。
+# ────────────────────────────────────────────────────────────────────
+
+@router.post("/api/signals/evaluate")
+def evaluate_signals(max_holding_days: int = Query(30, ge=1, le=90)):
+    """status='open' の全シグナルを price_data で評価。バッチ手動トリガー用。"""
+    from backend.services import signal_tracker as st
+    return st.evaluate_open_signals(max_holding_days=max_holding_days)
+
+
+@router.get("/api/logic-performance")
+def logic_performance(
+    logic_name: Optional[str] = Query(None),
+    since_days: Optional[int] = Query(None, ge=1, le=730),
+):
+    """ロジック別のペーパートレード戦績 (勝率・期待値R・PF・最大DD)。"""
+    from backend.services import signal_tracker as st
+    return st.get_logic_stats(logic_name=logic_name, since_days=since_days)
