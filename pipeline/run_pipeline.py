@@ -300,10 +300,59 @@ def run_tech_weekly():
         print(f"[ERROR] Tech weekly scan failed: {e}")
 
 
+def run_daily_light():
+    """
+    日次軽量モード — GH Actions 分数節約のため Stage 3-6 を省く。
+    やること:
+      1. 価格データ差分DL (オープンポジ + オープンシグナル銘柄に絞る)
+      2. シグナル評価 (signal_tracker.evaluate_open_signals)
+    Stage 3-6 (フィルタ再計算) は週次に任せる。
+    """
+    print(f"[DailyLight] 日次軽量モード — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    init_db()
+
+    # オープンポジ + オープンシグナルの ticker を抽出
+    from backend.db import get_connection
+    conn = get_connection()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT DISTINCT ticker FROM positions WHERE status = 'open'
+        UNION
+        SELECT DISTINCT ticker FROM signal_log WHERE status = 'open'
+    """)
+    tickers = [r["ticker"] for r in cur.fetchall()]
+    conn.close()
+
+    print(f"[DailyLight] 価格更新対象: {len(tickers)} tickers")
+
+    if tickers:
+        t0 = time.time()
+        try:
+            from pipeline.stage2_price_data import run_incremental
+            run_incremental(tickers, days=10)
+            log_stage("DailyLight-Stage2", "OK", f"{len(tickers)} tickers", time.time() - t0)
+        except Exception as e:
+            log_stage("DailyLight-Stage2", "ERROR", str(e), time.time() - t0)
+            print(f"[WARN] 差分DL失敗: {e} — 評価は続行")
+
+    # シグナル評価
+    t0 = time.time()
+    try:
+        from backend.services.signal_tracker import evaluate_open_signals
+        stats = evaluate_open_signals()
+        log_stage("DailyLight-Eval", "OK", str(stats), time.time() - t0)
+    except Exception as e:
+        log_stage("DailyLight-Eval", "ERROR", str(e), time.time() - t0)
+        print(f"[ERROR] シグナル評価失敗: {e}")
+
+    print(f"[DailyLight] 完了")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Trading Dashboard Pipeline")
     parser.add_argument("--daily-only",    action="store_true", help="Run daily adjustment only")
     parser.add_argument("--daily-full",    action="store_true", help="Run incremental DL + full Stage3-6 re-filter daily")
+    parser.add_argument("--daily-light",   action="store_true", help="Light daily: incremental DL for open positions/signals + signal evaluation only")
     parser.add_argument("--skip-download", action="store_true", help="Skip price data download")
     parser.add_argument("--tech-weekly",   action="store_true", help="Run pure-technical weekly scan")
     parser.add_argument("--tech-daily",    action="store_true", help="Run tech daily adjustment only")
@@ -313,6 +362,8 @@ if __name__ == "__main__":
         run_daily()
     elif args.daily_full:
         run_daily_full()
+    elif args.daily_light:
+        run_daily_light()
     elif args.tech_weekly:
         run_tech_weekly()
     elif args.tech_daily:
