@@ -307,12 +307,14 @@ def run():
 
             confluence = (1 if touched else 0) + (1 if vol_dryup else 0) + (1 if rsi_flag else 0)
 
+            # v3 C項: 出来高枯れ（売り枯れ）を最優先の必須条件にする。
+            # 「下げに大きな出来高を伴う」タッチ（＝出来高枯れなし）は売り圧が残るため格下げ。
             if touched and vol_dryup:
                 verdict = "最優先候補"
-                confidence = 0.70 + (0.10 if rsi_flag else 0.0) + (0.05 if perfect_order == "full" else 0.0)
+                confidence = 0.72 + (0.10 if rsi_flag else 0.0) + (0.05 if perfect_order == "full" else 0.0)
             elif touched:
-                verdict = "最優先候補"
-                confidence = 0.60 + (0.05 if rsi_flag else 0.0)
+                verdict = "サポート接近中"   # タッチ済みだが売り枯れ未確認＝引き金前の様子見
+                confidence = 0.55 + (0.05 if rsi_flag else 0.0)
             else:
                 verdict = "サポート接近中"
                 confidence = 0.50
