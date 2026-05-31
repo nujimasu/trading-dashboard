@@ -5,6 +5,7 @@ import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
 import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=2";
 import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=4";
+import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=1";
 import { renderBacktest }          from "./components/backtest.js?v=2";
 import { renderPositions }         from "./components/positions.js?v=2";
 import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=9";
@@ -17,6 +18,7 @@ const SECTIONS = [
   { id: "logic1",        label: "ロジック１（ファンダ考慮）",   icon: "🎯", load: loadLogic1 },
   { id: "logic2",        label: "ロジック２（厳選押し目買い）", icon: "🔥", load: loadLogic2 },
   { id: "logic3",        label: "ロジック３（ブレイクアウト）", icon: "🚀", load: loadLogic3 },
+  { id: "logic4",        label: "ロジック４（押し目買いv3）",   icon: "💎", load: loadLogic4 },
   { id: "positions",     label: "保有ポジション", icon: "💼", load: loadPositions },
   { id: "trade-analytics", label: "取引分析", icon: "📈", load: loadTradeAnalytics },
   { id: "backtest",      label: "戦績", icon: "📊", load: loadBacktest },
@@ -231,6 +233,28 @@ function loadLogic3(container) {
     {
       id: "guide", label: "説明", icon: "🚀",
       render: (el) => renderLogic3StrategyGuide(el),
+    },
+  ]);
+}
+
+// ロジック４: 押し目買い v3（確定版・実トレード1,713件分析）
+function loadLogic4(container) {
+  renderTabbedSection(container, [
+    {
+      id: "picks", label: "候補リスト", icon: "📋",
+      render: async (el) => {
+        el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
+        try {
+          const picks = await apiFetch("/api/logic4-picks");
+          renderPickList(el, picks, "💎 ロジック４（押し目買いv3）", "logic4");
+        } catch (e) {
+          el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
+        }
+      },
+    },
+    {
+      id: "guide", label: "説明", icon: "💎",
+      render: (el) => renderLogic4StrategyGuide(el),
     },
   ]);
 }

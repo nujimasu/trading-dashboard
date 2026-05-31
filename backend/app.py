@@ -2,9 +2,8 @@
 FastAPI application factory.
 Serves the API and static frontend files.
 """
+import os
 import sys
-import threading
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -26,6 +25,7 @@ from backend.routes.chart              import router as chart_router
 from backend.routes.entry_candidates   import router as entry_candidates_router
 from backend.routes.logic2             import router as logic2_router
 from backend.routes.logic3             import router as logic3_router
+from backend.routes.logic4             import router as logic4_router
 from backend.routes.backtest           import router as backtest_router
 from backend.routes.positions          import router as positions_router
 from backend.routes.trade_analytics    import router as trade_analytics_router
@@ -34,65 +34,17 @@ from backend.db import init_db
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
 
 
-def _run_daily_in_background():
-    """サーバー起動時にバックグラウンドで日次調整を実行する。"""
-    try:
-        from pipeline.daily_adjustment import run as daily_run
-        print("[Startup] 日次調整をバックグラウンドで実行中...")
-        daily_run()
-    except Exception as e:
-        print(f"[Startup] 日次調整エラー: {e}")
-
-
-_pipeline_running = {"logic2": False, "logic3": False}
-
-def _run_logic_pipeline(logic_name):
-    """指定ロジックのパイプラインをバックグラウンド実行。"""
-    try:
-        _pipeline_running[logic_name] = True
-        if logic_name == "logic2":
-            from pipeline.logic2_scan import run as logic_run
-        elif logic_name == "logic3":
-            from pipeline.logic3_scan import run as logic_run
-        else:
-            return
-        print(f"[Pipeline] {logic_name} 手動実行開始...")
-        logic_run()
-        print(f"[Pipeline] {logic_name} 手動実行完了")
-    except Exception as e:
-        print(f"[Pipeline] {logic_name} エラー: {e}")
-    finally:
-        _pipeline_running[logic_name] = False
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # サーバー起動時: weekly_picks があれば日次調整を非同期実行
-    from backend.db import get_connection
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) as cnt FROM weekly_picks")
-        count = cur.fetchone()["cnt"]
-        conn.close()
-        if count > 0:
-            t = threading.Thread(target=_run_daily_in_background, daemon=True)
-            t.start()
-        else:
-            print("[Startup] weekly_picks が空のため日次調整をスキップ")
-    except Exception:
-        pass
-    yield
-
-
 def create_app() -> FastAPI:
-    init_db()
+    # Vercel (サーバーレス) ではテーブルは既存前提のため、コールドスタート毎の
+    # init_db をスキップする。スキーマは GitHub Actions の cron / 既存 DB が管理。
+    # ローカル / Render では起動時にテーブルを作成する。
+    if not os.getenv("VERCEL"):
+        init_db()
 
     app = FastAPI(
         title="Trading Dashboard",
         description="Local swing-trading analysis dashboard",
         version="1.0.0",
-        lifespan=lifespan,
     )
 
     app.add_middleware(
@@ -116,6 +68,7 @@ def create_app() -> FastAPI:
         entry_candidates_router,
         logic2_router,
         logic3_router,
+        logic4_router,
         backtest_router,
         positions_router,
         trade_analytics_router,
@@ -127,16 +80,6 @@ def create_app() -> FastAPI:
         app.mount("/css", StaticFiles(directory=str(FRONTEND_DIR / "css")), name="css")
     if (FRONTEND_DIR / "js").exists():
         app.mount("/js",  StaticFiles(directory=str(FRONTEND_DIR / "js")),  name="js")
-
-    @app.post("/api/pipeline/trigger/{logic_name}")
-    async def trigger_pipeline(logic_name: str):
-        if logic_name not in ("logic2", "logic3"):
-            return {"error": f"Unknown logic: {logic_name}"}
-        if _pipeline_running.get(logic_name):
-            return {"status": "already_running", "logic": logic_name}
-        t = threading.Thread(target=_run_logic_pipeline, args=(logic_name,), daemon=True)
-        t.start()
-        return {"status": "started", "logic": logic_name}
 
     @app.get("/", include_in_schema=False)
     async def serve_index():

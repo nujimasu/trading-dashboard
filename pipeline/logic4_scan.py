@@ -1,45 +1,39 @@
 """
-ロジック４スキャンエンジン — 押し目買い戦略
+ロジック４スキャンエンジン — 押し目買い v3（確定版）
 
-仕様書: screening_logic_prompt.md
+実トレード 1,713 件の分析から導いた押し目買いスイング戦略。
+仕様: 押し目買いロジックv3.md
 
-戦略の前提:
-  - スイングトレード（数日〜数週間）
-  - ロング（買い）のみ
-  - 基本戦略: 押し目買い（上昇トレンド中の一時的下落からの反発）
+勝ち筋: 4〜7日保有のスイング（デイトレ禁止）。
+負けの正体は勝率ではなく RR（利大損小）。フィルターで勝率を上げ、
+分割決済（+1.5R 半分→残り 20日EMA トレーリング）で 1勝を大きくする。
 
-一次フィルター（全通過必須）:
-  1. 週足: 20EMA > 200EMA
-  2. 日足: 株価 > 20EMA > 50EMA > 200EMA（パーフェクトオーダー）
-     準: 株価 > 20EMA かつ 20EMA > 200EMA（フラグ付き）
-  3. 過去3ヶ月騰落率 > 0%
-  4. 20日平均出来高 ≥ 500,000株
+スキャンの役割:
+  「地合い → トレンド → EMAタッチ/接近 → 出来高枯れ」までを自動抽出し、
+  ウォッチリスト化する。最後の引き金（反発足の確認）は本人が当日に行う前提
+  （v3 C項: 夜、米国寄り付き後の数時間で反発足を確認してエントリー）。
 
-二次フィルター（スコアリング）:
-  1. ダウ理論: HH/HL判定
-  2. サポートラインの明確さ（コンフルエンス）
-  3. レジサポ転換の有無
-  4. R:R計算（TP=直近高値×0.99, SL=サポート×0.99またはサポート−ATR）
+一次フィルター:
+  A. 地合い: SP500(^GSPC) または QQQ が 200日EMA の上（割れていれば「休む」）
+  B. トレンド: 株価 > 200EMA かつ 50EMA > 200EMA、3ヶ月騰落率 > 0%
+  C. 流動性: 20日平均出来高 >= 100万株
+  D. 除外: 高額レバETF・暗号資産マイニング関連小型株
 
-ボーナスフラグ:
-  - RSI 30〜50
-  - MACDダイバージェンス（強気）
-  - フィボナッチコンフルエンス（38.2/50/61.8%）
+エントリー圏判定:
+  - 20日 or 50日EMA への タッチ（±2%）/ 接近（±5%）
+  - 出来高枯れ（直近3日平均 < 20日平均 × 0.8 ＝ 売り枯れ）
 
-判定:
-  - 最優先候補: 一次全通過 + レジサポ転換確認 + R:R≥1.5 + ボーナス1件以上
-  - 監視リスト入り: 一次全通過 + R:R≥1.5 + サポート明確
-  - 見送り: R:R<1.5 または条件未達
+リスク設計（各銘柄に提示）:
+  - 損切り: 直近20日押し安値の少し下に固定（= 1R）
+  - 第1利確: +1.5R で半分
+  - 残り半分: 20日EMA 終値割れまで保有（トレーリング）
+  - 保有上限: 8営業日（含み損なら全決済）
 """
 
 import json
-import math
-import os
-import requests
-from datetime import date, timedelta
-from collections import defaultdict
+from datetime import date
 from backend.db import get_connection
-from config import FMP_API_KEY, FMP_BASE_URL, SECTOR_DISPLAY
+from config import SECTOR_DISPLAY
 
 try:
     import yfinance as yf
@@ -47,16 +41,29 @@ try:
 except ImportError:
     _YF_AVAILABLE = False
 
-# ── 定数 ───────────────────────────────────────────────────────────────────
-MIN_BARS_DAILY   = 250   # 週足200EMA計算に必要な日足バー数
-MIN_AVG_VOLUME   = 500_000
-PERF_3M_DAYS     = 63    # 約3ヶ月
-PERF_6M_DAYS     = 126   # 約6ヶ月
-RR_MIN           = 1.5
-RR_GOOD          = 2.0
-SUPPORT_TOLERANCE = 0.03  # サポート近傍±3%
+# ── 定数（v3.md 準拠・コメントの数値が根拠）─────────────────────────────────
+MIN_BARS_DAILY  = 250        # 200日EMA を計算するのに必要な日足バー数
+MIN_AVG_VOLUME  = 1_000_000  # v3: 20日平均出来高 >= 100万株
+PERF_3M_DAYS    = 63         # 約3ヶ月
+PERF_6M_DAYS    = 126        # 約6ヶ月
+EMA_NEAR_PCT    = 5.0        # EMA 接近圏（±5%）= サポート接近中
+EMA_TOUCH_PCT   = 2.0        # EMA タッチ（±2%）= 押し目到達
+VOL_DRYUP_RATIO = 0.8        # 出来高枯れ: 直近3日平均 < 20日平均 × 0.8
+STOP_LOOKBACK   = 20         # 損切り基準の押し安値ルックバック（日）
+HOLDING_LIMIT   = 8          # 保有上限（営業日）
+TP1_R           = 1.5        # 第1利確 = +1.5R
+REGIME_SYMBOLS  = ("^GSPC", "QQQ")  # 地合い判定に使う指数/ETF
 
-# ── EMA計算 ─────────────────────────────────────────────────────────────────
+# 除外リスト（v3.md D項: 高額レバETF / 暗号資産マイニング関連小型株）
+EXCLUDE_TICKERS = {
+    # 高額レバETF（>$100 帯になりやすい・ワースト常連）
+    "TSLL", "MSTU", "MSTX", "NVDL", "TQQQ", "SOXL", "TSLT", "CONL", "FNGU", "BULZ",
+    # 暗号資産マイニング・関連小型株
+    "MARA", "BITF", "BTBT", "RIOT", "HUT", "CIFR", "WULF", "IREN", "CLSK", "BTDR",
+}
+
+
+# ── 指標ユーティリティ ───────────────────────────────────────────────────────
 
 def _ema(arr, period):
     k = 2 / (period + 1)
@@ -70,796 +77,127 @@ def _ema(arr, period):
                 result[i] = s / period
                 init = True
         else:
-            result[i] = v * k + result[i-1] * (1 - k)
+            result[i] = v * k + result[i - 1] * (1 - k)
     return result
+
 
 def _sma(arr, period):
-    out = [None] * (period - 1)
-    for i in range(period - 1, len(arr)):
-        out.append(sum(arr[i-period+1:i+1]) / period)
+    out = [None] * len(arr)
+    if len(arr) < period:
+        return out
+    run_sum = sum(arr[:period])
+    out[period - 1] = run_sum / period
+    for i in range(period, len(arr)):
+        run_sum += arr[i] - arr[i - period]
+        out[i] = run_sum / period
     return out
 
+
 def _atr(H, L, C, period=14):
-    tr = [H[0] - L[0]]
-    for i in range(1, len(H)):
-        tr.append(max(H[i]-L[i], abs(H[i]-C[i-1]), abs(L[i]-C[i-1])))
-    return _ema(tr, period)
-
-def _rsi(closes, period=14):
-    n = len(closes)
-    result = [None] * n
-    if n < period + 1:
-        return result
-    changes = [closes[i] - closes[i-1] for i in range(1, n)]
-    ag = sum(max(c, 0) for c in changes[:period]) / period
-    al = sum(max(-c, 0) for c in changes[:period]) / period
-    result[period] = 100 - 100 / (1 + ag / (al or 1e-9))
-    for i in range(period, len(changes)):
-        ag = (ag * (period-1) + max(changes[i], 0)) / period
-        al = (al * (period-1) + max(-changes[i], 0)) / period
-        result[i+1] = 100 - 100 / (1 + ag / (al or 1e-9))
-    return result
-
-def _macd(closes, fast=12, slow=26, sig=9):
-    ef = _ema(closes, fast); es = _ema(closes, slow)
-    macd = [ef[i]-es[i] if ef[i] is not None and es[i] is not None else None for i in range(len(closes))]
-    sig_raw = _ema([v if v is not None else 0 for v in macd], sig)
-    signal = [sig_raw[i] if macd[i] is not None else None for i in range(len(macd))]
-    hist = [macd[i]-signal[i] if macd[i] is not None and signal[i] is not None else None for i in range(len(macd))]
-    return macd, signal, hist
-
-# ── 週足リサンプル ────────────────────────────────────────────────────────────
-
-def _resample_weekly(rows):
-    """日足OHLCVを週足に変換（各週の最終営業日終値を使用）"""
-    weeks = defaultdict(list)
-    for r in rows:
-        d = date.fromisoformat(r["date"])
-        # ISO週番号をキーに
-        iso = d.isocalendar()
-        key = (iso[0], iso[1])  # (year, week)
-        weeks[key].append(r)
-
-    weekly = []
-    for key in sorted(weeks.keys()):
-        wbars = sorted(weeks[key], key=lambda x: x["date"])
-        weekly.append({
-            "close":  wbars[-1]["close"],
-            "high":   max(b["high"]   for b in wbars),
-            "low":    min(b["low"]    for b in wbars),
-            "open":   wbars[0]["open"],
-            "volume": sum(b["volume"] for b in wbars),
-        })
-    return weekly
-
-# ── スイングハイ・ロー検出 ────────────────────────────────────────────────────
-
-def _find_swing_highs(H, lookback=3):
-    """スイングハイのインデックスリストを返す"""
-    highs = []
-    for i in range(lookback, len(H) - lookback):
-        if H[i] == max(H[i-lookback:i+lookback+1]):
-            highs.append(i)
-    return highs
-
-def _find_swing_lows(L, lookback=3):
-    """スイングローのインデックスリストを返す"""
-    lows = []
-    for i in range(lookback, len(L) - lookback):
-        if L[i] == min(L[i-lookback:i+lookback+1]):
-            lows.append(i)
-    return lows
-
-# ── 日足チャートパターン検出 ──────────────────────────────────────────────────
-
-def _detect_cup_and_handle(H, L, C, i, lookback=60):
-    """カップウィズハンドル: U字型の底 + 小さな戻り → ブレイクアウト"""
-    if i < lookback:
-        return False
-    start = i - lookback
-
-    left_rim_idx = start
-    left_rim = H[start]
-    for j in range(start, start + lookback // 4):
-        if H[j] > left_rim:
-            left_rim = H[j]
-            left_rim_idx = j
-
-    cup_mid_start = start + lookback // 4
-    cup_mid_end = start + lookback * 3 // 4
-    if cup_mid_end > i:
-        cup_mid_end = i
-    cup_bottom = min(L[cup_mid_start:cup_mid_end]) if cup_mid_start < cup_mid_end else L[i]
-    cup_bottom_idx = cup_mid_start + L[cup_mid_start:cup_mid_end].index(cup_bottom) if cup_mid_start < cup_mid_end else i
-
-    depth = (left_rim - cup_bottom) / left_rim if left_rim > 0 else 0
-    if depth < 0.08 or depth > 0.40:
-        return False
-
-    right_section = H[cup_bottom_idx:i + 1]
-    if not right_section:
-        return False
-    right_rim = max(right_section)
-    if right_rim < left_rim * 0.93:
-        return False
-
-    handle_bars = min(15, i - cup_bottom_idx)
-    if handle_bars < 3:
-        return False
-    handle_low = min(L[i - handle_bars:i + 1])
-    handle_depth = (right_rim - handle_low) / right_rim if right_rim > 0 else 0
-    if handle_depth < 0.02 or handle_depth > 0.15:
-        return False
-
-    handle_high = max(H[i - handle_bars:i + 1])
-    if C[i] >= handle_high * 0.98:
-        return True
-    return False
+    """Wilder's ATR。"""
+    out = [None] * len(C)
+    if len(C) <= period:
+        return out
+    trs = [0.0]
+    for i in range(1, len(C)):
+        trs.append(max(H[i] - L[i], abs(H[i] - C[i - 1]), abs(L[i] - C[i - 1])))
+    first = sum(trs[1:period + 1]) / period
+    out[period] = first
+    for i in range(period + 1, len(C)):
+        out[i] = (out[i - 1] * (period - 1) + trs[i]) / period
+    return out
 
 
-def _detect_ascending_triangle(H, L, C, i, lookback=30):
-    """アセンディングトライアングル: 水平レジスタンス + 切り上がるサポート"""
-    if i < lookback:
-        return False
-    start = i - lookback
-
-    swing_highs = _find_swing_highs(H[start:i + 1], lookback=2)
-    if len(swing_highs) < 2:
-        return False
-
-    high_vals = [H[start + idx] for idx in swing_highs[-3:]]
-    avg_high = sum(high_vals) / len(high_vals)
-    if any(abs(h - avg_high) / avg_high > 0.02 for h in high_vals):
-        return False
-
-    swing_lows = _find_swing_lows(L[start:i + 1], lookback=2)
-    if len(swing_lows) < 2:
-        return False
-
-    low_vals = [L[start + idx] for idx in swing_lows[-3:]]
-    ascending = all(low_vals[j] <= low_vals[j + 1] for j in range(len(low_vals) - 1))
-    if not ascending:
-        return False
-
-    if C[i] >= avg_high * 0.97:
-        return True
-    return False
+def _rsi(C, period=14):
+    out = [None] * len(C)
+    if len(C) <= period:
+        return out
+    gains = losses = 0.0
+    for i in range(1, period + 1):
+        ch = C[i] - C[i - 1]
+        gains += max(ch, 0.0)
+        losses += max(-ch, 0.0)
+    avg_g = gains / period
+    avg_l = losses / period
+    rs = avg_g / avg_l if avg_l else 999.0
+    out[period] = 100 - 100 / (1 + rs)
+    for i in range(period + 1, len(C)):
+        ch = C[i] - C[i - 1]
+        avg_g = (avg_g * (period - 1) + max(ch, 0.0)) / period
+        avg_l = (avg_l * (period - 1) + max(-ch, 0.0)) / period
+        rs = avg_g / avg_l if avg_l else 999.0
+        out[i] = 100 - 100 / (1 + rs)
+    return out
 
 
-def _detect_inverse_head_shoulders(H, L, C, i, lookback=50):
-    """逆ヘッドアンドショルダー: 3つの谷（中央が最深）→ ネックラインブレイク"""
-    if i < lookback:
-        return False
-    start = i - lookback
+# ── A. 地合いフィルター ──────────────────────────────────────────────────────
 
-    swing_lows = _find_swing_lows(L[start:i + 1], lookback=3)
-    if len(swing_lows) < 3:
-        return False
+def _check_market_regime():
+    """SP500(^GSPC) または QQQ が 200日EMA の上なら地合い OK（v3 A項）。
 
-    s1_idx, s2_idx, s3_idx = swing_lows[-3], swing_lows[-2], swing_lows[-1]
-    s1 = L[start + s1_idx]
-    s2 = L[start + s2_idx]
-    s3 = L[start + s3_idx]
-
-    if not (s2 < s1 and s2 < s3):
-        return False
-
-    shoulder_avg = (s1 + s3) / 2
-    if abs(s1 - s3) / shoulder_avg > 0.06:
-        return False
-
-    between_1_2 = H[start + s1_idx:start + s2_idx + 1]
-    between_2_3 = H[start + s2_idx:start + s3_idx + 1]
-    if not between_1_2 or not between_2_3:
-        return False
-    neckline_l = max(between_1_2)
-    neckline_r = max(between_2_3)
-    neckline = min(neckline_l, neckline_r)
-
-    if C[i] >= neckline * 0.98:
-        return True
-    return False
-
-
-def _detect_bull_pennant(H, L, C, i, lookback=30):
-    """ブルペナント: 急騰（ポール）後の三角持ち合い → 上放れ"""
-    if i < lookback:
-        return False
-
-    pole_start = i - lookback
-    pole_end = i - lookback // 2
-    pole_low = min(L[pole_start:pole_end + 1])
-    pole_high = max(H[pole_start:pole_end + 1])
-
-    pole_gain = (pole_high - pole_low) / pole_low if pole_low > 0 else 0
-    if pole_gain < 0.08:
-        return False
-
-    pennant_start = pole_end
-    pennant_bars = i - pennant_start
-    if pennant_bars < 4:
-        return False
-
-    pennant_highs = [H[j] for j in range(pennant_start, i + 1)]
-    pennant_lows = [L[j] for j in range(pennant_start, i + 1)]
-
-    high_declining = pennant_highs[-1] < pennant_highs[0]
-    low_rising = pennant_lows[-1] > pennant_lows[0]
-    if not (high_declining and low_rising):
-        return False
-
-    early_range = pennant_highs[0] - pennant_lows[0]
-    late_range = pennant_highs[-1] - pennant_lows[-1]
-    if early_range <= 0 or late_range / early_range > 0.7:
-        return False
-
-    if C[i] >= pennant_highs[-1] * 0.99:
-        return True
-    return False
-
-
-def _detect_falling_wedge(H, L, C, i, lookback=30):
-    """フォーリングウェッジ（強気）: 高値・安値ともに下降するが収束 → 上方ブレイク"""
-    if i < lookback:
-        return False
-    start = i - lookback
-
-    swing_highs = _find_swing_highs(H[start:i + 1], lookback=2)
-    swing_lows = _find_swing_lows(L[start:i + 1], lookback=2)
-
-    if len(swing_highs) < 2 or len(swing_lows) < 2:
-        return False
-
-    sh_vals = [H[start + idx] for idx in swing_highs[-3:]]
-    highs_declining = all(sh_vals[j] > sh_vals[j + 1] for j in range(len(sh_vals) - 1))
-
-    sl_vals = [L[start + idx] for idx in swing_lows[-3:]]
-    lows_declining = all(sl_vals[j] > sl_vals[j + 1] for j in range(len(sl_vals) - 1))
-
-    if not (highs_declining and lows_declining):
-        return False
-
-    early_spread = sh_vals[0] - sl_vals[0] if sl_vals[0] < sh_vals[0] else 0
-    late_spread = sh_vals[-1] - sl_vals[-1] if sl_vals[-1] < sh_vals[-1] else 0
-    if early_spread <= 0 or late_spread / early_spread > 0.6:
-        return False
-
-    if C[i] > sh_vals[-1] * 0.99:
-        return True
-    return False
-
-
-def _detect_daily_chart_patterns(H, L, C, i):
-    """日足チャートパターンを検出。"""
-    patterns = []
-    if _detect_cup_and_handle(H, L, C, i):
-        patterns.append("カップウィズハンドル")
-    if _detect_ascending_triangle(H, L, C, i):
-        patterns.append("アセンディングトライアングル")
-    if _detect_inverse_head_shoulders(H, L, C, i):
-        patterns.append("逆ヘッドアンドショルダー")
-    if _detect_bull_pennant(H, L, C, i):
-        patterns.append("ブルペナント")
-    if _detect_falling_wedge(H, L, C, i):
-        patterns.append("フォーリングウェッジ")
-    return patterns
-
-
-# ── ダウ理論判定 ─────────────────────────────────────────────────────────────
-
-def _dow_theory(H, L, C, i, lookback=60):
+    返り値: (regime_ok: bool, note: str)
+    yfinance 不可・取得失敗時は保守的に OK 扱い（候補は出すが警告は付かない）。
     """
-    Returns: ('strong', 'early', 'broken')
-    """
-    start = max(0, i - lookback)
-    sh = _find_swing_highs(H[start:i+1])
-    sl = _find_swing_lows(L[start:i+1])
-
-    if len(sh) < 2 or len(sl) < 2:
-        return "early"
-
-    # 直近2つのスイングハイ・ロー
-    h_vals = [H[start + idx] for idx in sh[-3:]]
-    l_vals = [L[start + idx] for idx in sl[-3:]]
-
-    hh_count = sum(1 for j in range(1, len(h_vals)) if h_vals[j] > h_vals[j-1])
-    hl_count = sum(1 for j in range(1, len(l_vals)) if l_vals[j] > l_vals[j-1])
-
-    if hh_count >= 2 and hl_count >= 2:
-        return "strong"
-    if hh_count >= 1 and hl_count >= 1:
-        return "early"
-    return "broken"
-
-# ── サポートレベル特定 ────────────────────────────────────────────────────────
-
-def _find_support_level(H, L, C, ema20, ema50, atr_arr, i):
-    """
-    サポートレベルと根拠の数（コンフルエンス）を返す。
-    Returns: (support_price, confluence_count, support_reasons[])
-    """
-    current = C[i]
-    candidates = []  # (price, reason)
-
-    # 1. EMA20サポート
-    if ema20[i] is not None and ema20[i] < current * 1.05:
-        candidates.append((ema20[i], "20EMA"))
-
-    # 2. EMA50サポート
-    if ema50[i] is not None and ema50[i] < current * 1.08:
-        candidates.append((ema50[i], "50EMA"))
-
-    # 3. 直近スイングロー（過去60バー）
-    start = max(0, i - 60)
-    sl_idxs = _find_swing_lows(L[start:i+1])
-    if sl_idxs:
-        # 直近3つのスイングローから現在値より下のものを採用
-        for idx in reversed(sl_idxs[-3:]):
-            sl_price = L[start + idx]
-            if sl_price < current * 0.99:
-                candidates.append((sl_price, f"スイングロー${sl_price:.2f}"))
-                break
-
-    # 4. 直近水平サポート（過去20〜60バー内で複数回反応した価格帯）
-    recent_lows = sorted([L[j] for j in range(start, i)], reverse=True)
-    if recent_lows:
-        # 現在値の3〜15%下の価格帯クラスタリング
-        for low in recent_lows:
-            pct = (current - low) / current
-            if 0.02 < pct < 0.15:
-                # 同じ価格帯（±1%）に複数本集まっているかチェック
-                cluster = [l for l in recent_lows if abs(l - low) / low < 0.01]
-                if len(cluster) >= 3:
-                    candidates.append((low, f"水平サポート${low:.2f}"))
-                    break
-
-    if not candidates:
-        return None, 0, []
-
-    # 最も近い（現在値に近い）サポートを選択
-    below = [(p, r) for p, r in candidates if p < current]
-    if not below:
-        return None, 0, []
-
-    below.sort(key=lambda x: -(x[0]))  # 現在値に最も近いものを優先
-    best_price = below[0][0]
-
-    # コンフルエンス: best_priceの±2%以内にある根拠数
-    confluent = [(p, r) for p, r in candidates if abs(p - best_price) / best_price < 0.02]
-    reasons = [r for _, r in confluent]
-
-    return best_price, len(confluent), reasons
-
-# ── レジサポ転換検出 ─────────────────────────────────────────────────────────
-
-def _detect_reji_sapo(H, L, C, i, lookback=90):
-    """
-    Returns: ('confirmed', 'watching', 'none')
-    confirmed: 抵抗線ブレイク後、その水準まで戻ってきてサポートとして機能
-    watching:  ブレイクアウト直後（まだ戻りを確認できていない）
-    """
-    if i < lookback + 10:
-        return "none"
-
-    current = C[i]
-
-    # 1. 過去の抵抗帯を特定（30〜90バー前の高値）
-    old_highs_window = H[max(0, i-lookback):max(0, i-20)]
-    if not old_highs_window:
-        return "none"
-
-    resistance = max(old_highs_window)
-
-    # 抵抗帯が現在値の1〜20%下にある場合のみ有効
-    if not (current * 0.80 < resistance < current * 0.99):
-        return "none"
-
-    # 2. 直近20バーでブレイクアウト（その抵抗帯を上抜けた）があるか
-    recent_window = H[max(0, i-20):i+1]
-    broke_out = any(h > resistance * 1.01 for h in recent_window)
-    if not broke_out:
-        return "none"
-
-    # 3. 現在値が抵抗帯（転換サポート）に接近しているか（±3%以内）
-    near_resistance = abs(current - resistance) / resistance < SUPPORT_TOLERANCE
-
-    if near_resistance:
-        return "confirmed"
-
-    # ブレイクアウトしたがまだ戻っていない
-    if current > resistance * 1.03:
-        return "watching"
-
-    return "none"
-
-# ── R:R計算 ─────────────────────────────────────────────────────────────────
-
-def _calc_rr(C, H, L, atr_arr, ema20, ema50, support_price, i, lookback=60):
-    """
-    TP = 直近高値 × 0.99
-    SL = サポート × 0.99 または サポート − ATR
-    R:R = (TP - 現在値) / (現在値 - SL)
-    """
-    current = C[i]
-    atr_v = atr_arr[i]
-    if atr_v is None or atr_v <= 0:
-        return None, None, None, None
-
-    # TP: 直近高値（過去60バー）の少し手前
-    recent_high = max(H[max(0, i-lookback):i+1])
-    tp = recent_high * 0.99
-
-    # TP が現在値より下なら計算不可
-    if tp <= current:
-        return None, None, None, None
-
-    # SL: サポートラインを使用
-    if support_price and support_price < current:
-        sl_base = support_price
-        sl = min(sl_base * 0.99, sl_base - atr_v)
-    else:
-        # フォールバック: ATR×1.5
-        sl = current - atr_v * 1.5
-
-    risk   = current - sl
-    reward = tp - current
-
-    if risk <= 0:
-        return None, None, None, None
-
-    rr = reward / risk
-    return round(rr, 2), round(tp, 2), round(sl, 2), round(atr_v, 4)
-
-# ── フィボナッチコンフルエンス ────────────────────────────────────────────────
-
-def _fib_confluence(H, L, C, ema20, ema50, i, lookback=120):
-    """
-    主要スイング高値・安値からフィボ水準を算出し、EMAやサポートとのコンフルエンスを確認。
-    Returns: (fib_level_pct, fib_price) or None
-    """
-    start = max(0, i - lookback)
-    swing_low  = min(L[start:i+1])
-    swing_high = max(H[start:i+1])
-
-    if swing_high <= swing_low:
-        return None
-
-    current = C[i]
-    fib_levels = {
-        "38.2%": swing_high - (swing_high - swing_low) * 0.382,
-        "50.0%": swing_high - (swing_high - swing_low) * 0.500,
-        "61.8%": swing_high - (swing_high - swing_low) * 0.618,
-    }
-
-    for label, fib_price in fib_levels.items():
-        # 現在値がフィボ水準の±2%以内
-        if abs(current - fib_price) / fib_price > 0.02:
-            continue
-        # フィボ水準がEMAと一致（±2%）
-        for ema, ema_name in [(ema20[i], "20EMA"), (ema50[i], "50EMA")]:
-            if ema is not None and abs(ema - fib_price) / fib_price < 0.02:
-                return label, round(fib_price, 2)
-        # フィボ水準付近に実際にいるだけでも有効
-        return label, round(fib_price, 2)
-
-    return None
-
-# ── イントラデイ（1H/4H）ヘルパー ───────────────────────────────────────────────
-
-def _fetch_intraday_batch(tickers):
-    """yfinanceで1時間足データを一括取得（期間=7日）。Dict[ticker→df]を返す。"""
-    if not _YF_AVAILABLE or not tickers:
-        return None
+    if not _YF_AVAILABLE:
+        return True, "地合い判定スキップ（yfinance不可）"
     try:
-        if len(tickers) == 1:
-            df = yf.download(tickers[0], period="7d", interval="1h",
-                             auto_adjust=True, progress=False)
-            return {tickers[0]: df} if not df.empty else None
-        raw = yf.download(
-            tickers=" ".join(tickers),
-            period="7d",
-            interval="1h",
-            group_by="ticker",
-            auto_adjust=True,
-            progress=False,
-            threads=True,
+        results = {}
+        for sym in REGIME_SYMBOLS:
+            df = yf.download(sym, period="1y", interval="1d",
+                             progress=False, auto_adjust=True)
+            if df is None or df.empty:
+                continue
+            close_col = df["Close"]
+            if hasattr(close_col, "columns"):       # multiindex DataFrame
+                close_col = close_col.iloc[:, 0]
+            closes = [float(x) for x in close_col.dropna().tolist()]
+            if len(closes) < 200:
+                continue
+            ema200 = _ema(closes, 200)
+            if ema200[-1] is None:
+                continue
+            results[sym] = closes[-1] > ema200[-1]
+        if not results:
+            return True, "地合い判定データ取得不可（保守的にOK扱い）"
+        note = ", ".join(
+            f"{k.replace('^', '')}:{'>200EMA' if v else '<200EMA'}"
+            for k, v in results.items()
         )
-        # yfinance multi-ticker returns MultiIndex or grouped DataFrame
-        result = {}
-        for t in tickers:
-            try:
-                df = raw[t] if t in raw else None
-                if df is not None and not df.empty:
-                    result[t] = df
-            except Exception:
-                pass
-        return result if result else None
+        # v3: SP500 または QQQ が上なら可（OR 条件）
+        return (sum(1 for v in results.values() if v) >= 1), note
     except Exception as e:
-        print(f"[Logic4] 1H data fetch error: {e}")
-        return None
+        return True, f"地合い判定エラー（保守的にOK扱い）: {e}"
 
 
-def _extract_ticker_1h(data_dict, ticker):
-    """dict から1銘柄のOHLCVリストを取得する。"""
-    if data_dict is None:
-        return None
+# ── セクター（fundamentals テーブルから・FMP は呼ばない）─────────────────────
+
+def _build_sector_map(cur):
+    smap = {}
     try:
-        df = data_dict.get(ticker)
-        if df is None or df.empty:
-            return None
-        df = df.dropna(subset=["Close"])
-        if df.empty:
-            return None
-        result = []
-        for _, row in df.iterrows():
-            result.append({
-                "open":   float(row["Open"]),
-                "high":   float(row["High"]),
-                "low":    float(row["Low"]),
-                "close":  float(row["Close"]),
-                "volume": float(row["Volume"]),
-            })
-        return result if len(result) >= 8 else None
+        cur.execute("SELECT ticker, sector FROM fundamentals")
+        for r in cur.fetchall():
+            sec = r["sector"]
+            if sec:
+                smap[r["ticker"]] = SECTOR_DISPLAY.get(sec, sec)
     except Exception:
-        return None
+        pass
+    return smap
 
 
-def _resample_4h(rows_1h):
-    """1Hバーを4Hバーにリサンプル（4本ずつグループ化）。"""
-    bars = []
-    for i in range(0, len(rows_1h) - 3, 4):
-        group = rows_1h[i:i + 4]
-        bars.append({
-            "open":   group[0]["open"],
-            "high":   max(b["high"]   for b in group),
-            "low":    min(b["low"]    for b in group),
-            "close":  group[-1]["close"],
-            "volume": sum(b["volume"] for b in group),
-        })
-    return bars
+def _is_excluded(ticker):
+    return ticker.upper() in EXCLUDE_TICKERS
 
 
-def _is_pin_bar(bar):
-    """ハンマー型ピンバー（下ヒゲ ≥ 実体の2倍、陽線）。"""
-    body = abs(bar["close"] - bar["open"])
-    lower_wick = min(bar["close"], bar["open"]) - bar["low"]
-    upper_wick = bar["high"] - max(bar["close"], bar["open"])
-    if body < 1e-8:
-        body = (bar["high"] - bar["low"]) * 0.1
-    return (bar["close"] > bar["open"] and
-            lower_wick >= 2 * body and
-            lower_wick >= 2 * (upper_wick + 1e-8))
-
-
-def _is_bull_engulfing(prev, curr):
-    """強気エンガルフィング。"""
-    if prev is None:
-        return False
-    return (prev["close"] < prev["open"] and       # 前足: 陰線
-            curr["close"] > curr["open"] and        # 当足: 陽線
-            curr["open"]  <= prev["close"] and
-            curr["close"] >= prev["open"])
-
-
-def _is_inverse_hammer(bar):
-    """逆ハンマー（上ヒゲ ≥ 実体の2倍、下ヒゲ小、小実体）。"""
-    body = abs(bar["close"] - bar["open"])
-    upper_wick = bar["high"] - max(bar["close"], bar["open"])
-    lower_wick = min(bar["close"], bar["open"]) - bar["low"]
-    if body < 1e-8:
-        body = (bar["high"] - bar["low"]) * 0.1
-    return (upper_wick >= 2 * body and
-            lower_wick <= body * 0.5)
-
-
-def _is_piercing_line(prev, curr):
-    """切り込み線: 陰線→陽線が前足の中間以上まで戻す（エンガルフィング未満）。"""
-    if prev is None:
-        return False
-    prev_mid = (prev["open"] + prev["close"]) / 2
-    return (prev["close"] < prev["open"] and            # 前足: 陰線
-            curr["close"] > curr["open"] and             # 当足: 陽線
-            curr["open"]  < prev["close"] and            # 前足終値より下で寄り付き
-            curr["close"] >= prev_mid and                # 前足中間以上まで戻す
-            curr["close"] < prev["open"])                # エンガルフィングにはならない
-
-
-def _is_three_white_soldiers(b1, b2, b3):
-    """赤三兵: 3本連続陽線、各足が前足の高値を超えて引ける。"""
-    if b1 is None or b2 is None or b3 is None:
-        return False
-    if not (b1["close"] > b1["open"] and
-            b2["close"] > b2["open"] and
-            b3["close"] > b3["open"]):
-        return False
-    if not (b2["close"] > b1["close"] and b3["close"] > b2["close"]):
-        return False
-    if not (b2["open"] >= b1["open"] and b3["open"] >= b2["open"]):
-        return False
-    return True
-
-
-def _is_morning_star(b1, b2, b3):
-    """明けの明星: 大陰線→小実体（十字線含む）→大陽線。"""
-    if b1 is None or b2 is None or b3 is None:
-        return False
-    b1_body = abs(b1["close"] - b1["open"])
-    b2_body = abs(b2["close"] - b2["open"])
-    b3_body = abs(b3["close"] - b3["open"])
-    b1_range = b1["high"] - b1["low"]
-    if b1_range < 1e-8:
-        return False
-    return (b1["close"] < b1["open"] and
-            b2_body < b1_body * 0.4 and
-            b3["close"] > b3["open"] and
-            b3_body > b1_body * 0.5 and
-            b3["close"] > (b1["open"] + b1["close"]) / 2)
-
-
-def _detect_1h_trigger(rows_1h, support_price):
-    """
-    1時間足の直近バーでトリガーシグナルを検出。
-    サポート価格の ±5% 以内で発生したもののみ対象。
-    Returns: シグナル名 (str) or None
-    """
-    if not rows_1h or len(rows_1h) < 10:
-        return None
-
-    vols = [r["volume"] for r in rows_1h]
-    vol_ma = sum(vols[-20:]) / min(20, len(vols)) if vols else 1
-
-    # 直近10バーを新しい順にチェック
-    recent = rows_1h[-10:]
-
-    # ダブルボトム検出（直近30本のスイングロー）
-    lows_30 = [r["low"] for r in rows_1h[-30:]]
-    sl_idxs = _find_swing_lows(lows_30, lookback=2)
-    double_bottom = False
-    if len(sl_idxs) >= 2:
-        l1, l2 = lows_30[sl_idxs[-2]], lows_30[sl_idxs[-1]]
-        if l1 > 0 and abs(l1 - l2) / l1 < 0.01:
-            double_bottom = True
-
-    for j in range(len(recent) - 1, -1, -1):
-        bar  = recent[j]
-        prev = recent[j - 1] if j > 0 else None
-        prev2 = recent[j - 2] if j >= 2 else None
-
-        # サポート近傍チェック（±5%）
-        mid = (bar["high"] + bar["low"]) / 2
-        if support_price > 0 and abs(mid - support_price) / support_price > 0.05:
-            continue
-
-        # 1本足パターン
-        if _is_pin_bar(bar):
-            return "ピンバー(1H)"
-        if _is_inverse_hammer(bar):
-            return "逆ハンマー(1H)"
-
-        # 2本足パターン
-        if prev and _is_bull_engulfing(prev, bar):
-            return "強気エンガルフィング(1H)"
-        if prev and _is_piercing_line(prev, bar):
-            return "切り込み線(1H)"
-
-        # 出来高急増
-        if bar["volume"] >= vol_ma * 1.5 and bar["close"] > bar["open"]:
-            return "出来高急増(1H)"
-
-        # 3本足パターン
-        if prev and prev2 and _is_morning_star(prev2, prev, bar):
-            return "明けの明星(1H)"
-        if prev and prev2 and _is_three_white_soldiers(prev2, prev, bar):
-            return "赤三兵(1H)"
-
-    if double_bottom:
-        return "ダブルボトム(1H)"
-
-    return None
-
-
-def _detect_4h_structure(rows_4h, support_price):
-    """
-    4時間足の構造を判定（7日≒8本向けの簡略版）。
-
-    直近4本の終値の傾き（線形回帰）で判断:
-      bullish : 傾きが終値平均の+0.1%/本以上 かつ 最終足が陽線
-      bearish : 傾きが終値平均の-0.1%/本以下 かつ 最終足が陰線
-      neutral : それ以外
-
-    Returns: 'bullish' | 'neutral' | 'bearish'
-    """
-    if not rows_4h or len(rows_4h) < 4:
-        return "neutral"
-
-    # 直近4本を使用
-    recent = rows_4h[-4:]
-    closes = [b["close"] for b in recent]
-    n = len(closes)
-
-    # 線形回帰の傾きを計算（最小二乗法）
-    xs = list(range(n))
-    x_mean = sum(xs) / n
-    c_mean = sum(closes) / n
-    num   = sum((xs[i] - x_mean) * (closes[i] - c_mean) for i in range(n))
-    denom = sum((xs[i] - x_mean) ** 2 for i in range(n))
-    slope = num / denom if denom != 0 else 0
-
-    # 傾きを終値平均で正規化（1本あたり何%動いているか）
-    slope_pct = slope / c_mean if c_mean != 0 else 0
-
-    last_bar = recent[-1]
-    is_bull_candle = last_bar["close"] > last_bar["open"]
-    is_bear_candle = last_bar["close"] < last_bar["open"]
-
-    if slope_pct >= 0.001 and is_bull_candle:
-        return "bullish"
-    if slope_pct <= -0.001 and is_bear_candle:
-        return "bearish"
-    return "neutral"
-
-
-# ── MACDダイバージェンス（強気）検出 ─────────────────────────────────────────
-
-def _macd_bull_divergence(hist, C, i, lookback=25):
-    """
-    株価が安値切り下げ・MACDヒストグラムが切り上げ → 強気ダイバージェンス
-    """
-    if i < lookback + 5:
-        return False
-
-    prev_low_idx = max(range(max(0, i-lookback), i-3),
-                       key=lambda j: -C[j], default=-1)
-    if prev_low_idx < 0:
-        return False
-
-    curr_low = min(C[max(0, i-3):i+1])
-    if curr_low >= C[prev_low_idx]:
-        return False
-
-    if hist[i] is None or hist[prev_low_idx] is None:
-        return False
-
-    return hist[i] > hist[prev_low_idx]
-
-# ── メインスキャン ─────────────────────────────────────────────────────────────
-
-def _build_sector_map(cur, tickers=None):
-    """全テーブルからセクター情報を一括取得し、不足分はFMP APIで補完。"""
-    sector_map = {}
-    for tbl in ["universe", "fundamentals", "weekly_picks"]:
-        try:
-            cur.execute(f"SELECT ticker, sector FROM {tbl} WHERE sector IS NOT NULL AND sector != ''")
-            for r in cur.fetchall():
-                sector_map[r["ticker"]] = r["sector"]
-        except Exception:
-            pass
-
-    if tickers and FMP_API_KEY:
-        missing = [t for t in tickers if t not in sector_map]
-        if missing:
-            print(f"[Logic4] FMP APIでセクター補完: {len(missing)}銘柄")
-            for i in range(0, len(missing), 50):
-                batch = missing[i:i+50]
-                try:
-                    url = f"{FMP_BASE_URL}/profile?symbol={','.join(batch)}&apikey={FMP_API_KEY}"
-                    resp = requests.get(url, timeout=15)
-                    if resp.status_code == 200:
-                        for item in resp.json():
-                            sym = item.get("symbol", "")
-                            sec = item.get("sector", "")
-                            if sym and sec:
-                                sector_map[sym] = SECTOR_DISPLAY.get(sec, sec)
-                except Exception as e:
-                    print(f"[Logic4] FMP sector fetch error: {e}")
-
-    return sector_map
-
+# ── メイン ───────────────────────────────────────────────────────────────────
 
 def run():
-    print("[Logic4] 押し目買いスクリーニング開始...")
+    print("[Logic4] 押し目買い v3 スクリーニング開始...")
     conn = get_connection()
-    cur  = conn.cursor()
+    cur = conn.cursor()
+
+    # A. 地合いフィルター（全体で1回）
+    regime_ok, regime_note = _check_market_regime()
+    print(f"[Logic4] 地合い: {'OK' if regime_ok else 'NG（休む推奨）'} — {regime_note}")
 
     cur.execute("""
         SELECT ticker, COUNT(*) as cnt
@@ -870,14 +208,17 @@ def run():
     tickers = [r["ticker"] for r in cur.fetchall()]
     print(f"[Logic4] 対象銘柄数: {len(tickers)}")
 
-    sector_map = _build_sector_map(cur, tickers)
-    print(f"[Logic4] セクターマッピング: {len(sector_map)}銘柄")
+    sector_map = _build_sector_map(cur)
 
     picks = []
-    first_pass = second_pass = adopted = 0
+    trend_pass = entry_zone = 0
 
     for ticker in tickers:
         try:
+            # D. 除外リスト
+            if _is_excluded(ticker):
+                continue
+
             cur.execute("""
                 SELECT date, open, high, low, close, volume
                 FROM price_data WHERE ticker = ?
@@ -893,204 +234,144 @@ def run():
             V = [r["volume"] for r in rows]
             i = len(C) - 1
 
-            # ── インジケーター計算 ──────────────────────────────────────────────
             ema20  = _ema(C, 20)
             ema50  = _ema(C, 50)
             ema200 = _ema(C, 200)
-            atr_arr = _atr(H, L, C)
-            rsi_arr = _rsi(C)
-            _, _, hist_arr = _macd(C)
+            atr_arr  = _atr(H, L, C)
+            rsi_arr  = _rsi(C)
             vol_ma20 = _sma(V, 20)
 
-            # ── 週足EMA計算 ───────────────────────────────────────────────────
-            weekly = _resample_weekly(rows)
-            wC = [w["close"] for w in weekly]
-            w_ema20  = _ema(wC, 20)
-            w_ema200 = _ema(wC, 200) if len(wC) >= 200 else _ema(wC, min(len(wC)//2, 100))
-            wi = len(wC) - 1
-
-            # ═══════════════════════════════════════════════════════════════════
-            # 一次フィルター
-            # ═══════════════════════════════════════════════════════════════════
-
-            # [F1] 週足 20EMA > 200EMA
-            if w_ema20[wi] is None or w_ema200[wi] is None:
-                continue
-            if w_ema20[wi] <= w_ema200[wi]:
-                continue
-
-            # [F2] 日足パーフェクトオーダー（または準成立）
             e20, e50, e200 = ema20[i], ema50[i], ema200[i]
-            if any(v is None for v in [e20, e50, e200]):
+            if any(v is None for v in (e20, e50, e200)):
                 continue
-            if not (C[i] > e20 and e20 > e200):
-                continue  # 最低条件（準成立）すら満たさない
+
+            # B. トレンド: 株価 > 200EMA かつ 50EMA > 200EMA
+            if not (C[i] > e200 and e50 > e200):
+                continue
             perfect_order = "full" if (C[i] > e20 > e50 > e200) else "quasi"
 
-            # [F3] 過去3ヶ月騰落率 > 0%
+            # B. 3ヶ月騰落率 > 0%
             if i < PERF_3M_DAYS:
                 continue
             perf_3m = (C[i] - C[i - PERF_3M_DAYS]) / C[i - PERF_3M_DAYS] * 100
             if perf_3m <= 0:
                 continue
+            perf_6m = ((C[i] - C[i - PERF_6M_DAYS]) / C[i - PERF_6M_DAYS] * 100
+                       if i >= PERF_6M_DAYS else None)
 
-            perf_6m = (C[i] - C[i - PERF_6M_DAYS]) / C[i - PERF_6M_DAYS] * 100 if i >= PERF_6M_DAYS else None
-
-            # [F4] 20日平均出来高 ≥ 50万株
+            # C. 流動性: 20日平均出来高 >= 100万株
             avg_vol = vol_ma20[i]
             if avg_vol is None or avg_vol < MIN_AVG_VOLUME:
                 continue
 
-            first_pass += 1
+            trend_pass += 1
 
-            # ═══════════════════════════════════════════════════════════════════
-            # 二次フィルター
-            # ═══════════════════════════════════════════════════════════════════
+            # エントリー圏: 20 or 50日EMA タッチ/接近（近い方を採用）
+            touch_ema = touch_label = touch_dist = None
+            for lbl, ev in (("20日EMA", e20), ("50日EMA", e50)):
+                dv = (C[i] - ev) / ev * 100
+                if abs(dv) <= EMA_NEAR_PCT:
+                    if touch_dist is None or abs(dv) < abs(touch_dist):
+                        touch_ema, touch_label, touch_dist = ev, lbl, dv
+            if touch_ema is None:
+                continue  # EMA 圏外＝まだ押し目になっていない
+            touched = abs(touch_dist) <= EMA_TOUCH_PCT
 
-            # [S1] ダウ理論
-            dow = _dow_theory(H, L, C, i)
-            if dow == "broken":
+            # 出来高枯れ（売り枯れ）
+            recent_vol = sum(V[i - 2:i + 1]) / 3 if i >= 2 else V[i]
+            vol_dryup = bool(avg_vol and recent_vol < avg_vol * VOL_DRYUP_RATIO)
+
+            entry_zone += 1
+
+            # D/E. SL（押し安値の少し下＝1R）/ TP1（+1.5R）
+            swing_low = min(L[max(0, i - STOP_LOOKBACK + 1):i + 1])
+            atr_v = atr_arr[i] or 0.0
+            sl_price = round(swing_low - 0.1 * atr_v, 2)
+            entry = C[i]
+            r_value = entry - sl_price
+            if r_value <= 0:
                 continue
+            tp1_price    = round(entry + TP1_R * r_value, 2)   # +1.5R 半分利確
+            target_price = round(entry + 3.0 * r_value, 2)     # 参考（トレーリングで伸ばす）
+            rr = round((tp1_price - entry) / r_value, 2)       # = 1.5
 
-            # [S2] サポートライン
-            support_price, confluence, support_reasons = _find_support_level(
-                H, L, C, ema20, ema50, atr_arr, i
-            )
-            if support_price is None or confluence == 0:
-                continue
-
-            # [S3] レジサポ転換
-            reji_sapo = _detect_reji_sapo(H, L, C, i)
-
-            # [S4] R:R計算
-            rr, tp_price, sl_price, atr_v = _calc_rr(C, H, L, atr_arr, ema20, ema50, support_price, i)
-            if rr is None or rr < RR_MIN:
-                continue
-
-            second_pass += 1
-
-            # ═══════════════════════════════════════════════════════════════════
-            # ボーナスフラグ
-            # ═══════════════════════════════════════════════════════════════════
-
-            rsi_now = rsi_arr[i]
+            rsi_now  = rsi_arr[i]
             rsi_flag = rsi_now is not None and 30 <= rsi_now <= 50
 
-            macd_div = _macd_bull_divergence(hist_arr, C, i)
+            # 判定
+            reasons = [f"{touch_label}{'タッチ' if touched else '接近'}（乖離{touch_dist:+.1f}%）"]
+            if vol_dryup:
+                reasons.append("出来高枯れ（売り枯れ＝押し目良好）")
+            if rsi_flag:
+                reasons.append(f"RSI {rsi_now:.0f}（押し目ゾーン30-50）")
 
-            fib_result = _fib_confluence(H, L, C, ema20, ema50, i)
-            fib_label  = f"{fib_result[0]}/${fib_result[1]}" if fib_result else None
+            confluence = (1 if touched else 0) + (1 if vol_dryup else 0) + (1 if rsi_flag else 0)
 
-            bonus_count = sum([rsi_flag, macd_div, fib_result is not None])
-
-            # ═══════════════════════════════════════════════════════════════════
-            # 総合判定
-            # ═══════════════════════════════════════════════════════════════════
-
-            if reji_sapo == "confirmed" and rr >= RR_MIN and bonus_count >= 1:
+            # v3 C項: 出来高枯れ（売り枯れ）を最優先の必須条件にする。
+            # 「下げに大きな出来高を伴う」タッチ（＝出来高枯れなし）は売り圧が残るため格下げ。
+            if touched and vol_dryup:
                 verdict = "最優先候補"
-                confidence = min(0.95, 0.70 + 0.05 * bonus_count + (0.05 if rr >= RR_GOOD else 0))
-            elif rr >= RR_MIN and confluence >= 2:
-                verdict = "監視リスト入り"
-                confidence = min(0.80, 0.55 + 0.05 * bonus_count + (0.05 if rr >= RR_GOOD else 0))
-            elif rr >= RR_MIN:
-                verdict = "監視リスト入り"
-                confidence = 0.50 + 0.03 * bonus_count
+                confidence = 0.72 + (0.10 if rsi_flag else 0.0) + (0.05 if perfect_order == "full" else 0.0)
+            elif touched:
+                verdict = "サポート接近中"   # タッチ済みだが売り枯れ未確認＝引き金前の様子見
+                confidence = 0.55 + (0.05 if rsi_flag else 0.0)
             else:
-                continue  # 見送り
+                verdict = "サポート接近中"
+                confidence = 0.50
 
-            adopted += 1
-
-            # 日足チャートパターン検出
-            chart_patterns = _detect_daily_chart_patterns(H, L, C, i)
-            chart_pattern = ", ".join(chart_patterns) if chart_patterns else None
-
-            # セクター（起動時に一括取得済み）
-            sector = sector_map.get(ticker)
-
-            # 保有日数推定
-            if atr_v and atr_v > 0 and tp_price and C[i]:
-                holding_days = max(3, round(abs(tp_price - C[i]) / (atr_v * 0.5)))
+            # 地合い NG: 候補は見せるが「休む」警告で減点（v3 A項）
+            v3_signals = []
+            if regime_ok:
+                v3_signals.append(f"地合いOK: {regime_note}")
             else:
-                holding_days = 14
+                verdict = "地合いNG（休む推奨）"
+                confidence = min(confidence, 0.30)
+                v3_signals.append(f"⚠️地合いNG: {regime_note} → 指数が200日EMA割れ。v3は無理に買わず休む")
+
+            v3_signals += [
+                "引き金（当日確認）: 反発足を確認（陽線確定 or 前日高値超え）してからエントリー。落下中は掴まない",
+                f"損切り: ${sl_price}（1R = {r_value:.2f}）に固定・裁量で動かさない",
+                f"第1利確: +1.5R = ${tp1_price} で半分を確定",
+                "残り半分: 20日EMA を終値で割るまで保有（トレーリング）",
+                f"保有上限: {HOLDING_LIMIT}営業日経過で含み損なら全決済",
+            ]
 
             picks.append({
-                "ticker":          ticker,
-                "scan_date":       date.today().isoformat(),
-                "perfect_order":   perfect_order,
-                "perf_3m":         round(perf_3m, 2),
-                "perf_6m":         round(perf_6m, 2) if perf_6m is not None else None,
-                "avg_vol_20d":     round(avg_vol),
-                "dow_trend":       dow,
-                "support_price":   round(support_price, 2),
-                "confluence":      confluence,
-                "support_reasons": json.dumps(support_reasons, ensure_ascii=False),
-                "reji_sapo":       reji_sapo,
-                "risk_reward":     rr,
-                "entry_price":     round(C[i], 2),
-                "stop_price":      sl_price,
-                "tp1_price":       round(C[i] + (tp_price - C[i]) * 0.5, 2),
-                "target_price":    tp_price,
-                "rsi":             round(rsi_now, 1) if rsi_now else None,
-                "rsi_flag":        1 if rsi_flag else 0,
-                "macd_div_flag":   1 if macd_div else 0,
-                "fib_confluence":  fib_label,
-                "atr":             round(atr_v, 4) if atr_v else None,
-                "verdict":         verdict,
-                "confidence":      round(confidence, 3),
-                "composite_score": round(confidence * 100, 1),
-                "sector":          sector,
-                "current_price":   round(C[i], 2),
-                "holding_days_est": holding_days,
-                "signals_json":    json.dumps(support_reasons[:3], ensure_ascii=False),
-                "chart_pattern":   chart_pattern,
+                "ticker":           ticker,
+                "scan_date":        date.today().isoformat(),
+                "perfect_order":    perfect_order,
+                "perf_3m":          round(perf_3m, 2),
+                "perf_6m":          round(perf_6m, 2) if perf_6m is not None else None,
+                "avg_vol_20d":      round(avg_vol),
+                "dow_trend":        "up",
+                "support_price":    round(touch_ema, 2),
+                "confluence":       confluence,
+                "support_reasons":  json.dumps(reasons, ensure_ascii=False),
+                "reji_sapo":        "none",
+                "risk_reward":      rr,
+                "entry_price":      round(entry, 2),
+                "stop_price":       sl_price,
+                "tp1_price":        tp1_price,
+                "target_price":     target_price,
+                "rsi":              round(rsi_now, 1) if rsi_now else None,
+                "rsi_flag":         1 if rsi_flag else 0,
+                "macd_div_flag":    0,
+                "fib_confluence":   None,
+                "atr":              round(atr_v, 4) if atr_v else None,
+                "verdict":          verdict,
+                "confidence":       round(confidence, 3),
+                "composite_score":  round(confidence * 100, 1),
+                "sector":           sector_map.get(ticker),
+                "current_price":    round(entry, 2),
+                "holding_days_est": HOLDING_LIMIT,
+                "signals_json":     json.dumps(v3_signals, ensure_ascii=False),
+                "price_to_support_pct": round(touch_dist, 1),
+                "h1_trigger":       None,
+                "h4_structure":     "neutral",
             })
 
         except Exception as e:
             print(f"[Logic4] {ticker} エラー: {e}")
-
-    # ── イントラデイ（1H/4H）分析 ─────────────────────────────────────────────
-    if picks:
-        candidate_tickers = [p["ticker"] for p in picks]
-        print(f"[Logic4] 1H/4Hデータ取得中... {len(candidate_tickers)}銘柄")
-        intraday_dict = _fetch_intraday_batch(candidate_tickers)
-
-        for p in picks:
-            rows_1h = _extract_ticker_1h(intraday_dict, p["ticker"])
-            rows_4h = _resample_4h(rows_1h) if rows_1h else None
-
-            # サポートまでの距離（%）
-            price_to_support = None
-            if p["support_price"] and p["current_price"]:
-                price_to_support = round(
-                    (p["current_price"] - p["support_price"]) / p["current_price"] * 100, 1
-                )
-            p["price_to_support_pct"] = price_to_support
-
-            # 4H構造
-            p["h4_structure"] = _detect_4h_structure(rows_4h, p["support_price"]) if rows_4h else "neutral"
-
-            # 1Hトリガー
-            p["h1_trigger"] = _detect_1h_trigger(rows_1h, p["support_price"]) if rows_1h else None
-
-            # 判定をインデイタイムフレームで更新
-            near_support = price_to_support is not None and price_to_support <= 3.0
-            has_trigger  = p["h1_trigger"] is not None
-            has_chart_pattern = bool(p.get("chart_pattern"))
-
-            if (has_trigger or has_chart_pattern) and near_support:
-                p["verdict"] = "最優先候補"
-            elif has_chart_pattern:
-                p["verdict"] = "最優先候補"
-            elif near_support:
-                p["verdict"] = "サポート接近中"
-            else:
-                p["verdict"] = "押し目待ち"
-    else:
-        for p in picks:
-            p["price_to_support_pct"] = None
-            p["h4_structure"]         = "neutral"
-            p["h1_trigger"]           = None
 
     # ── 保存 ────────────────────────────────────────────────────────────────
     cur.execute("DELETE FROM logic4_picks")
@@ -1103,8 +384,7 @@ def run():
                  rsi, rsi_flag, macd_div_flag, fib_confluence, atr,
                  verdict, confidence, composite_score, sector, current_price,
                  holding_days_est, signals_json,
-                 price_to_support_pct, h1_trigger, h4_structure,
-                 chart_pattern)
+                 price_to_support_pct, h1_trigger, h4_structure)
             VALUES
                 (:ticker, :scan_date, :perfect_order, :perf_3m, :perf_6m, :avg_vol_20d,
                  :dow_trend, :support_price, :confluence, :support_reasons, :reji_sapo,
@@ -1112,20 +392,19 @@ def run():
                  :rsi, :rsi_flag, :macd_div_flag, :fib_confluence, :atr,
                  :verdict, :confidence, :composite_score, :sector, :current_price,
                  :holding_days_est, :signals_json,
-                 :price_to_support_pct, :h1_trigger, :h4_structure,
-                 :chart_pattern)
+                 :price_to_support_pct, :h1_trigger, :h4_structure)
         """, p)
     conn.commit()
     conn.close()
 
-    verdict_order = {"最優先候補": 0, "サポート接近中": 1, "押し目待ち": 2}
-    picks.sort(key=lambda x: (
-        verdict_order.get(x["verdict"], 3),
-        -x["risk_reward"]
-    ))
-    print(f"[Logic4] 完了 — 一次通過:{first_pass} 二次通過:{second_pass} 採用:{adopted}")
+    order = {"最優先候補": 0, "サポート接近中": 1, "地合いNG（休む推奨）": 2}
+    picks.sort(key=lambda x: (order.get(x["verdict"], 3), -x["confidence"]))
+    print(f"[Logic4] 完了 — トレンド通過:{trend_pass} エントリー圏:{entry_zone} 採用:{len(picks)}")
     for p in picks[:5]:
-        trigger = p.get("h1_trigger") or "-"
-        dist    = p.get("price_to_support_pct")
-        dist_s  = f"{dist:.1f}%" if dist is not None else "N/A"
-        print(f"  {p['ticker']:8s} {p['verdict']} RR={p['risk_reward']:.2f} dist={dist_s} trigger={trigger}")
+        print(f"  {p['ticker']:8s} {p['verdict']} RR={p['risk_reward']:.2f} "
+              f"乖離={p['price_to_support_pct']:+.1f}% conf={p['confidence']:.2f}")
+    return picks
+
+
+if __name__ == "__main__":
+    run()

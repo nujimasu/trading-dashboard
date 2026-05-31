@@ -8,7 +8,12 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH  = DATA_DIR / "trading.db"
-DATA_DIR.mkdir(exist_ok=True)
+# Vercel 等の読み取り専用ファイルシステムでは mkdir が失敗する。
+# 本番は DATABASE_URL=PostgreSQL を使い data/（SQLite用）は不要なので握りつぶす。
+try:
+    DATA_DIR.mkdir(exist_ok=True)
+except OSError:
+    pass
 
 # ─── API Keys ────────────────────────────────────────────────────────────────
 FMP_API_KEY  = os.getenv("FMP_API_KEY", "")
