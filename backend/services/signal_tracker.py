@@ -280,7 +280,7 @@ def _save_eval_result(signal_id: int, r: dict):
             WHERE id = ?
         """, (r["status"], r.get("exit_date"), r.get("exit_price"), r.get("realized_r"),
               r.get("days_held"), r.get("mae_pct"), r.get("mfe_pct"),
-              1 if r.get("hit_tp1") else 0, signal_id))
+              bool(r.get("hit_tp1")), signal_id))
 
 
 # ────────────────────────────────────────────────────────────────────
