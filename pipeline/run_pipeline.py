@@ -8,10 +8,11 @@ Options:
   --tech-weekly    Run pure-technical scan (signal-scanner logic)
   --tech-daily     Run tech daily adjustment only
 """
+import os
 import sys
 import time
 import argparse
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -38,23 +39,64 @@ def run_full(skip_download: bool = False):
     total_start = time.time()
 
     # ── Stage 1: Universe ──────────────────────────────────────────────────
+    # 既存universeが十分新しければ再構築をスキップする。
+    # 理由: FMP /stock/list は現プランで404のため Stage1 は実質 static_universe
+    # (コード内固定リスト)依存で、再構築は membership を更新せず sector補完(yfinance)
+    # のみが長時間化し pooler 切断→FATAL を招く。週次自動更新を完走させるための堅牢化。
+    UNIVERSE_MAX_AGE_DAYS = 14
     t0 = time.time()
+    existing, last_upd = [], None
     try:
-        from pipeline.stage1_universe import run as stage1_run
-        tickers = stage1_run()
-        log_stage("Stage1", "OK", f"{len(tickers)} tickers in universe", time.time() - t0)
-    except Exception as e:
-        log_stage("Stage1", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage 1 failed: {e}")
-        return
+        from backend.db import get_connection
+        _c = get_connection(); _cur = _c.cursor()
+        _cur.execute("SELECT ticker FROM universe")
+        existing = [r["ticker"] for r in _cur.fetchall()]
+        _cur.execute("SELECT MAX(updated_at) AS mx FROM universe")
+        _row = _cur.fetchone()
+        last_upd = _row["mx"] if _row else None
+        _c.close()
+    except Exception:
+        pass
+
+    fresh = False
+    if existing and len(existing) >= 400 and last_upd:
+        try:
+            fresh = date.fromisoformat(str(last_upd)[:10]) >= date.today() - timedelta(days=UNIVERSE_MAX_AGE_DAYS)
+        except Exception:
+            fresh = True  # 日付パース不能でも既存が十分あれば使う
+
+    if fresh:
+        tickers = existing
+        log_stage("Stage1", "SKIP", f"既存universe {len(tickers)}銘柄が新鮮(再構築不要)", time.time() - t0)
+    else:
+        try:
+            from pipeline.stage1_universe import run as stage1_run
+            tickers = stage1_run()
+            log_stage("Stage1", "OK", f"{len(tickers)} tickers in universe", time.time() - t0)
+        except Exception as e:
+            if existing:  # 再構築失敗 → 既存universeで続行(週次をFATALさせない)
+                tickers = existing
+                log_stage("Stage1", "WARN", f"再構築失敗→既存{len(tickers)}銘柄を使用: {str(e)[:120]}", time.time() - t0)
+            else:
+                log_stage("Stage1", "ERROR", str(e), time.time() - t0)
+                print(f"[FATAL] Stage 1 failed: {e}")
+                return
 
     # ── Stage 2: Price download ────────────────────────────────────────────
+    # POLYGON_API_KEY があれば grouped daily(1コール/営業日)で直近を全銘柄一括前進。
+    # price_data は日次 grouped で最新化済みのため gap-fill は軽量で済みタイムアウトしない。
+    # キーが無ければ従来の yfinance 全銘柄DLにフォールバック。
     if not skip_download:
         t0 = time.time()
         try:
-            from pipeline.stage2_price_data import run as stage2_run
-            downloaded = stage2_run(tickers)
-            log_stage("Stage2", "OK", f"{len(downloaded)} tickers downloaded", time.time() - t0)
+            if os.getenv("POLYGON_API_KEY"):
+                from pipeline.stage2_price_data import run_grouped
+                downloaded = run_grouped(tickers, lookback_days=15)
+                log_stage("Stage2", "OK", f"{len(downloaded)} tickers (Polygon grouped)", time.time() - t0)
+            else:
+                from pipeline.stage2_price_data import run as stage2_run
+                downloaded = stage2_run(tickers)
+                log_stage("Stage2", "OK", f"{len(downloaded)} tickers (yfinance)", time.time() - t0)
         except Exception as e:
             log_stage("Stage2", "ERROR", str(e), time.time() - t0)
             print(f"[WARN] Stage 2 failed: {e}, continuing with existing data...")
@@ -321,8 +363,26 @@ def run_daily_light():
     print(f"[DailyLight] 日次軽量モード — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     init_db()
 
-    # オープンポジ + オープンシグナルの ticker を抽出
     from backend.db import get_connection
+
+    # ── 全universe を Polygon grouped で前進(1コール/営業日, キーがある時のみ) ──
+    # これで週次フル実行時に重い価格DLが不要になりタイムアウトを回避する。
+    if os.getenv("POLYGON_API_KEY"):
+        t0 = time.time()
+        try:
+            conn = get_connection(); cur = conn.cursor()
+            cur.execute("SELECT ticker FROM universe")
+            uni = [r["ticker"] for r in cur.fetchall()]
+            conn.close()
+            from pipeline.stage2_price_data import run_grouped
+            grouped_saved = run_grouped(uni, lookback_days=6)
+            log_stage("DailyLight-Grouped", "OK" if grouped_saved else "WARN",
+                      f"{len(grouped_saved)}/{len(uni)} tickers (Polygon grouped)", time.time() - t0)
+        except Exception as e:
+            log_stage("DailyLight-Grouped", "ERROR", str(e), time.time() - t0)
+            print(f"[WARN] grouped前進失敗: {e} — 続行")
+
+    # オープンポジ + オープンシグナルの ticker を抽出
     conn = get_connection()
     cur  = conn.cursor()
     cur.execute("""
@@ -366,9 +426,23 @@ if __name__ == "__main__":
     parser.add_argument("--skip-download", action="store_true", help="Skip price data download")
     parser.add_argument("--tech-weekly",   action="store_true", help="Run pure-technical weekly scan")
     parser.add_argument("--tech-daily",    action="store_true", help="Run tech daily adjustment only")
+    parser.add_argument("--backfill",      action="store_true", help="Polygon grouped で全universeの履歴を一括バックフィル(初回用)")
+    parser.add_argument("--backfill-days", type=int, default=320, help="バックフィルする営業日数(既定320≒300取引日)")
     args = parser.parse_args()
 
-    if args.daily_only:
+    if args.backfill:
+        init_db()
+        from backend.db import get_connection as _gc
+        _conn = _gc(); _cur = _conn.cursor()
+        _cur.execute("SELECT ticker FROM universe")
+        _uni = [r["ticker"] for r in _cur.fetchall()]
+        _conn.close()
+        from pipeline.stage2_price_data import run_grouped_backfill
+        t0 = time.time()
+        saved = run_grouped_backfill(_uni, lookback_days=args.backfill_days)
+        log_stage("Backfill-Grouped", "OK" if saved else "WARN",
+                  f"{len(saved)}/{len(_uni)} tickers (Polygon grouped backfill)", time.time() - t0)
+    elif args.daily_only:
         run_daily()
     elif args.daily_full:
         run_daily_full()
