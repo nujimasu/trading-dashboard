@@ -1,12 +1,17 @@
 """
-Stage 2: Bulk OHLCV download via yfinance.
-Downloads 1 year of daily data for all universe tickers in batches.
+Stage 2: Bulk OHLCV download.
+主データソース = Polygon.io grouped daily bars（1コールで全米株のEODを一括取得）。
+POLYGON_API_KEY 未設定時は従来の yfinance 個別DLにフォールバック。
 """
+import os
 import sys
+import json
 import time
 import sqlite3
+import urllib.request
+import urllib.error
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import yfinance as yf
 import pandas as pd
@@ -16,11 +21,11 @@ from config import DOWNLOAD_BATCH_SIZE, PRICE_HISTORY_PERIOD
 from backend.db import get_connection
 
 
-def save_price_batch(df: pd.DataFrame, tickers: list[str]):
+def save_price_batch(df: pd.DataFrame, tickers: list[str]) -> list[str]:
     """Save a multi-ticker yfinance download to price_data table."""
     conn = get_connection()
     cur  = conn.cursor()
-    saved = 0
+    saved_tickers = []
 
     for ticker in tickers:
         try:
@@ -45,6 +50,9 @@ def save_price_batch(df: pd.DataFrame, tickers: list[str]):
                 for idx, row in t_df.iterrows()
             ]
 
+            if not rows:
+                continue
+
             cur.executemany("""
                 INSERT INTO price_data (ticker, date, open, high, low, close, volume)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -52,13 +60,13 @@ def save_price_batch(df: pd.DataFrame, tickers: list[str]):
                     open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low,
                     close=EXCLUDED.close, volume=EXCLUDED.volume
             """, rows)
-            saved += 1
+            saved_tickers.append(ticker)
         except Exception as e:
             pass  # ticker not in this batch's data
 
     conn.commit()
     conn.close()
-    return saved
+    return saved_tickers
 
 
 def run(tickers: list[str]) -> list[str]:
@@ -82,9 +90,9 @@ def run(tickers: list[str]) -> list[str]:
                 print("empty")
                 continue
 
-            n = save_price_batch(df, batch)
-            successful.extend(batch)
-            print(f"saved {n}")
+            saved = save_price_batch(df, batch)
+            successful.extend(saved)
+            print(f"saved {len(saved)}")
         except Exception as e:
             print(f"error: {e}")
 
@@ -117,9 +125,9 @@ def run_incremental(tickers: list[str], days: int = 10) -> list[str]:
             if df.empty:
                 print("empty")
                 continue
-            n = save_price_batch(df, batch)
-            successful.extend(batch)
-            print(f"saved {n}")
+            saved = save_price_batch(df, batch)
+            successful.extend(saved)
+            print(f"saved {len(saved)}")
         except Exception as e:
             print(f"error: {e}")
 
@@ -128,6 +136,129 @@ def run_incremental(tickers: list[str], days: int = 10) -> list[str]:
 
     print(f"[Stage2] Incremental done. {len(successful)}/{len(tickers)} tickers updated.")
     return successful
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Polygon.io grouped daily bars — 1コール/日で全米株EODを一括取得
+# 無料プラン: 5コール/分・EOD(前営業日まで)・約2年履歴
+# ─────────────────────────────────────────────────────────────────────────────
+POLYGON_GROUPED_URL = (
+    "https://api.polygon.io/v2/aggs/grouped/locale/us/market/stocks/{date}"
+    "?adjusted=true&apiKey={key}"
+)
+# 無料枠5コール/分 → 13秒間隔（約4.6/分）で安全側
+POLYGON_RATE_SLEEP = 13.0
+
+
+def _polygon_grouped_day(date_str: str, key: str, retries: int = 3) -> list[dict] | None:
+    """指定日のgrouped daily barsを取得。営業日でない/未確定なら None。"""
+    url = POLYGON_GROUPED_URL.format(date=date_str, key=key)
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url, timeout=40) as resp:
+                d = json.load(resp)
+            status = d.get("status")
+            if status in ("OK", "DELAYED") and d.get("results"):
+                return d["results"]
+            # NOT_AUTHORIZED(当日未確定) / resultsCount 0(週末・祝日) → データ無し
+            return None
+        except urllib.error.HTTPError as e:
+            if e.code == 429:  # レート超過 → 待って再試行
+                time.sleep(POLYGON_RATE_SLEEP * 1.5)
+                continue
+            if e.code in (403, 404):
+                return None
+            if attempt == retries - 1:
+                raise
+            time.sleep(2)
+        except Exception:
+            if attempt == retries - 1:
+                raise
+            time.sleep(2)
+    return None
+
+
+def _save_grouped_rows(results: list[dict], date_str: str, universe: set[str]) -> int:
+    """grouped結果のうちuniverse該当銘柄をprice_dataへupsert。保存銘柄数を返す。"""
+    rows = []
+    for r in results:
+        t = (r.get("T") or "").strip().upper()
+        if t not in universe:
+            continue
+        c = r.get("c")
+        if c is None:
+            continue
+        rows.append((
+            t, date_str,
+            float(r["o"]) if r.get("o") is not None else None,
+            float(r["h"]) if r.get("h") is not None else None,
+            float(r["l"]) if r.get("l") is not None else None,
+            float(c),
+            int(r["v"]) if r.get("v") is not None else 0,
+        ))
+    if not rows:
+        return 0
+    conn = get_connection()
+    cur  = conn.cursor()
+    cur.executemany("""
+        INSERT INTO price_data (ticker, date, open, high, low, close, volume)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (ticker, date) DO UPDATE SET
+            open=EXCLUDED.open, high=EXCLUDED.high, low=EXCLUDED.low,
+            close=EXCLUDED.close, volume=EXCLUDED.volume
+    """, rows)
+    conn.commit()
+    conn.close()
+    return len(rows)
+
+
+def run_grouped(tickers: list[str], lookback_days: int = 10) -> list[str]:
+    """
+    Polygon grouped daily で直近 lookback_days 営業日分のEODを全universe一括取得・upsert。
+    price_data を全銘柄ぶん前進させる。冪等(再実行で重複しない)。
+    戻り値 = 価格が1件以上保存できた ticker のリスト。
+    """
+    key = os.getenv("POLYGON_API_KEY", "")
+    if not key:
+        raise RuntimeError("POLYGON_API_KEY 未設定")
+
+    universe = {t.strip().upper() for t in tickers}
+    saved_tickers: set[str] = set()
+
+    # 当日から遡って weekday を lookback_days 営業日ぶん収集（祝日/未確定はAPIが弾く）
+    dates: list[str] = []
+    d = datetime.utcnow().date()
+    while len(dates) < lookback_days:
+        if d.weekday() < 5:  # Mon-Fri
+            dates.append(d.isoformat())
+        d -= timedelta(days=1)
+
+    print(f"[Stage2/Polygon] grouped EOD 取得: 最大{len(dates)}営業日 × universe {len(universe)}銘柄")
+    fetched_days = 0
+    for i, ds in enumerate(dates):
+        results = _polygon_grouped_day(ds, key)
+        if results:
+            n = _save_grouped_rows(results, ds, universe)
+            if n:
+                fetched_days += 1
+                # 当該日に保存できた銘柄を記録
+                for r in results:
+                    t = (r.get("T") or "").strip().upper()
+                    if t in universe:
+                        saved_tickers.add(t)
+            print(f"[Stage2/Polygon] {ds}: {n}銘柄 upsert")
+        else:
+            print(f"[Stage2/Polygon] {ds}: データ無し(週末/祝日/未確定)")
+        if i < len(dates) - 1:
+            time.sleep(POLYGON_RATE_SLEEP)
+
+    print(f"[Stage2/Polygon] 完了: {fetched_days}営業日 / 価格更新 {len(saved_tickers)}/{len(universe)}銘柄")
+    return sorted(saved_tickers)
+
+
+def run_grouped_backfill(tickers: list[str], lookback_days: int = 320) -> list[str]:
+    """初回バックフィル: lookback_days 営業日ぶん(≈300取引日, 200EMA用)を遡って一括取得。"""
+    return run_grouped(tickers, lookback_days=lookback_days)
 
 
 if __name__ == "__main__":
