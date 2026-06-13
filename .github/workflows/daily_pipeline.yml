@@ -1,9 +1,9 @@
-name: Daily Pipeline
+name: Daily Pipeline (Light)
 
-# Daily full refresh:
-# - Incremental price update
-# - Stage 3-6 refresh, market health, daily picks
-# - Logic2/3/4 and tech daily refresh
+# GH Actions 分数節約のため軽量化:
+# - 価格差分DL は「オープンポジ + オープンシグナル」銘柄のみに絞る
+# - Stage 3-6 (テクニカル/RR/ファンダ/スコアリング再計算) は weekly に任せる
+# - シグナル評価 (ペーパートレード戦績) は毎日継続 (MAE/MFE 精度維持)
 
 on:
   schedule:
@@ -12,9 +12,9 @@ on:
   workflow_dispatch:  # 手動実行も可能
 
 jobs:
-  run-daily:
+  run-daily-light:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 20  # 軽量化に伴い 90→20 に短縮
 
     steps:
       - name: Checkout
@@ -35,10 +35,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run daily full refresh
+      - name: Run daily-light (open positions/signals price update + signal evaluation)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FMP_API_KEY:  ${{ secrets.FMP_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
-        run: python pipeline/run_pipeline.py --daily-full
+        run: python pipeline/run_pipeline.py --daily-light
