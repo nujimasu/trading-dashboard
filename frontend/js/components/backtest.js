@@ -15,9 +15,9 @@ const PERIODS = [
 
 const LOGIC_TABS = [
   { id: null,      label: "全ロジック" },
-  { id: "logic1",  label: "ロジック１" },
-  { id: "logic2",  label: "ロジック２" },
-  { id: "logic3",  label: "ロジック３" },
+  { id: "logic1",  label: "ファンダ重視" },
+  { id: "logic2",  label: "厳選押し目買いv1" },
+  { id: "logic4",  label: "厳選押し目買いv2" },
 ];
 
 let _state = { period: 90, logic: null };

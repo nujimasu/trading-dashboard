@@ -9,7 +9,7 @@ router = APIRouter()
 
 @router.get("/api/backtest/stats")
 def get_stats(
-    logic: Optional[str] = Query(None, description="logic1|logic2|logic3"),
+    logic: Optional[str] = Query(None, description="logic1|logic2|logic4"),
     days:  Optional[int] = Query(None, ge=1, le=3650, description="集計期間 (日数)"),
 ):
     """ロジック別戦績の集計を返す。"""

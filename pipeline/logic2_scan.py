@@ -1,8 +1,8 @@
 """
 ロジック２スキャンエンジン — 押し目買い戦略（厳選4Hトリガー版）
 
-ロジック３/４と同一の一次・二次フィルター＋ボーナスフラグを使用。
-改善点（ロジック３/４との違い）:
+日足・週足の一次/二次フィルター＋4H厳格トリガーを使用。
+改善点:
   A. トリガー未検出の「押し目待ち」銘柄をリストから完全除外
   B. 4Hトリガーのパラメータを厳格化（ピンバー3倍、エンガルフィング全包み、
      出来高2.0倍、サポート近傍±3%）
@@ -25,7 +25,7 @@
   1. ダウ理論: HH/HL判定
   2. サポートラインの明確さ（コンフルエンス）
   3. レジサポ転換の有無
-  4. R:R計算（TP=直近高値×0.99, SL=サポート×0.99またはサポート−ATR）
+  4. R:R計算（TP1=直近高値×0.99, SL=サポート少し下の1R固定）
 
 ボーナスフラグ:
   - RSI 30〜50
@@ -33,10 +33,10 @@
   - フィボナッチコンフルエンス（38.2/50/61.8%）
 
 4Hトリガー（厳格版）:
-  - ピンバー: 下ヒゲ ≥ 実体の3倍（ロジック３は2倍）
+  - ピンバー: 下ヒゲ ≥ 実体の3倍
   - 強気エンガルフィング: 前足レンジ全体を包み込み
-  - 出来高急増: 平均の2.0倍以上（ロジック３は1.5倍）
-  - サポート近傍: ±3%以内（ロジック３は±5%）
+  - 出来高急増: 平均の2.0倍以上
+  - サポート近傍: ±3%以内
 
 信頼度ボーナス（提案C）:
   - ピンバー + 出来高急増 → +0.10
@@ -71,6 +71,9 @@ PERF_3M_DAYS     = 63    # 約3ヶ月
 PERF_6M_DAYS     = 126   # 約6ヶ月
 RR_MIN           = 1.5
 RR_GOOD          = 2.0
+RR_CAP           = 6.0   # RRの上限（極端値抑制・現実的なターゲットに収める）
+SWING_LOOKBACK   = 30    # 「近いスイング高値」を探す日数（高勝率・近い高値利確）
+SWING_WING       = 3     # スイング高値ピボット判定の左右バー数
 SUPPORT_TOLERANCE = 0.03  # サポート近傍±3%
 
 # ── EMA計算 ─────────────────────────────────────────────────────────────────
@@ -470,32 +473,54 @@ def _detect_reji_sapo(H, L, C, i, lookback=90):
 
 # ── R:R計算 ─────────────────────────────────────────────────────────────────
 
-def _calc_rr(C, H, L, atr_arr, ema20, ema50, support_price, i, lookback=60):
+def _nearest_swing_high_above(H, i, current, lookback=SWING_LOOKBACK, wing=SWING_WING):
+    """直近 lookback 日内のスイング高値(ピボット)のうち、現在値より上で最も近いものを返す。
+
+    「高値付近で高勝率に利確」のエッジに合わせ、遠い60日高値ではなく
+    最寄りのレジスタンス（直近スイング高値）をターゲットにする。
+    見つからなければ None。
+    """
+    start = max(wing, i - lookback)
+    candidates = []
+    for j in range(start, i - wing + 1):
+        window = H[j - wing:j + wing + 1]
+        if window and H[j] == max(window) and H[j] > current:
+            candidates.append(H[j])
+    if candidates:
+        return min(candidates)          # 現在値より上で最も近い高値
+    # フォールバック: 直近 lookback 日の高値が現在値より上ならそれを使う
+    recent_high = max(H[max(0, i - lookback):i + 1])
+    return recent_high if recent_high > current else None
+
+
+def _calc_rr(C, H, L, atr_arr, ema20, ema50, support_price, i, lookback=SWING_LOOKBACK):
     current = C[i]
     atr_v = atr_arr[i]
     if atr_v is None or atr_v <= 0:
-        return None, None, None, None
+        return None, None, None, None, None
 
-    recent_high = max(H[max(0, i-lookback):i+1])
-    tp = recent_high * 0.99
+    target = _nearest_swing_high_above(H, i, current, lookback=lookback)
+    if target is None:
+        return None, None, None, None, None
+    tp1 = target * 0.99
 
-    if tp <= current:
-        return None, None, None, None
+    if tp1 <= current:
+        return None, None, None, None, None
 
     if support_price and support_price < current:
-        sl_base = support_price
-        sl = min(sl_base * 0.99, sl_base - atr_v)
+        sl = support_price - 0.1 * atr_v
     else:
-        sl = current - atr_v * 1.5
+        swing_low = min(L[max(0, i-20):i+1])
+        sl = swing_low - 0.1 * atr_v
 
     risk   = current - sl
-    reward = tp - current
+    reward = tp1 - current
 
     if risk <= 0:
-        return None, None, None, None
+        return None, None, None, None, None
 
-    rr = reward / risk
-    return round(rr, 2), round(tp, 2), round(sl, 2), round(atr_v, 4)
+    rr = min(reward / risk, RR_CAP)   # 極端値を上限でクランプ
+    return round(rr, 2), round(tp1, 2), round(sl, 2), round(atr_v, 4), round(target, 2)
 
 # ── フィボナッチコンフルエンス ────────────────────────────────────────────────
 
@@ -596,7 +621,7 @@ def _resample_4h(rows_1h):
 
 
 def _is_pin_bar_strict(bar):
-    """厳格ピンバー: 下ヒゲ ≥ 実体の3倍（ロジック３は2倍）、陽線。"""
+    """厳格ピンバー: 下ヒゲ ≥ 実体の3倍、陽線。"""
     body = abs(bar["close"] - bar["open"])
     lower_wick = min(bar["close"], bar["open"]) - bar["low"]
     upper_wick = bar["high"] - max(bar["close"], bar["open"])
@@ -680,14 +705,14 @@ def _is_morning_star_strict(b1, b2, b3):
 def _detect_4h_trigger_strict(rows_4h, support_price):
     """
     厳格4Hトリガー検出。
-    - サポート価格の ±3% 以内（ロジック３は±5%）
-    - ピンバー: 3倍ヒゲ（ロジック３は2倍）
+    - サポート価格の ±3% 以内
+    - ピンバー: 3倍ヒゲ
     - エンガルフィング: 全レンジ包み込み
-    - 出来高: 2.0倍（ロジック３は1.5倍）
-    - 逆ハンマー: 3倍上ヒゲ（ロジック３は2倍）
-    - 切り込み線: 61.8%戻し（ロジック３は50%）
-    - 赤三兵: 実体レンジ比50%以上（ロジック３は条件なし）
-    - 明けの明星: b2実体30%未満+b3が60%戻し（ロジック３は40%/50%）
+    - 出来高: 2.0倍
+    - 逆ハンマー: 3倍上ヒゲ
+    - 切り込み線: 61.8%戻し
+    - 赤三兵: 実体レンジ比50%以上
+    - 明けの明星: b2実体30%未満+b3が60%戻し
     Returns: list[str] or None
     """
     if not rows_4h or len(rows_4h) < 4:
@@ -980,7 +1005,7 @@ def run():
             reji_sapo = _detect_reji_sapo(H, L, C, i)
 
             # [S4] R:R計算
-            rr, tp_price, sl_price, atr_v = _calc_rr(C, H, L, atr_arr, ema20, ema50, support_price, i)
+            rr, tp1_price, sl_price, atr_v, target_price = _calc_rr(C, H, L, atr_arr, ema20, ema50, support_price, i)
             if rr is None or rr < RR_MIN:
                 continue
 
@@ -1026,10 +1051,18 @@ def run():
             sector = sector_map.get(ticker)
 
             # 保有日数推定
-            if atr_v and atr_v > 0 and tp_price and C[i]:
-                holding_days = max(3, round(abs(tp_price - C[i]) / (atr_v * 0.5)))
+            if atr_v and atr_v > 0 and tp1_price and C[i]:
+                holding_days = min(8, max(3, round(abs(tp1_price - C[i]) / (atr_v * 0.5))))
             else:
-                holding_days = 14
+                holding_days = 8
+
+            exit_rules = [
+                f"SL: ${sl_price}（サポート少し下に固定、エントリーから1R）",
+                f"TP1: 直近スイング高値手前 ${tp1_price} で2/3利確",
+                "残り1/3: 20日EMAを終値で割るまでトレール",
+                "RRゲート: TP1まで1.5R未満は不採用",
+                "保有上限: 8営業日経過で含み損なら全決済",
+            ]
 
             picks.append({
                 "ticker":          ticker,
@@ -1046,8 +1079,8 @@ def run():
                 "risk_reward":     rr,
                 "entry_price":     round(C[i], 2),
                 "stop_price":      sl_price,
-                "tp1_price":       round(C[i] + (tp_price - C[i]) * 0.5, 2),
-                "target_price":    tp_price,
+                "tp1_price":       tp1_price,
+                "target_price":    target_price,
                 "rsi":             round(rsi_now, 1) if rsi_now else None,
                 "rsi_flag":        1 if rsi_flag else 0,
                 "macd_div_flag":   1 if macd_div else 0,
@@ -1059,7 +1092,7 @@ def run():
                 "sector":          sector,
                 "current_price":   round(C[i], 2),
                 "holding_days_est": holding_days,
-                "signals_json":    json.dumps(support_reasons[:3], ensure_ascii=False),
+                "signals_json":    json.dumps(exit_rules, ensure_ascii=False),
                 "chart_pattern":   chart_pattern,
             })
 

@@ -21,8 +21,7 @@ const STAGE_LABEL = {
 
 export function renderTechPicksTable(container, picks, title, mode = "weekly") {
   const isLogic4 = mode === "logic4" || mode === "logic2";
-  const isBreakout = mode === "logic3";
-  const isDailyMode = mode === "daily" || isLogic4 || isBreakout;
+  const isDailyMode = mode === "daily" || isLogic4;
 
   if (!picks.length) {
     const msg = mode === "weekly"
@@ -44,19 +43,19 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
                    : (p.confidence || 0) >= 0.62 ? "conf-mid" : "conf-low";
     const wrPct    = ((p.avg_win_rate || 0) * 100).toFixed(0);
 
-    // シグナルタグ: ロジック４はactive_signals（文字列配列）、他はsignals（オブジェクト配列）
-    const sigList = (isLogic4 || isBreakout)
+    // シグナルタグ: 押し目買い系はactive_signals（文字列配列）、他はsignals（オブジェクト配列）
+    const sigList = isLogic4
       ? (p.active_signals || []).slice(0, 3).map(s => `<span class="sig-tag">${s}</span>`).join("")
       : (p.signals || []).slice(0, 3).map(s => `<span class="sig-tag">${s.label}</span>`).join("");
 
     const holdBadge = _holdingBadge(p.holding_days_est);
 
     const verdictCell = isDailyMode ? `
-      <td class="${(isLogic4 || isBreakout) ? _verdictCssLogic4(p.daily_verdict) : _verdictCss(p.daily_verdict)}">${p.daily_verdict || "—"}</td>` : ``;
+      <td class="${isLogic4 ? _verdictCssLogic4(p.daily_verdict) : _verdictCss(p.daily_verdict)}">${p.daily_verdict || "—"}</td>` : ``;
 
     // ロジック４はSTAGE・勝率列を非表示
-    const stageCell = (isLogic4 || isBreakout) ? `` : `<td><span class="stage-badge ${stageMeta.css}">${stageMeta.text}</span></td>`;
-    const wrCell    = (isLogic4 || isBreakout) ? `` : `<td class="wr-cell">${wrPct}%</td>`;
+    const stageCell = isLogic4 ? `` : `<td><span class="stage-badge ${stageMeta.css}">${stageMeta.text}</span></td>`;
+    const wrCell    = isLogic4 ? `` : `<td class="wr-cell">${wrPct}%</td>`;
 
     return `
       <tr data-idx="${i}" class="pick-row">
@@ -74,16 +73,16 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         ${wrCell}
         <td>${fmt(p.risk_reward)}</td>
         <td class="sig-tags-cell">${sigList}</td>
-        ${(isLogic4 || isBreakout) ? `<td>${p.sector || "—"}</td>` : ""}
+        ${isLogic4 ? `<td>${p.sector || "—"}</td>` : ""}
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
-        <td colspan="100">${isBreakout ? _buildDetailPanelBreakout(p, i) : isLogic4 ? _buildDetailPanelLogic4(p, i) : _buildDetailPanel(p, i)}</td>
+        <td colspan="100">${isLogic4 ? _buildDetailPanelLogic4(p, i) : _buildDetailPanel(p, i)}</td>
       </tr>`;
   }).join("");
 
   const verdictHeader = isDailyMode ? `<th>判定</th>` : ``;
-  const stageHeader   = (isLogic4 || isBreakout) ? `` : `<th>Stage</th>`;
-  const wrHeader      = (isLogic4 || isBreakout) ? `` : `<th>勝率</th>`;
+  const stageHeader   = isLogic4 ? `` : `<th>Stage</th>`;
+  const wrHeader      = isLogic4 ? `` : `<th>勝率</th>`;
 
   container.innerHTML = `
     <div class="section-title">${title}
@@ -95,7 +94,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
           <tr>
             <th>銘柄</th><th>方向</th>${verdictHeader}<th>保有期間</th>${stageHeader}
             <th>信頼度</th>${wrHeader}<th>RR</th>
-            <th>シグナル</th>${(isLogic4 || isBreakout) ? "<th>セクター</th>" : ""}
+            <th>シグナル</th>${isLogic4 ? "<th>セクター</th>" : ""}
           </tr>
         </thead>
         <tbody>${rows}</tbody>

@@ -12,6 +12,24 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.db import db_cursor
 
 
+def _pct(value):
+    if value is None:
+        return None
+    try:
+        return round(float(value) * 100, 1)
+    except Exception:
+        return None
+
+
+def _num(value):
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
 def _fetch_from_yfinance(ticker: str) -> dict | None:
     """yfinance から基本ファンダメンタルズを取得。"""
     try:
@@ -36,8 +54,12 @@ def _fetch_from_yfinance(ticker: str) -> dict | None:
 
         # EPS成長率: yfinanceは小数（0.956 = 95.6%）
         eps_g = info.get("earningsGrowth")
+        eps_q = info.get("earningsQuarterlyGrowth")
         rev_g = info.get("revenueGrowth")
         roe   = info.get("returnOnEquity")
+        op_m  = info.get("operatingMargins")
+        pm    = info.get("profitMargins")
+        inst  = info.get("heldPercentInstitutions")
 
         return {
             "ticker":                ticker,
@@ -45,10 +67,15 @@ def _fetch_from_yfinance(ticker: str) -> dict | None:
             "industry":              info.get("industry", ""),
             "market_cap":            info.get("marketCap", 0) or 0,
             "pe_ratio":              info.get("trailingPE"),
-            "eps_growth_yoy":        round(eps_g * 100, 1) if eps_g is not None else None,
-            "revenue_growth_yoy":    round(rev_g * 100, 1) if rev_g is not None else None,
+            "eps_growth_yoy":        _pct(eps_g),
+            "eps_growth_q":          _pct(eps_q),
+            "revenue_growth_yoy":    _pct(rev_g),
             "earnings_surprise_pct": earnings_surprise_pct,
-            "roe":                   round(roe  * 100, 1) if roe  is not None else None,
+            "roe":                   _pct(roe),
+            "operating_margin":      _pct(op_m),
+            "profit_margin":         _pct(pm),
+            "inst_own_pct":          _pct(inst),
+            "debt_to_equity":        _num(info.get("debtToEquity")),
             "description":           info.get("longBusinessSummary", ""),
             "updated_at":            datetime.now().isoformat(),
         }
@@ -80,22 +107,31 @@ def get_or_fetch_fundamentals(ticker: str) -> dict | None:
         cur.execute("""
             INSERT INTO fundamentals
                 (ticker, sector, industry, market_cap, pe_ratio,
-                 eps_growth_yoy, revenue_growth_yoy, earnings_surprise_pct,
-                 roe, description, updated_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                 eps_growth_yoy, eps_growth_q, revenue_growth_yoy, earnings_surprise_pct,
+                 roe, operating_margin, profit_margin, inst_own_pct, debt_to_equity,
+                 description, updated_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(ticker) DO UPDATE SET
                 sector=excluded.sector, industry=excluded.industry,
                 market_cap=excluded.market_cap, pe_ratio=excluded.pe_ratio,
                 eps_growth_yoy=excluded.eps_growth_yoy,
+                eps_growth_q=excluded.eps_growth_q,
                 revenue_growth_yoy=excluded.revenue_growth_yoy,
                 earnings_surprise_pct=excluded.earnings_surprise_pct,
-                roe=excluded.roe, description=excluded.description,
+                roe=excluded.roe,
+                operating_margin=excluded.operating_margin,
+                profit_margin=excluded.profit_margin,
+                inst_own_pct=excluded.inst_own_pct,
+                debt_to_equity=excluded.debt_to_equity,
+                description=excluded.description,
                 updated_at=excluded.updated_at
         """, (
             data["ticker"], data["sector"], data["industry"],
             data["market_cap"], data["pe_ratio"],
-            data["eps_growth_yoy"], data["revenue_growth_yoy"],
-            data["earnings_surprise_pct"], data["roe"],
+            data["eps_growth_yoy"], data["eps_growth_q"],
+            data["revenue_growth_yoy"], data["earnings_surprise_pct"], data["roe"],
+            data["operating_margin"], data["profit_margin"],
+            data["inst_own_pct"], data["debt_to_equity"],
             data["description"], data["updated_at"],
         ))
     return data

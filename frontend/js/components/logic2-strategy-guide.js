@@ -1,13 +1,14 @@
 /**
- * ロジック２（厳選押し目買い・4H厳格トリガー版）の説明ページ
+ * 厳選押し目買いv1（4H厳格トリガー版）の説明ページ
  */
 export function renderLogic2StrategyGuide(container) {
   container.innerHTML = `
   <div class="strategy-guide" style="max-width:900px;margin:0 auto;padding:16px;">
-    <h2 style="margin-bottom:6px">ロジック２ — 厳選押し目買い（4H厳格トリガー版）</h2>
+    <h2 style="margin-bottom:6px">厳選押し目買いv1 — 4H厳格トリガー版</h2>
     <p style="color:var(--text-muted);margin-bottom:20px;">
       上昇トレンド中の銘柄がサポートに押した際、<strong>4時間足の厳格なローソク足パターン</strong>で反発を確認してエントリーする戦略。
       ノイズを徹底排除し、高確信度の候補のみを表示します。
+      出口は<strong>直近高値手前で2/3利確し、残りを20日EMAでトレール</strong>する高勝率型です。
     </p>
 
     <!-- 戦略の特徴 -->
@@ -29,6 +30,23 @@ export function renderLogic2StrategyGuide(container) {
       </div>
     </div>
 
+    <div class="card" style="margin-bottom:16px;">
+      <h3>出口ルール（v1確定版）</h3>
+      <table class="guide-table">
+        <thead><tr><th>項目</th><th>ルール</th></tr></thead>
+        <tbody>
+          <tr><td>SL</td><td>サポートまたは押し安値の少し下に固定。エントリーから損切りまでを1Rとして扱います。</td></tr>
+          <tr><td>TP1</td><td>直近スイング高値の手前（高値×0.99）で2/3を利確します。</td></tr>
+          <tr><td>残り1/3</td><td>20日EMAを終値で割るまでトレールします。</td></tr>
+          <tr><td>RRゲート</td><td>TP1までのRRが1.5未満なら候補に採用しません。</td></tr>
+          <tr><td>保有上限</td><td>8営業日経過で含み損なら全決済します。</td></tr>
+        </tbody>
+      </table>
+      <p style="color:var(--text-muted);margin-top:10px;font-size:.85em">
+        v1はレジスタンスが明確なレンジ気味スイング向きです。v2は+1.5Rで半分利確し、残りを伸ばすトレンド継続ランナー向きです。
+      </p>
+    </div>
+
     <!-- フィルタリングフロー -->
     <div class="card" style="margin-bottom:16px;">
       <h3>フィルタリングフロー</h3>
@@ -48,7 +66,7 @@ export function renderLogic2StrategyGuide(container) {
           <ul style="margin:8px 0 0 16px;color:var(--text-muted);">
             <li>ダウ理論: broken以外（strong / early）</li>
             <li>サポートライン: コンフルエンス >= 1</li>
-            <li>R:R >= 1.5</li>
+            <li>TP1（直近高値×0.99）までのR:R >= 1.5</li>
           </ul>
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>

@@ -218,9 +218,14 @@ def init_db():
             market_cap              REAL,
             pe_ratio                REAL,
             eps_growth_yoy          REAL,
+            eps_growth_q            REAL,
             revenue_growth_yoy      REAL,
             earnings_surprise_pct   REAL,
             roe                     REAL,
+            operating_margin        REAL,
+            profit_margin           REAL,
+            inst_own_pct            REAL,
+            debt_to_equity          REAL,
             description             TEXT,
             updated_at              TEXT
         )
@@ -329,38 +334,6 @@ def init_db():
             daily_verdict       TEXT,
             active_signals_json TEXT DEFAULT '[]',
             PRIMARY KEY (ticker, date)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS logic3_picks (
-            ticker               TEXT PRIMARY KEY,
-            scan_date            TEXT,
-            perfect_order        TEXT,
-            perf_3m              REAL,
-            perf_6m              REAL,
-            avg_vol_20d          REAL,
-            dow_trend            TEXT,
-            base_pattern         TEXT,
-            base_length          INTEGER,
-            base_depth_pct       REAL,
-            pivot_price          REAL,
-            breakout_confirmed   INTEGER DEFAULT 0,
-            breakout_volume_ratio REAL,
-            distance_from_pivot_pct REAL,
-            risk_reward          REAL,
-            entry_price          REAL,
-            stop_price           REAL,
-            tp1_price            REAL,
-            target_price         REAL,
-            rsi                  REAL,
-            atr                  REAL,
-            verdict              TEXT,
-            confidence           REAL,
-            composite_score      REAL,
-            sector               TEXT,
-            current_price        REAL,
-            holding_days_est     INTEGER DEFAULT 14,
-            signals_json         TEXT DEFAULT '[]'
         )
         """,
         """
@@ -521,54 +494,14 @@ def init_db():
     for stmt in statements:
         cur.execute(stmt)
 
-    # Column migrations for existing tables
-    # logic3_picks: 押し目買い4H版 → ブレイクアウト版にスキーマ変更
-    try:
-        cur.execute("""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'logic3_picks' AND column_name = 'base_pattern'
-        """)
-        if not cur.fetchone():
-            cur.execute("DROP TABLE IF EXISTS logic3_picks")
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS logic3_picks (
-                    ticker               TEXT PRIMARY KEY,
-                    scan_date            TEXT,
-                    perfect_order        TEXT,
-                    perf_3m              REAL,
-                    perf_6m              REAL,
-                    avg_vol_20d          REAL,
-                    dow_trend            TEXT,
-                    base_pattern         TEXT,
-                    base_length          INTEGER,
-                    base_depth_pct       REAL,
-                    pivot_price          REAL,
-                    breakout_confirmed   INTEGER DEFAULT 0,
-                    breakout_volume_ratio REAL,
-                    distance_from_pivot_pct REAL,
-                    risk_reward          REAL,
-                    entry_price          REAL,
-                    stop_price           REAL,
-                    tp1_price            REAL,
-                    target_price         REAL,
-                    rsi                  REAL,
-                    atr                  REAL,
-                    verdict              TEXT,
-                    confidence           REAL,
-                    composite_score      REAL,
-                    sector               TEXT,
-                    current_price        REAL,
-                    holding_days_est     INTEGER DEFAULT 14,
-                    signals_json         TEXT DEFAULT '[]'
-                )
-            """)
-            conn.commit()
-            print("[DB] logic3_picks table recreated with breakout schema")
-    except Exception as e:
-        conn.rollback()
-        print(f"[DB] logic3_picks migration error: {e}")
-
     pg_migrations = [
+        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS eps_growth_q REAL",
+        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS operating_margin REAL",
+        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS profit_margin REAL",
+        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS inst_own_pct REAL",
+        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS debt_to_equity REAL",
+        "DROP TABLE IF EXISTS logic3_picks",
+        "DELETE FROM signal_log WHERE logic_name = 'logic3'",
         "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''",
         "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS next_release TEXT DEFAULT ''",
         "ALTER TABLE tech_daily_picks ADD COLUMN IF NOT EXISTS stage_b_signals_json TEXT DEFAULT '[]'",

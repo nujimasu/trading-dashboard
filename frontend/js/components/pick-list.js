@@ -7,12 +7,11 @@
 import {
   buildDetailPanel as buildFundaDetailPanel,
   _getMarketHealth,
-} from "./picks-table.js?v=11";
+} from "./picks-table.js?v=12";
 import {
   _buildDetailPanel as buildTechDetailPanel,
-  _buildDetailPanelBreakout,
   _buildDetailPanelLogic4,
-} from "./tech-picks-table.js?v=7";
+} from "./tech-picks-table.js?v=8";
 import { renderCandlestick } from "../utils/charts.js?v=3";
 import { apiFetch } from "../utils/api.js";
 import {
@@ -20,10 +19,10 @@ import {
   holdingBucket,
   confidenceTier,
   verdictMeta,
-} from "../utils/pick-normalizer.js?v=1";
+} from "../utils/pick-normalizer.js?v=2";
 
 const FUNDA_MODES = new Set(["weekly", "daily", "take-profit", "hybrid-entry"]);
-const TECH_MODES = new Set(["logic2", "logic3", "logic4"]);
+const TECH_MODES = new Set(["logic2", "logic4"]);
 
 export function renderPickList(container, picks, title, mode = "weekly") {
   if (!picks.length) {
@@ -159,6 +158,9 @@ function _renderCard(n, idx) {
     : "";
 
   const holdHtml = `<span class="pick-meta-item hold-badge ${hold.css}">${hold.label}</span>`;
+  const growthHtml = n.growthMetrics.length
+    ? `<div class="pick-card-signals pick-growth-metrics">${n.growthMetrics.map(m => `<span class="sig-tag">${_esc(m)}</span>`).join("")}</div>`
+    : "";
 
   return `
     <div class="pick-card" data-idx="${idx}">
@@ -179,8 +181,10 @@ function _renderCard(n, idx) {
         ${holdHtml}
         ${rrHtml}
         ${sectorHtml}
+        ${n.zoneFlag ? `<span class="pick-meta-item">${_esc(n.zoneFlag)}</span>` : ""}
       </div>
       ${tagsHtml ? `<div class="pick-card-signals">${tagsHtml}</div>` : ""}
+      ${growthHtml}
     </div>`;
 }
 
@@ -226,9 +230,6 @@ function _toggleDetail(container, card, idx, rawPick, mode) {
 function _buildDetail(p, idx, mode) {
   if (FUNDA_MODES.has(mode)) {
     return buildFundaDetailPanel(p, idx, mode);
-  }
-  if (mode === "logic3") {
-    return _buildDetailPanelBreakout(p, idx);
   }
   if (mode === "logic2" || mode === "logic4") {
     return _buildDetailPanelLogic4(p, idx);

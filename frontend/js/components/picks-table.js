@@ -199,9 +199,16 @@ export function buildDetailPanel(p, idx, mode = "weekly") {
       ${kv("セクター",      fs.sector)}
       ${kv("時価総額",      fs.market_cap_b ? `$${fs.market_cap_b}B` : "—")}
       ${kv("P/E",           fs.pe_ratio     ? fs.pe_ratio.toFixed(1) : "—")}
+      ${kv("EPS成長(四半期)", fs.eps_growth_q != null ? `${fs.eps_growth_q}%` : "—")}
       ${kv("EPS成長(YoY)",  fs.eps_growth_yoy != null ? `${fs.eps_growth_yoy}%` : "—")}
       ${kv("売上成長(YoY)", fs.revenue_growth_yoy != null ? `${fs.revenue_growth_yoy}%` : "—")}
       ${kv("決算サプライズ", fs.earnings_surprise_pct != null ? `${fs.earnings_surprise_pct}%` : "—")}
+      ${kv("ROE",           fs.roe != null ? `${fs.roe}%` : "—")}
+      ${kv("営業利益率",     fs.operating_margin != null ? `${fs.operating_margin}%` : "—")}
+      ${kv("利益率",        fs.profit_margin != null ? `${fs.profit_margin}%` : "—")}
+      ${kv("機関投資家保有", fs.inst_own_pct != null ? `${fs.inst_own_pct}%` : "—")}
+      ${kv("D/E",           fs.debt_to_equity != null ? fs.debt_to_equity : "—")}
+      ${kv("成長スコア",     fs.growth_score != null ? `${fs.growth_score}/100` : "—")}
       ${fs.description ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:8px">${escHtml(fs.description)}</div>` : ""}
     </div>
   ` : `<div class="detail-block"><h4>ファンダメンタル</h4><div style="color:var(--text-muted);font-size:.8rem">データなし</div></div>`;
@@ -214,11 +221,8 @@ export function buildDetailPanel(p, idx, mode = "weekly") {
     ? Math.abs((p.tp1_price - p.entry_price) / (p.entry_price - p.stop_price) * (isShort ? -1 : 1)).toFixed(2)
     : "1.50";
   const rr2   = p.risk_reward ? Number(p.risk_reward).toFixed(2) : "—";
-
-  return `
-    <div class="detail-panel">
-
-      <!-- Trade plan row -->
+  const hasTradePlan = p.entry_price != null && p.stop_price != null && p.tp1_price != null && p.target_price != null;
+  const tradePlanHtml = hasTradePlan ? `
       <div class="trade-plan-row">
         <div class="tp-box tp-entry">
           <div class="tp-label">エントリー</div>
@@ -248,7 +252,11 @@ export function buildDetailPanel(p, idx, mode = "weekly") {
           <div class="tp-val">${_holdingBadge(p.holding_days_est)}</div>
           <div class="tp-sub">${_holdingNote(p.holding_days_est)}</div>
         </div>
-      </div>
+      </div>` : "";
+
+  return `
+    <div class="detail-panel">
+      ${tradePlanHtml}
 
       <div class="detail-grid detail-grid-4">
         <div class="detail-block">

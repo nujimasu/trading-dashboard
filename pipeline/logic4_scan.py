@@ -1,5 +1,5 @@
 """
-ロジック４スキャンエンジン — 押し目買い v3（確定版）
+ロジック４スキャンエンジン — 厳選押し目買いv2
 
 実トレード 1,713 件の分析から導いた押し目買いスイング戦略。
 仕様: 押し目買いロジックv3.md
@@ -17,7 +17,7 @@
   A. 地合い: SP500(^GSPC) または QQQ が 200日EMA の上（割れていれば「休む」）
   B. トレンド: 株価 > 200EMA かつ 50EMA > 200EMA、3ヶ月騰落率 > 0%
   C. 流動性: 20日平均出来高 >= 100万株
-  D. 除外: 高額レバETF・暗号資産マイニング関連小型株
+  D. 除外: 決算7日以内 / 高額レバETF / 暗号資産マイニング関連小型株
 
 エントリー圏判定:
   - 20日 or 50日EMA への タッチ（±2%）/ 接近（±5%）
@@ -31,7 +31,7 @@
 """
 
 import json
-from datetime import date
+from datetime import date, datetime, timedelta
 from backend.db import get_connection
 from config import SECTOR_DISPLAY
 
@@ -54,11 +54,15 @@ HOLDING_LIMIT   = 8          # 保有上限（営業日）
 TP1_R           = 1.5        # 第1利確 = +1.5R
 REGIME_SYMBOLS  = ("^GSPC", "QQQ")  # 地合い判定に使う指数/ETF
 
-# 除外リスト（v3.md D項: 高額レバETF / 暗号資産マイニング関連小型株）
-EXCLUDE_TICKERS = {
-    # 高額レバETF（>$100 帯になりやすい・ワースト常連）
+LEVERAGED_ETF = {
     "TSLL", "MSTU", "MSTX", "NVDL", "TQQQ", "SOXL", "TSLT", "CONL", "FNGU", "BULZ",
-    # 暗号資産マイニング・関連小型株
+    "SPXL", "UPRO", "TECL", "FAS", "LABU", "TNA", "UDOW", "QLD", "SSO", "ROM",
+    "USD", "WEBL", "YINN", "BOIL", "TMF", "ERX", "DPST", "HIBL", "AMZU", "AAPU",
+    "MSFU", "GGLL", "METU",
+}
+
+# 暗号資産マイニング・関連小型株は固定除外を維持。
+EXCLUDE_TICKERS = {
     "MARA", "BITF", "BTBT", "RIOT", "HUT", "CIFR", "WULF", "IREN", "CLSK", "BTDR",
 }
 
@@ -135,11 +139,11 @@ def _rsi(C, period=14):
 def _check_market_regime():
     """SP500(^GSPC) または QQQ が 200日EMA の上なら地合い OK（v3 A項）。
 
-    返り値: (regime_ok: bool, note: str)
+    返り値: (regime_ok: bool, note: str, vix_caution: bool, vix_note: str)
     yfinance 不可・取得失敗時は保守的に OK 扱い（候補は出すが警告は付かない）。
     """
     if not _YF_AVAILABLE:
-        return True, "地合い判定スキップ（yfinance不可）"
+        return True, "地合い判定スキップ（yfinance不可）", False, ""
     try:
         results = {}
         for sym in REGIME_SYMBOLS:
@@ -158,15 +162,44 @@ def _check_market_regime():
                 continue
             results[sym] = closes[-1] > ema200[-1]
         if not results:
-            return True, "地合い判定データ取得不可（保守的にOK扱い）"
+            return True, "地合い判定データ取得不可（保守的にOK扱い）", False, ""
         note = ", ".join(
             f"{k.replace('^', '')}:{'>200EMA' if v else '<200EMA'}"
             for k, v in results.items()
         )
+        vix_caution, vix_note = _check_vix_caution()
         # v3: SP500 または QQQ が上なら可（OR 条件）
-        return (sum(1 for v in results.values() if v) >= 1), note
+        return (sum(1 for v in results.values() if v) >= 1), note, vix_caution, vix_note
     except Exception as e:
-        return True, f"地合い判定エラー（保守的にOK扱い）: {e}"
+        return True, f"地合い判定エラー（保守的にOK扱い）: {e}", False, ""
+
+
+def _check_vix_caution():
+    if not _YF_AVAILABLE:
+        return False, ""
+    try:
+        df = yf.download("^VIX", period="1mo", interval="1d",
+                         progress=False, auto_adjust=False)
+        if df is None or df.empty:
+            return False, ""
+        close_col = df["Close"]
+        if hasattr(close_col, "columns"):
+            close_col = close_col.iloc[:, 0]
+        closes = [float(x) for x in close_col.dropna().tolist()]
+        if not closes:
+            return False, ""
+        latest = closes[-1]
+        five_day_change = None
+        if len(closes) >= 6 and closes[-6] > 0:
+            five_day_change = (latest - closes[-6]) / closes[-6] * 100
+        caution = latest > 25 or (five_day_change is not None and five_day_change >= 30)
+        if not caution:
+            return False, f"VIX {latest:.1f}"
+        if five_day_change is not None:
+            return True, f"VIX {latest:.1f} / 5営業日 {five_day_change:+.0f}%"
+        return True, f"VIX {latest:.1f}"
+    except Exception:
+        return False, ""
 
 
 # ── セクター（fundamentals テーブルから・FMP は呼ばない）─────────────────────
@@ -188,16 +221,118 @@ def _is_excluded(ticker):
     return ticker.upper() in EXCLUDE_TICKERS
 
 
+def _leveraged_etf_adjustment(ticker, price):
+    if ticker.upper() not in LEVERAGED_ETF:
+        return "normal", 0.0, None
+    if price > 100:
+        return "exclude", 0.0, "高額レバETF（$100超）のため除外"
+    if price < 30:
+        return "allow", 0.0, "レバETFだが$30未満のため許容"
+    return "penalty", 0.05, "レバETF $30-$100帯のため信頼度を微減"
+
+
+def _normalize_earnings_date(value):
+    if value is None:
+        return None
+    try:
+        if isinstance(value, (list, tuple)):
+            value = value[0] if value else None
+        if value is None:
+            return None
+        if hasattr(value, "to_pydatetime"):
+            value = value.to_pydatetime()
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, date):
+            return value
+        return datetime.fromisoformat(str(value)[:10]).date()
+    except Exception:
+        return None
+
+
+def _next_earnings_date(ticker):
+    if not _YF_AVAILABLE:
+        return None
+    try:
+        yf_ticker = yf.Ticker(ticker)
+        cal = yf_ticker.calendar
+        if isinstance(cal, dict):
+            for key in ("Earnings Date", "EarningsDate", "earningsDate"):
+                d = _normalize_earnings_date(cal.get(key))
+                if d and d >= date.today():
+                    return d
+        elif cal is not None and hasattr(cal, "empty") and not cal.empty:
+            for key in ("Earnings Date", "EarningsDate", "earningsDate"):
+                if key in cal.index:
+                    d = _normalize_earnings_date(cal.loc[key].iloc[0] if hasattr(cal.loc[key], "iloc") else cal.loc[key])
+                    if d and d >= date.today():
+                        return d
+                if key in cal.columns:
+                    d = _normalize_earnings_date(cal[key].iloc[0])
+                    if d and d >= date.today():
+                        return d
+        if hasattr(yf_ticker, "get_earnings_dates"):
+            df = yf_ticker.get_earnings_dates(limit=8)
+            if df is not None and not df.empty:
+                dates = []
+                for idx in df.index:
+                    d = _normalize_earnings_date(idx)
+                    if d and d >= date.today():
+                        dates.append(d)
+                if dates:
+                    return min(dates)
+    except Exception:
+        return None
+    return None
+
+
+def _earnings_within_days(ticker, days=7):
+    next_date = _next_earnings_date(ticker)
+    if not next_date:
+        return False, None
+    return date.today() <= next_date <= date.today() + timedelta(days=days), next_date
+
+
+def _find_swing_highs(values, lookback=3):
+    highs = []
+    for i in range(lookback, len(values) - lookback):
+        window = values[i - lookback:i + lookback + 1]
+        if values[i] == max(window):
+            highs.append(i)
+    return highs
+
+
+def _detect_reji_sapo_near_ema(H, C, i, ema_price, lookback=120):
+    if ema_price is None or ema_price <= 0:
+        return None
+    start = max(0, i - lookback)
+    highs = H[start:i]
+    if len(highs) < 10:
+        return None
+    swing_highs = _find_swing_highs(highs, lookback=3)
+    current = C[i]
+    matches = []
+    for idx in swing_highs:
+        price = highs[idx]
+        if current > price and abs(price - ema_price) / ema_price <= 0.02:
+            matches.append(price)
+    if not matches:
+        return None
+    return min(matches, key=lambda p: abs(p - ema_price))
+
+
 # ── メイン ───────────────────────────────────────────────────────────────────
 
 def run():
-    print("[Logic4] 押し目買い v3 スクリーニング開始...")
+    print("[Logic4] 厳選押し目買いv2 スクリーニング開始...")
     conn = get_connection()
     cur = conn.cursor()
 
     # A. 地合いフィルター（全体で1回）
-    regime_ok, regime_note = _check_market_regime()
+    regime_ok, regime_note, vix_caution, vix_note = _check_market_regime()
     print(f"[Logic4] 地合い: {'OK' if regime_ok else 'NG（休む推奨）'} — {regime_note}")
+    if vix_caution:
+        print(f"[Logic4] VIX慎重フラグ: {vix_note}")
 
     cur.execute("""
         SELECT ticker, COUNT(*) as cnt
@@ -266,6 +401,11 @@ def run():
 
             trend_pass += 1
 
+            leverage_status, leverage_penalty, leverage_note = _leveraged_etf_adjustment(ticker, C[i])
+            if leverage_status == "exclude":
+                print(f"[Logic4] {ticker} 除外: {leverage_note} price=${C[i]:.2f}")
+                continue
+
             # エントリー圏: 20 or 50日EMA タッチ/接近（近い方を採用）
             touch_ema = touch_label = touch_dist = None
             for lbl, ev in (("20日EMA", e20), ("50日EMA", e50)):
@@ -276,6 +416,12 @@ def run():
             if touch_ema is None:
                 continue  # EMA 圏外＝まだ押し目になっていない
             touched = abs(touch_dist) <= EMA_TOUCH_PCT
+
+            # 決算7日以内は除外（エントリー圏の銘柄だけ yfinance 照会＝API負荷を半減）
+            earnings_block, earnings_date = _earnings_within_days(ticker, days=7)
+            if earnings_block:
+                print(f"[Logic4] {ticker} 除外: 決算7日以内 ({earnings_date})")
+                continue
 
             # 出来高枯れ（売り枯れ）
             recent_vol = sum(V[i - 2:i + 1]) / 3 if i >= 2 else V[i]
@@ -306,6 +452,12 @@ def run():
                 reasons.append(f"RSI {rsi_now:.0f}（押し目ゾーン30-50）")
 
             confluence = (1 if touched else 0) + (1 if vol_dryup else 0) + (1 if rsi_flag else 0)
+            reji_sapo = "none"
+            reji_sapo_price = _detect_reji_sapo_near_ema(H, C, i, touch_ema)
+            if reji_sapo_price is not None:
+                reji_sapo = "confirmed"
+                confluence += 1
+                reasons.append(f"レジサポ転換の節目と重なり（${reji_sapo_price:.2f}）")
 
             # v3 C項: 出来高枯れ（売り枯れ）を最優先の必須条件にする。
             # 「下げに大きな出来高を伴う」タッチ（＝出来高枯れなし）は売り圧が残るため格下げ。
@@ -319,6 +471,12 @@ def run():
                 verdict = "サポート接近中"
                 confidence = 0.50
 
+            if reji_sapo == "confirmed":
+                confidence += 0.05
+            if leverage_penalty:
+                confidence -= leverage_penalty
+            confidence = max(0.0, min(0.99, confidence))
+
             # 地合い NG: 候補は見せるが「休む」警告で減点（v3 A項）
             v3_signals = []
             if regime_ok:
@@ -327,6 +485,12 @@ def run():
                 verdict = "地合いNG（休む推奨）"
                 confidence = min(confidence, 0.30)
                 v3_signals.append(f"⚠️地合いNG: {regime_note} → 指数が200日EMA割れ。v3は無理に買わず休む")
+            if vix_caution:
+                v3_signals.append(
+                    f"⚠️VIX急騰週: {vix_note}。反発足は『陽線＋翌日も前日高値超え』までダマシ確認を厚く"
+                )
+            if leverage_note and leverage_status != "exclude":
+                v3_signals.append(leverage_note)
 
             v3_signals += [
                 "引き金（当日確認）: 反発足を確認（陽線確定 or 前日高値超え）してからエントリー。落下中は掴まない",
@@ -347,7 +511,7 @@ def run():
                 "support_price":    round(touch_ema, 2),
                 "confluence":       confluence,
                 "support_reasons":  json.dumps(reasons, ensure_ascii=False),
-                "reji_sapo":        "none",
+                "reji_sapo":        reji_sapo,
                 "risk_reward":      rr,
                 "entry_price":      round(entry, 2),
                 "stop_price":       sl_price,

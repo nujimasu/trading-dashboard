@@ -4,4 +4,7 @@
 __pycache__/
 *.pyc
 .DS_Store
-EO
+.vercel
+.claude/
+data/
+logs/*.log

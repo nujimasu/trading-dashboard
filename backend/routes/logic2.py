@@ -1,4 +1,4 @@
-"""GET /api/logic2-picks — ロジック２（厳選押し目買い・4H厳格トリガー版）"""
+"""GET /api/logic2-picks — 厳選押し目買いv1"""
 import json
 from fastapi import APIRouter
 from backend.db import get_connection
@@ -40,6 +40,7 @@ def get_logic2_picks():
     result = []
     for r in rows:
         reasons  = json.loads(r.get("support_reasons") or "[]")
+        exit_rules = json.loads(r.get("signals_json") or "[]")
         confidence = r["confidence"] or 0
         verdict  = r["verdict"] or "サポート接近中"
 
@@ -49,7 +50,7 @@ def get_logic2_picks():
         if r.get("macd_div_flag"): bonus.append("MACD強気ダイバージェンス")
         if r.get("fib_confluence"):bonus.append(f"Fib {r['fib_confluence']}")
 
-        entry_reasons = reasons + bonus
+        entry_reasons = reasons + bonus + exit_rules
 
         # 4Hトリガー情報
         h4_trigger   = r.get("h4_trigger")
@@ -128,7 +129,7 @@ def get_logic2_picks():
                 ],
             },
             "fundamental_summary": {"available": False},
-            "fundamental_verdict": "テクニカルのみ（厳選押し目買い・4H厳格トリガー版）",
+            "fundamental_verdict": "テクニカルのみ（厳選押し目買いv1）",
         })
 
         # risk_factorsからNoneを除去

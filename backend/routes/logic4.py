@@ -1,16 +1,21 @@
-"""GET /api/logic4-picks — ロジック４（押し目買い v3・確定版）"""
+"""GET /api/logic4-picks — 厳選押し目買いv2"""
 import json
-from fastapi import APIRouter
+from typing import Annotated
+from fastapi import APIRouter, Query
 from backend.db import get_connection
 
 router = APIRouter()
 
 
 @router.get("/api/logic4-picks")
-def get_logic4_picks():
+def get_logic4_picks(
+    include_watchlist: Annotated[bool, Query(description="Include lower-confidence support-watchlist names")] = False,
+    limit: Annotated[int, Query(ge=1, le=200, description="Maximum number of picks to return")] = 50,
+):
     conn = get_connection()
     cur  = conn.cursor()
-    cur.execute("""
+    where = "" if include_watchlist else "WHERE verdict = '最優先候補'"
+    cur.execute(f"""
         SELECT ticker, scan_date, perfect_order, perf_3m, perf_6m, avg_vol_20d,
                dow_trend, support_price, confluence, support_reasons, reji_sapo,
                risk_reward, entry_price, stop_price, tp1_price, target_price,
@@ -18,6 +23,7 @@ def get_logic4_picks():
                verdict, confidence, composite_score, sector, current_price,
                holding_days_est, signals_json, price_to_support_pct
         FROM logic4_picks
+        {where}
         ORDER BY
             CASE verdict
                 WHEN '最優先候補'         THEN 0
@@ -27,7 +33,8 @@ def get_logic4_picks():
             END,
             confidence DESC,
             risk_reward DESC
-    """)
+        LIMIT ?
+    """, (limit,))
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
 
@@ -92,7 +99,7 @@ def get_logic4_picks():
                 ],
             },
             "fundamental_summary": {"available": False},
-            "fundamental_verdict": "テクニカルのみ（押し目買い v3・確定版）",
+            "fundamental_verdict": "テクニカルのみ（厳選押し目買いv2）",
         })
 
         result[-1]["technical_summary"]["risk_factors"] = [

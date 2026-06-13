@@ -23,12 +23,12 @@ def _get_jst_date():
 
 
 def run():
-    today = _get_jst_date()
-    print(f"[Daily] Adjusting picks for {today}...")
+    run_date = _get_jst_date()
+    print(f"[Daily] Adjusting picks for {run_date}...")
 
     conn = get_connection()
     cur  = conn.cursor()
-    cur.execute("SELECT ticker, stop_price, target_price, direction FROM weekly_picks")
+    cur.execute("SELECT ticker, entry_price, stop_price, target_price, direction FROM weekly_picks")
     picks = [dict(r) for r in cur.fetchall()]
 
     # Load fundamentals and technical_screen for take-profit detection
@@ -47,7 +47,7 @@ def run():
 
     if not picks:
         print("[Daily] No weekly picks found. Run full pipeline first.")
-        return
+        return {"expected": 0, "updated": 0, "failed": 0, "dates": []}
 
     tickers = [p["ticker"] for p in picks]
     ticker_map = {p["ticker"]: p for p in picks}
@@ -63,9 +63,10 @@ def run():
         )
     except Exception as e:
         print(f"[Daily] yfinance error: {e}")
-        return
+        return {"expected": len(tickers), "updated": 0, "failed": len(tickers), "dates": []}
 
     daily_rows = []
+    failed = []
     for ticker in tickers:
         try:
             if isinstance(df_all.columns, pd.MultiIndex):
@@ -74,9 +75,11 @@ def run():
                 df = df_all.dropna()
 
             if df.empty:
+                failed.append(ticker)
                 continue
 
             latest   = df.iloc[-1]
+            price_date = str(df.index[-1].date())
             price    = float(latest["Close"])
             volume   = float(latest["Volume"])
 
@@ -98,12 +101,8 @@ def run():
             adj_rr = (reward / risk) if risk > 0 else 0
 
             # Check breakout: price vs weekly entry price
-            conn2 = get_connection()
-            cur2 = conn2.cursor()
-            cur2.execute("SELECT entry_price FROM weekly_picks WHERE ticker = ?", (ticker,))
-            row = cur2.fetchone()
-            pivot = float(row["entry_price"]) if row else price
-            conn2.close()
+            pivot = ticker_map[ticker]["entry_price"] or price
+            pivot = float(pivot)
 
             # LONG: price breaks above pivot / SHORT: price breaks below pivot
             if direction == "SHORT":
@@ -134,7 +133,7 @@ def run():
 
             daily_rows.append({
                 "ticker":               ticker,
-                "date":                 today,
+                "date":                 price_date,
                 "current_price":        round(price, 2),
                 "adjusted_rr":          round(adj_rr, 2),
                 "breakout_triggered":   1 if breakout else 0,
@@ -144,9 +143,10 @@ def run():
                 "take_profit_verdict":  tp["verdict"],
                 "take_profit_signals":  "、".join(tp["signals"]),
             })
-            print(f"  {ticker:6s} | ${price:.2f} | RR={adj_rr:.2f} | {verdict}")
+            print(f"  {ticker:6s} | {price_date} | ${price:.2f} | RR={adj_rr:.2f} | {verdict}")
 
         except Exception as e:
+            failed.append(ticker)
             print(f"  [ERR] {ticker}: {e}")
 
     # Save
@@ -172,7 +172,17 @@ def run():
                 row["take_profit_verdict"], row["take_profit_signals"],
             ))
 
-    print(f"[Daily] Done. {len(daily_rows)} tickers updated.")
+    dates = sorted({row["date"] for row in daily_rows})
+    if failed:
+        print(f"[Daily] Failed tickers: {', '.join(failed)}")
+    print(f"[Daily] Done. {len(daily_rows)}/{len(tickers)} tickers updated. dates={','.join(dates) or '-'}")
+    return {
+        "expected": len(tickers),
+        "updated": len(daily_rows),
+        "failed": len(failed),
+        "dates": dates,
+        "failed_tickers": failed,
+    }
 
 
 if __name__ == "__main__":

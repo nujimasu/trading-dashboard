@@ -1,12 +1,11 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
-import { renderPickList }          from "./components/pick-list.js?v=2";
+import { renderPickList }          from "./components/pick-list.js?v=3";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
-import { renderStrategyGuide }        from "./components/strategy-guide.js?v=3";
-import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=2";
-import { renderLogic3StrategyGuide }  from "./components/logic3-strategy-guide.js?v=4";
-import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=1";
-import { renderBacktest }          from "./components/backtest.js?v=2";
+import { renderStrategyGuide }        from "./components/strategy-guide.js?v=4";
+import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=3";
+import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=2";
+import { renderBacktest }          from "./components/backtest.js?v=3";
 import { renderPositions }         from "./components/positions.js?v=2";
 import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=9";
 import { apiFetch }                from "./utils/api.js?v=3";
@@ -15,10 +14,9 @@ import { apiFetch }                from "./utils/api.js?v=3";
 const SECTIONS = [
   { id: "market-health", label: "市場ヘルス", icon: "📊", load: loadMarketHealth },
   { id: "economic",      label: "経済指標",   icon: "📈", load: loadEconomic },
-  { id: "logic1",        label: "ロジック１（ファンダ考慮）",   icon: "🎯", load: loadLogic1 },
-  { id: "logic2",        label: "ロジック２（厳選押し目買い）", icon: "🔥", load: loadLogic2 },
-  { id: "logic3",        label: "ロジック３（ブレイクアウト）", icon: "🚀", load: loadLogic3 },
-  { id: "logic4",        label: "ロジック４（押し目買いv3）",   icon: "💎", load: loadLogic4 },
+  { id: "logic1",        label: "ファンダ重視", icon: "🎯", load: loadLogic1 },
+  { id: "logic2",        label: "厳選押し目買いv1", icon: "🔥", load: loadLogic2 },
+  { id: "logic4",        label: "厳選押し目買いv2", icon: "💎", load: loadLogic4 },
   { id: "positions",     label: "保有ポジション", icon: "💼", load: loadPositions },
   { id: "trade-analytics", label: "取引分析", icon: "📈", load: loadTradeAnalytics },
   { id: "backtest",      label: "戦績", icon: "📊", load: loadBacktest },
@@ -152,7 +150,7 @@ async function loadEconomic(container) {
   await renderEconomicDashboard(container);
 }
 
-// ロジック１（ファンダ考慮）: 候補 + 説明をタブ切替
+// ファンダ重視: 候補 + 説明をタブ切替
 function loadLogic1(container) {
   renderTabbedSection(container, [
     {
@@ -166,7 +164,7 @@ function loadLogic1(container) {
           ]);
           const merged = _mergeWeeklyDaily(weekly, daily);
           const entries = merged.filter(p => p.daily_verdict !== "PASSED" && p.direction !== "SHORT");
-          renderPickList(el, entries, "🎯 ロジック１（ファンダ考慮）", "hybrid-entry");
+          renderPickList(el, entries, "🎯 ファンダ重視（グロース）", "hybrid-entry");
         } catch (e) {
           el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
         }
@@ -193,7 +191,7 @@ function _mergeWeeklyDaily(weekly, daily) {
   return Object.values(map).sort((a, b) => (b.composite_score || 0) - (a.composite_score || 0));
 }
 
-// ロジック２: 厳選押し目買い（4H厳格トリガー版）
+// 厳選押し目買いv1
 function loadLogic2(container) {
   renderTabbedSection(container, [
     {
@@ -202,7 +200,7 @@ function loadLogic2(container) {
         el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
         try {
           const picks = await apiFetch("/api/logic2-picks");
-          renderPickList(el, picks, "🔥 ロジック２（厳選押し目買い）", "logic2");
+          renderPickList(el, picks, "🔥 厳選押し目買いv1", "logic2");
         } catch (e) {
           el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
         }
@@ -215,29 +213,7 @@ function loadLogic2(container) {
   ]);
 }
 
-// ロジック３: ブレイクアウト・モメンタム
-function loadLogic3(container) {
-  renderTabbedSection(container, [
-    {
-      id: "picks", label: "候補リスト", icon: "📋",
-      render: async (el) => {
-        el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
-        try {
-          const picks = await apiFetch("/api/logic3-picks");
-          renderPickList(el, picks, "🚀 ロジック３（ブレイクアウト）", "logic3");
-        } catch (e) {
-          el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
-        }
-      },
-    },
-    {
-      id: "guide", label: "説明", icon: "🚀",
-      render: (el) => renderLogic3StrategyGuide(el),
-    },
-  ]);
-}
-
-// ロジック４: 押し目買い v3（確定版・実トレード1,713件分析）
+// 厳選押し目買いv2
 function loadLogic4(container) {
   renderTabbedSection(container, [
     {
@@ -246,7 +222,7 @@ function loadLogic4(container) {
         el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
         try {
           const picks = await apiFetch("/api/logic4-picks");
-          renderPickList(el, picks, "💎 ロジック４（押し目買いv3）", "logic4");
+          renderPickList(el, picks, "💎 厳選押し目買いv2", "logic4");
         } catch (e) {
           el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
         }

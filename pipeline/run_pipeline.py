@@ -28,6 +28,28 @@ def log_stage(stage: str, status: str, message: str, duration: float = 0):
     print(f"[{stage}] {status}: {message} ({duration:.1f}s)")
 
 
+def _collect_daily_price_tickers() -> list[str]:
+    """Collect tickers whose charts/signals need fresh daily OHLCV."""
+    queries = [
+        "SELECT ticker FROM weekly_picks",
+        "SELECT ticker FROM tech_weekly_picks",
+        "SELECT ticker FROM logic2_picks",
+        "SELECT ticker FROM logic4_picks",
+        "SELECT ticker FROM positions WHERE status = 'open'",
+        "SELECT ticker FROM signal_log WHERE status = 'open'",
+    ]
+    tickers = set()
+    with db_cursor() as cur:
+        for sql in queries:
+            try:
+                cur.execute(sql)
+                tickers.update((r["ticker"] or "").strip().upper() for r in cur.fetchall())
+            except Exception:
+                # Older local DBs may not have every optional table yet.
+                continue
+    return sorted(t for t in tickers if t)
+
+
 def run_full(skip_download: bool = False):
     print("=" * 60)
     print(f"Trading Dashboard Pipeline — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -117,41 +139,7 @@ def run_full(skip_download: bool = False):
         return
 
     if not longs_s3 and not shorts_s3:
-        print("[Pipeline] No stocks passed Stage 3 filter. Done.")
-        return
-
-    # ── Stage 4: Detailed analysis ────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage4_detailed_analysis import run as stage4_run
-        survivors_s4 = stage4_run(survivors_s3)
-        log_stage("Stage4", "OK", f"{len(survivors_s4)} passed RR filter", time.time() - t0)
-    except Exception as e:
-        log_stage("Stage4", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage 4 failed: {e}")
-        return
-
-    # ── Stage 5: Fundamentals ─────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage5_fundamentals import run as stage5_run
-        enriched = stage5_run(survivors_s4)
-        log_stage("Stage5", "OK", f"{len(enriched)} tickers enriched", time.time() - t0)
-    except Exception as e:
-        log_stage("Stage5", "ERROR", str(e), time.time() - t0)
-        enriched = survivors_s4
-        print(f"[WARN] Stage 5 failed: {e}, continuing without fundamentals...")
-
-    # ── Stage 6: Scoring ──────────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage6_scoring import run as stage6_run
-        final_picks = stage6_run(enriched)
-        log_stage("Stage6", "OK", f"{len(final_picks)} weekly picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("Stage6", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage 6 failed: {e}")
-        return
+        print("[Pipeline] No stocks passed Stage 3 filter. Logic1 still scans the full universe.")
 
     # ── Logic2 scan ───────────────────────────────────────────────────────
     t0 = time.time()
@@ -163,25 +151,28 @@ def run_full(skip_download: bool = False):
         log_stage("Logic2", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] Logic2 scan failed: {e}")
 
-    # ── Logic3 scan ───────────────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.logic3_scan import run as logic3_run
-        logic3_run()
-        log_stage("Logic3", "OK", "Logic3 picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("Logic3", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic3 scan failed: {e}")
-
-    # ── Logic4 scan (押し目買い v3) ─────────────────────────────────────────
+    # ── Logic4 scan ───────────────────────────────────────────────────────
     t0 = time.time()
     try:
         from pipeline.logic4_scan import run as logic4_run
         logic4_run()
-        log_stage("Logic4", "OK", "Logic4 (押し目買いv3) picks generated", time.time() - t0)
+        log_stage("Logic4", "OK", "Logic4 picks generated", time.time() - t0)
     except Exception as e:
         log_stage("Logic4", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] Logic4 scan failed: {e}")
+
+    # ── Logic1 scan: ファンダ重視（グロース）───────────────────────────────
+    # logic2/logic4 の後に実行する（当日の logic2_picks/logic4_picks を
+    # クロスタグ「v1/v2にも出現」で参照するため）。
+    t0 = time.time()
+    try:
+        from pipeline.logic1_scan import run as logic1_run
+        logic1_picks = logic1_run()
+        log_stage("Logic1", "OK", f"{len(logic1_picks)} weekly picks generated", time.time() - t0)
+    except Exception as e:
+        log_stage("Logic1", "ERROR", str(e), time.time() - t0)
+        print(f"[FATAL] Logic1 scan failed: {e}")
+        return
 
     # ── News collection ───────────────────────────────────────────────────
     t0 = time.time()
@@ -195,7 +186,7 @@ def run_full(skip_download: bool = False):
 
     total = time.time() - total_start
     print("=" * 60)
-    print(f"Pipeline complete in {total:.0f}s. {len(final_picks)} picks ready.")
+    print(f"Pipeline complete in {total:.0f}s. {len(logic1_picks)} picks ready.")
     print("Start dashboard: python run.py")
     print("=" * 60)
 
@@ -203,11 +194,46 @@ def run_full(skip_download: bool = False):
 def run_daily():
     print(f"[Daily] Running daily adjustment — {datetime.now().strftime('%H:%M')}")
     init_db()
+
+    # 先に price_data を差分更新する。daily_picks だけが新しく、チャートや
+    # テクニカル判定の元データが古い状態になるのを避けるため。
+    tickers = _collect_daily_price_tickers()
+    if tickers:
+        t0 = time.time()
+        try:
+            from pipeline.stage2_price_data import run_incremental
+            updated = run_incremental(tickers, days=10)
+            missing = len(tickers) - len(updated)
+            status = "OK" if updated and missing == 0 else "WARN"
+            log_stage(
+                "DailyPrice",
+                status,
+                f"price_data updated {len(updated)}/{len(tickers)} tickers",
+                time.time() - t0,
+            )
+        except Exception as e:
+            log_stage("DailyPrice", "ERROR", str(e), time.time() - t0)
+            print(f"[WARN] price_data incremental update failed: {e}")
+    else:
+        log_stage("DailyPrice", "WARN", "No tickers found for price_data update", 0)
+
     t0 = time.time()
     try:
         from pipeline.daily_adjustment import run as daily_run
-        daily_run()
-        log_stage("Daily", "OK", "Daily picks updated", time.time() - t0)
+        stats = daily_run()
+        expected = stats.get("expected", 0) if stats else 0
+        updated = stats.get("updated", 0) if stats else 0
+        failed = stats.get("failed", 0) if stats else 0
+        dates = ",".join(stats.get("dates", [])) if stats else "-"
+        status = "OK" if expected and updated == expected else "WARN"
+        if not expected:
+            status = "WARN"
+        log_stage(
+            "Daily",
+            status,
+            f"daily_picks updated {updated}/{expected}, failed={failed}, dates={dates}",
+            time.time() - t0,
+        )
     except Exception as e:
         log_stage("Daily", "ERROR", str(e), time.time() - t0)
         print(f"[ERROR] Daily adjustment failed: {e}")
@@ -243,8 +269,10 @@ def run_daily_full():
     t0 = time.time()
     try:
         from pipeline.stage2_price_data import run_incremental
-        run_incremental(tickers, days=10)
-        log_stage("DailyFull-Stage2", "OK", f"{len(tickers)} tickers incremental update", time.time() - t0)
+        updated = run_incremental(tickers, days=10)
+        missing = len(tickers) - len(updated)
+        status = "OK" if updated and missing == 0 else "WARN"
+        log_stage("DailyFull-Stage2", status, f"{len(updated)}/{len(tickers)} tickers incremental update", time.time() - t0)
     except Exception as e:
         log_stage("DailyFull-Stage2", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] 差分DL失敗: {e}、既存データで続行...")
@@ -263,49 +291,7 @@ def run_daily_full():
         return
 
     if not longs and not shorts:
-        print("[DailyFull] Stage3通過銘柄なし。終了。")
-        return
-
-    # ── Stage 4: RR計算 ───────────────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage4_detailed_analysis import run as stage4_run
-        survivors_s4 = stage4_run(survivors_s3)
-        log_stage("DailyFull-Stage4", "OK", f"{len(survivors_s4)} passed RR filter", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Stage4", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage4 失敗: {e}")
-        return
-
-    # ── Stage 5: ファンダメンタルズ（キャッシュ優先・API追加呼び出し最小）─────
-    t0 = time.time()
-    try:
-        from pipeline.stage5_fundamentals import run as stage5_run
-        enriched = stage5_run(survivors_s4)
-        log_stage("DailyFull-Stage5", "OK", f"{len(enriched)} enriched", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Stage5", "ERROR", str(e), time.time() - t0)
-        enriched = survivors_s4
-
-    # ── Stage 6: スコアリング → weekly_picks 更新 ─────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage6_scoring import run as stage6_run
-        final_picks = stage6_run(enriched)
-        log_stage("DailyFull-Stage6", "OK", f"{len(final_picks)} picks updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Stage6", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage6 失敗: {e}")
-        return
-
-    # ── 日次調整（当日価格・verdict 更新）────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.daily_adjustment import run as daily_run
-        daily_run()
-        log_stage("DailyFull-Daily", "OK", "daily_picks updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Daily", "ERROR", str(e), time.time() - t0)
+        print("[DailyFull] Stage3通過銘柄なし。Logic1は全ユニバースを継続スキャンします。")
 
     # ── ロジック２スキャン（日次）────────────────────────────────────────────
     t0 = time.time()
@@ -317,15 +303,42 @@ def run_daily_full():
         log_stage("DailyFull-Logic2", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] Logic2 scan failed: {e}")
 
-    # ── ロジック３スキャン（日次）────────────────────────────────────────────
+    # ── ロジック４スキャン（日次）────────────────────────────────────────────
     t0 = time.time()
     try:
-        from pipeline.logic3_scan import run as logic3_run
-        logic3_run()
-        log_stage("DailyFull-Logic3", "OK", "logic3_picks updated", time.time() - t0)
+        from pipeline.logic4_scan import run as logic4_run
+        logic4_picks = logic4_run()
+        log_stage("DailyFull-Logic4", "OK", f"{len(logic4_picks)} logic4_picks updated", time.time() - t0)
     except Exception as e:
-        log_stage("DailyFull-Logic3", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic3 scan failed: {e}")
+        log_stage("DailyFull-Logic4", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic4 scan failed: {e}")
+
+    # ── Logic1: ファンダ重視（グロース）→ weekly_picks 更新 ───────────────
+    # logic2/logic4 の後に実行（クロスタグで当日の v1/v2 出現を参照）。
+    # daily_adjustment は logic1 の最新 weekly_picks を読むため Logic1 の後に置く。
+    t0 = time.time()
+    try:
+        from pipeline.logic1_scan import run as logic1_run
+        logic1_picks = logic1_run()
+        log_stage("DailyFull-Logic1", "OK", f"{len(logic1_picks)} picks updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Logic1", "ERROR", str(e), time.time() - t0)
+        print(f"[FATAL] Logic1 失敗: {e}")
+        return
+
+    # ── 日次調整（当日価格・verdict 更新）────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.daily_adjustment import run as daily_run
+        stats = daily_run()
+        expected = stats.get("expected", 0) if stats else 0
+        updated = stats.get("updated", 0) if stats else 0
+        failed = stats.get("failed", 0) if stats else 0
+        dates = ",".join(stats.get("dates", [])) if stats else "-"
+        status = "OK" if expected and updated == expected else "WARN"
+        log_stage("DailyFull-Daily", status, f"daily_picks updated {updated}/{expected}, failed={failed}, dates={dates}", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-Daily", "ERROR", str(e), time.time() - t0)
 
     # ── テクニカルスキャン（日次）────────────────────────────────────────────
     t0 = time.time()
@@ -336,7 +349,7 @@ def run_daily_full():
     except Exception as e:
         log_stage("DailyFull-TechDaily", "ERROR", str(e), time.time() - t0)
 
-    print(f"[DailyFull] 完了。{len(final_picks)} picks、daily_picks 更新済み。")
+    print(f"[DailyFull] 完了。{len(logic1_picks)} picks、daily_picks 更新済み。")
 
 
 def run_tech_weekly():
@@ -376,13 +389,14 @@ def run_daily_light():
             conn.close()
             from pipeline.stage2_price_data import run_grouped
             grouped_saved = run_grouped(uni, lookback_days=6)
-            log_stage("DailyLight-Grouped", "OK" if grouped_saved else "WARN",
+            status = "OK" if grouped_saved else "WARN"
+            log_stage("DailyLight-Grouped", status,
                       f"{len(grouped_saved)}/{len(uni)} tickers (Polygon grouped)", time.time() - t0)
         except Exception as e:
             log_stage("DailyLight-Grouped", "ERROR", str(e), time.time() - t0)
             print(f"[WARN] grouped前進失敗: {e} — 続行")
 
-    # オープンポジ + オープンシグナルの ticker を抽出
+    # オープンポジ + オープンシグナルの ticker を抽出(当日分の差分DLは従来通り yfinance)
     conn = get_connection()
     cur  = conn.cursor()
     cur.execute("""
@@ -399,8 +413,10 @@ def run_daily_light():
         t0 = time.time()
         try:
             from pipeline.stage2_price_data import run_incremental
-            run_incremental(tickers, days=10)
-            log_stage("DailyLight-Stage2", "OK", f"{len(tickers)} tickers", time.time() - t0)
+            updated = run_incremental(tickers, days=10)
+            missing = len(tickers) - len(updated)
+            status = "OK" if updated and missing == 0 else "WARN"
+            log_stage("DailyLight-Stage2", status, f"{len(updated)}/{len(tickers)} tickers", time.time() - t0)
         except Exception as e:
             log_stage("DailyLight-Stage2", "ERROR", str(e), time.time() - t0)
             print(f"[WARN] 差分DL失敗: {e} — 評価は続行")

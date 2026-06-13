@@ -6,8 +6,10 @@ Database connection and schema management.
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 # ── PostgreSQL / SQLite 切り替え ─────────────────────────────────────────────
 if os.getenv("DATABASE_URL"):
@@ -111,9 +113,14 @@ else:
             market_cap              REAL,
             pe_ratio                REAL,
             eps_growth_yoy          REAL,
+            eps_growth_q            REAL,
             revenue_growth_yoy      REAL,
             earnings_surprise_pct   REAL,
             roe                     REAL,
+            operating_margin        REAL,
+            profit_margin           REAL,
+            inst_own_pct            REAL,
+            debt_to_equity          REAL,
             description             TEXT,
             updated_at              TEXT
         );
@@ -235,36 +242,6 @@ else:
             holding_days_est INTEGER DEFAULT 14,
             signals_json    TEXT DEFAULT '[]'
         );
-        CREATE TABLE IF NOT EXISTS logic3_picks (
-            ticker          TEXT PRIMARY KEY,
-            scan_date       TEXT,
-            perfect_order   TEXT,
-            perf_3m         REAL,
-            perf_6m         REAL,
-            avg_vol_20d     REAL,
-            dow_trend       TEXT,
-            base_pattern    TEXT,
-            base_length     INTEGER,
-            base_depth_pct  REAL,
-            pivot_price     REAL,
-            breakout_confirmed INTEGER DEFAULT 0,
-            breakout_volume_ratio REAL,
-            distance_from_pivot_pct REAL,
-            risk_reward     REAL,
-            entry_price     REAL,
-            stop_price      REAL,
-            tp1_price       REAL,
-            target_price    REAL,
-            rsi             REAL,
-            atr             REAL,
-            verdict         TEXT,
-            confidence      REAL,
-            composite_score REAL,
-            sector          TEXT,
-            current_price   REAL,
-            holding_days_est INTEGER DEFAULT 14,
-            signals_json    TEXT DEFAULT '[]'
-        );
         CREATE TABLE IF NOT EXISTS signal_log (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             logic_name      TEXT NOT NULL,
@@ -375,8 +352,17 @@ else:
 
         conn.commit()
 
+        cur.execute("DROP TABLE IF EXISTS logic3_picks")
+        cur.execute("DELETE FROM signal_log WHERE logic_name = 'logic3'")
+        conn.commit()
+
         # Migrations
         migrations = [
+            ("fundamentals",      "eps_growth_q REAL"),
+            ("fundamentals",      "operating_margin REAL"),
+            ("fundamentals",      "profit_margin REAL"),
+            ("fundamentals",      "inst_own_pct REAL"),
+            ("fundamentals",      "debt_to_equity REAL"),
             ("detailed_analysis", "direction TEXT DEFAULT 'LONG'"),
             ("detailed_analysis", "tp1_price REAL"),
             ("detailed_analysis", "holding_days_est INTEGER DEFAULT 20"),
@@ -393,7 +379,6 @@ else:
             ("logic4_picks",      "h1_trigger TEXT"),
             ("logic4_picks",      "h4_structure TEXT DEFAULT 'neutral'"),
             ("logic2_picks",      "chart_pattern TEXT"),
-            ("logic3_picks",      "chart_pattern TEXT"),
             ("logic4_picks",      "chart_pattern TEXT"),
         ]
         for tbl, col_def in migrations:

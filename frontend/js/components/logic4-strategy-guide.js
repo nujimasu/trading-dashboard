@@ -1,15 +1,16 @@
 /**
- * ロジック４（押し目買い v3・確定版）の説明ページ
+ * 厳選押し目買いv2（v3確定版）の説明ページ
  * 実トレード 1,713 件の分析から導いた「現時点で最も勝てる確率の高い形」。
  */
 export function renderLogic4StrategyGuide(container) {
   container.innerHTML = `
   <div class="strategy-guide" style="max-width:900px;margin:0 auto;padding:16px;">
-    <h2 style="margin-bottom:6px">ロジック４ — 押し目買い v3（確定版）</h2>
+    <h2 style="margin-bottom:6px">厳選押し目買いv2 — v3確定版</h2>
     <p style="color:var(--text-muted);margin-bottom:20px;">
       実トレード <strong>1,713 件</strong> のデータ分析から導いた押し目買いスイング戦略。
       頭で作った理想論ではなく、過去データが「これなら勝てた」と示した方向に沿っています。
       <strong>勝ち筋は 4〜7 日保有のスイング</strong>。デイトレは構造的に負けるため禁止します。
+      v1よりも<strong>利大損小で伸ばす</strong>ことを優先するウォッチ型です。
     </p>
 
     <!-- 診断サマリー -->
@@ -38,6 +39,31 @@ export function renderLogic4StrategyGuide(container) {
       </ul>
     </div>
 
+    <div class="card" style="margin-bottom:16px;">
+      <h3>v2で追加した4フィルタ</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
+        <div style="background:var(--bg-card);border-left:3px solid #f87171;border-radius:6px;padding:12px;">
+          <div style="font-weight:700;color:#f87171;font-size:.86rem">決算7日以内を除外</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">決算ギャンブルを避けるため、取得できた次回決算日が7日以内なら候補から外します。</div>
+        </div>
+        <div style="background:var(--bg-card);border-left:3px solid var(--accent-green);border-radius:6px;padding:12px;">
+          <div style="font-weight:700;color:var(--accent-green);font-size:.86rem">レジサポ転換を加点</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">採用EMAの±2%以内に過去スイング高値が重なる場合、節目の重なりとして信頼度を加算します。</div>
+        </div>
+        <div style="background:var(--bg-card);border-left:3px solid #f59e0b;border-radius:6px;padding:12px;">
+          <div style="font-weight:700;color:#f59e0b;font-size:.86rem">VIX慎重フラグ</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">VIXが25超または5営業日で30%以上急騰した週は、反発足の確認を厚くする注意を表示します。</div>
+        </div>
+        <div style="background:var(--bg-card);border-left:3px solid #60a5fa;border-radius:6px;padding:12px;">
+          <div style="font-weight:700;color:#60a5fa;font-size:.86rem">レバETF動的除外</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">レバETFは$100超を除外、$30未満は許容、$30〜$100は信頼度を微減します。</div>
+        </div>
+      </div>
+      <p style="color:var(--text-muted);margin-top:10px;font-size:.85em">
+        v1は直近高値手前で2/3を早めに利確する高勝率型。v2は+1.5Rで半分だけ確定し、残りを20日EMAトレールで伸ばす型です。
+      </p>
+    </div>
+
     <!-- フィルタリングフロー -->
     <div class="card" style="margin-bottom:16px;">
       <h3>エントリー判定フロー（このダッシュボードの自動抽出範囲）</h3>
@@ -56,7 +82,7 @@ export function renderLogic4StrategyGuide(container) {
             <li>株価 &gt; 200EMA かつ 50EMA &gt; 200EMA（上昇トレンド確定）</li>
             <li>過去3ヶ月騰落率 &gt; 0%</li>
             <li>20日平均出来高 ≥ 100万株</li>
-            <li>除外：高額レバETF（TSLL/MSTU等）・暗号マイニング小型株（MARA/BITF等）</li>
+            <li>除外：決算7日以内、高額レバETF、暗号マイニング小型株（MARA/BITF等）</li>
           </ul>
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>

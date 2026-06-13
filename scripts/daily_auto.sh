@@ -9,5 +9,5 @@ LOG="$DASHBOARD_DIR/logs/daily_auto.log"
 mkdir -p "$DASHBOARD_DIR/logs"
 
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') ===" >> "$LOG"
-cd "$DASHBOARD_DIR" && "$PYTHON" pipeline/run_pipeline.py --daily-only >> "$LOG" 2>&1
+cd "$DASHBOARD_DIR" && "$PYTHON" pipeline/run_pipeline.py --daily-full >> "$LOG" 2>&1
 echo "" >> "$LOG"

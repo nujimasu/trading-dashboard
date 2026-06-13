@@ -7,7 +7,6 @@
  *   take-profit   : picks-table 経由（利確シグナル）
  *   hybrid-entry  : picks-table 経由（ロジック1: weekly + daily マージ）
  *   logic2        : tech-picks-table 経由
- *   logic3        : tech-picks-table 経由
  *   logic4        : tech-picks-table 経由
  *
  * 出力 (NormalizedPick):
@@ -15,7 +14,7 @@
  *   holdingDays, verdict, prices{entry,stop,tp1,target,current?}, raw
  */
 
-const TECH_MODES = new Set(["logic2", "logic3", "logic4"]);
+const TECH_MODES = new Set(["logic2", "logic4"]);
 
 export function normalizePick(p, mode) {
   const isTech = TECH_MODES.has(mode);
@@ -42,6 +41,18 @@ export function normalizePick(p, mode) {
     // Funda 系: technical_summary.entry_reasons の先頭3つ
     const reasons = p.technical_summary?.entry_reasons || [];
     primarySignals = reasons.slice(0, 3);
+  }
+
+  const fs = p.fundamental_summary || {};
+  const growthMetrics = [];
+  if (mode === "hybrid-entry") {
+    if (fs.growth_score != null) growthMetrics.push(`成長スコア ${Number(fs.growth_score).toFixed(0)}`);
+    if (fs.eps_growth_q != null) growthMetrics.push(`EPS ${Number(fs.eps_growth_q).toFixed(1)}%`);
+    else if (fs.eps_growth_yoy != null) growthMetrics.push(`EPS ${Number(fs.eps_growth_yoy).toFixed(1)}%`);
+    if (fs.revenue_growth_yoy != null) growthMetrics.push(`売上 ${Number(fs.revenue_growth_yoy).toFixed(1)}%`);
+    if (fs.roe != null) growthMetrics.push(`ROE ${Number(fs.roe).toFixed(1)}%`);
+    if (fs.operating_margin != null) growthMetrics.push(`営業利益率 ${Number(fs.operating_margin).toFixed(1)}%`);
+    else if (fs.profit_margin != null) growthMetrics.push(`利益率 ${Number(fs.profit_margin).toFixed(1)}%`);
   }
 
   // ── verdict ────────────────────────────────────────────────
@@ -74,6 +85,8 @@ export function normalizePick(p, mode) {
     holdingDays:   p.holding_days_est ?? null,
     verdict:       verdict ?? null,
     tier:          p.tier || null,
+    zoneFlag:      p.technical_summary?.zone_flag || null,
+    growthMetrics: growthMetrics.slice(0, 5),
     prices: {
       entry:   p.entry_price ?? null,
       stop:    p.stop_price ?? null,
