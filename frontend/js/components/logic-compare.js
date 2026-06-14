@@ -4,6 +4,16 @@
  */
 export function renderLogicCompare(container) {
   container.innerHTML = `
+  <style>
+    .lc-cap{font-size:.85rem;color:var(--text-muted);margin:10px 2px 0;line-height:1.55}
+    .lc-cap b{color:var(--text-primary)}
+    .lc-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    @media (max-width:560px){
+      .strategy-guide h2{font-size:1.12rem;line-height:1.4}
+      .strategy-guide .guide-table{font-size:.8rem;min-width:520px}
+      .strategy-guide .guide-table th,.strategy-guide .guide-table td{padding:6px 7px}
+    }
+  </style>
   <div class="strategy-guide" style="max-width:980px;margin:0 auto;padding:16px;">
     <h2 style="margin-bottom:6px">⚖️ 厳選押し目買い v1 vs v2 — 違いの早わかり</h2>
     <p style="color:var(--text-muted);margin-bottom:18px;">
@@ -44,34 +54,30 @@ export function renderLogicCompare(container) {
 
         <!-- v1 panel -->
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;">
-          <div style="font-weight:700;color:#34d399;font-size:.9rem;margin-bottom:4px">v1：高値手前で 2/3 利確（高勝率・利益は頭打ち）</div>
+          <div style="font-weight:700;color:#34d399;font-size:.92rem;margin-bottom:6px">v1：高値手前で 2/3 利確</div>
           ${_chart({
-            target: { y: 55, label: '直近スイング高値（ターゲット）', color: '#9ca3af' },
-            half:   null,
-            // 価格の道のり: 高値圏から押し目→反発→高値手前で利確→トレール終い
+            target: { y: 55, label: '直近高値', color: '#9ca3af' },
             path: '40,92 78,118 110,151 150,120 190,82 218,58 255,78 300,112',
             entry: { x: 110, y: 151 },
-            tp:    { x: 218, y: 58,  label: '③ 2/3利確', sub: '高値手前×0.99' },
-            exit:  { x: 300, y: 112, label: '残り1/3 トレール終い' },
-            capLine: 55,            // 利益はこの高値で頭打ち
-            capText: '利益は高値で頭打ち',
+            tp:    { x: 218, y: 58,  label: '③ 2/3利確' },
+            exit:  { x: 300, y: 112, label: '残り1/3 手仕舞い' },
+            capLine: 55,
           })}
+          <div class="lc-cap">→ 直近高値で <b>2/3 を確定</b>。利益はこの高値で<b>頭打ち</b>になる代わりに <b>よく当たる</b>（高勝率）。</div>
         </div>
 
         <!-- v2 panel -->
         <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:10px;">
-          <div style="font-weight:700;color:#60a5fa;font-size:.9rem;margin-bottom:4px">v2：+1.5Rで半分利確→残りを伸ばす（利大損小・青天井）</div>
+          <div style="font-weight:700;color:#60a5fa;font-size:.92rem;margin-bottom:6px">v2：+1.5Rで半分→残りを伸ばす</div>
           ${_chart({
-            target: { y: 98, label: '+1.5R（ここで半分利確）', color: '#34d399' },
-            half:   null,
-            // 価格の道のり: 押し目→反発→+1.5Rで半分→さらに上昇して高い位置でトレール終い
+            target: { y: 98, label: '+1.5R', color: '#34d399' },
             path: '40,120 80,140 105,152 140,128 175,98 215,80 270,55 330,40',
             entry: { x: 105, y: 152 },
-            tp:    { x: 175, y: 98,  label: '③ +1.5Rで半分', sub: '残り半分は伸ばす' },
-            exit:  { x: 332, y: 40,  label: '残り半分を伸ばす', up: true },
+            tp:    { x: 175, y: 98,  label: '③ 半分利確' },
+            exit:  { x: 334, y: 40,  label: '残り半分を伸ばす ↑', up: true, anchor: 'end' },
             capLine: null,
-            capText: '利益は青天井（トレンドに乗せ続ける）',
           })}
+          <div class="lc-cap">→ <b>+1.5Rで半分</b>を確定し、残り半分を 20日EMA トレールで <b>青天井に伸ばす</b>（1勝を大きく）。</div>
         </div>
       </div>
       <p style="color:var(--text-muted);margin-top:10px;font-size:.82rem;">
@@ -107,6 +113,7 @@ export function renderLogicCompare(container) {
     <!-- 比較表 -->
     <div class="card" style="margin-bottom:18px;">
       <h3>項目別の違い</h3>
+      <div class="lc-tablewrap">
       <table class="guide-table">
         <thead><tr><th>項目</th><th style="color:#34d399">v1（高勝率型）</th><th style="color:#60a5fa">v2（利大損小型）</th></tr></thead>
         <tbody>
@@ -139,6 +146,7 @@ export function renderLogicCompare(container) {
             <td><strong>トレンド継続のランナー</strong>を取りにいく時</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <!-- 使い分け -->
@@ -181,56 +189,52 @@ function _bar(label, pct, color) {
     </div>`;
 }
 
-/* ── 出口の違いを描く価格チャートSVG ───────────────────────────── */
+/* ── 出口の違いを描く価格チャートSVG（スマホでも読めるよう大きめラベル） ──── */
 function _chart(o) {
   const ENTRY_Y = o.entry.y, SL_Y = 186, X0 = 38, X1 = 384;
+  // v1: 利益が頭打ちになる帯をうっすら塗る
   const capRect = o.capLine
-    ? `<rect x="${o.tp.x}" y="${o.capLine}" width="${X1 - o.tp.x}" height="6" fill="#9ca3af" opacity="0.10"/>`
+    ? `<rect x="${o.tp.x}" y="${o.capLine}" width="${X1 - o.tp.x}" height="${ENTRY_Y - o.capLine}" fill="#9ca3af" opacity="0.05"/>`
     : '';
+  const exitAnchor = o.exit.anchor || 'middle';
   return `
-  <svg viewBox="0 0 400 250" width="100%" style="display:block">
-    <!-- 枠/グリッド -->
+  <svg viewBox="0 0 400 248" width="100%" style="display:block" font-family="sans-serif">
     <rect x="${X0}" y="14" width="${X1 - X0}" height="200" fill="none" stroke="var(--border)" stroke-width="1" rx="4"/>
 
-    <!-- 20日EMA（橙・なだらかな上昇） -->
-    <path d="M ${X0},178 C 130,168 230,150 ${X1},120" fill="none" stroke="#f59e0b" stroke-width="1.5" opacity="0.6" stroke-dasharray="1 0"/>
-    <text x="${X1 - 4}" y="116" text-anchor="end" font-size="9" fill="#f59e0b" opacity="0.9">20EMA</text>
+    <!-- 20日EMA -->
+    <path d="M ${X0},178 C 130,168 230,150 ${X1},120" fill="none" stroke="#f59e0b" stroke-width="1.8" opacity="0.65"/>
+    <text x="${X1 - 5}" y="115" text-anchor="end" font-size="11" fill="#f59e0b">20EMA</text>
 
-    <!-- ターゲット水平線 -->
-    <line x1="${X0}" y1="${o.target.y}" x2="${X1}" y2="${o.target.y}" stroke="${o.target.color}" stroke-width="1" stroke-dasharray="4 3" opacity="0.8"/>
-    <text x="${X0 + 4}" y="${o.target.y - 4}" font-size="9.5" fill="${o.target.color}">${o.target.label}</text>
+    <!-- ターゲット水平線（高値 / +1.5R） -->
+    <line x1="${X0}" y1="${o.target.y}" x2="${X1}" y2="${o.target.y}" stroke="${o.target.color}" stroke-width="1.3" stroke-dasharray="5 3" opacity="0.9"/>
+    <text x="${X0 + 5}" y="${o.target.y - 5}" font-size="12.5" font-weight="700" fill="${o.target.color}">${o.target.label}</text>
 
     <!-- エントリー水平線 -->
-    <line x1="${X0}" y1="${ENTRY_Y}" x2="${X1}" y2="${ENTRY_Y}" stroke="#60a5fa" stroke-width="1" stroke-dasharray="2 3" opacity="0.6"/>
-    <text x="${X1 - 4}" y="${ENTRY_Y - 4}" text-anchor="end" font-size="9" fill="#60a5fa">エントリー</text>
+    <line x1="${X0}" y1="${ENTRY_Y}" x2="${X1}" y2="${ENTRY_Y}" stroke="#60a5fa" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.7"/>
+    <text x="${X1 - 5}" y="${ENTRY_Y - 5}" text-anchor="end" font-size="11" fill="#60a5fa">エントリー</text>
 
     <!-- 損切り(1R) -->
-    <line x1="${X0}" y1="${SL_Y}" x2="${X1}" y2="${SL_Y}" stroke="#f87171" stroke-width="1" stroke-dasharray="4 3" opacity="0.8"/>
-    <text x="${X0 + 4}" y="${SL_Y + 12}" font-size="9.5" fill="#f87171">損切り（1R）</text>
+    <line x1="${X0}" y1="${SL_Y}" x2="${X1}" y2="${SL_Y}" stroke="#f87171" stroke-width="1.3" stroke-dasharray="5 3" opacity="0.9"/>
+    <text x="${X0 + 5}" y="${SL_Y + 15}" font-size="12.5" font-weight="700" fill="#f87171">損切り（1R）</text>
 
-    <!-- 1R 値幅の矢印 -->
-    <line x1="${X0 + 6}" y1="${ENTRY_Y}" x2="${X0 + 6}" y2="${SL_Y}" stroke="#f87171" stroke-width="1" opacity="0.7"/>
-    <text x="${X0 + 10}" y="${(ENTRY_Y + SL_Y) / 2 + 3}" font-size="8.5" fill="#f87171">1R</text>
+    <!-- 1R 値幅 -->
+    <line x1="${X0 + 8}" y1="${ENTRY_Y}" x2="${X0 + 8}" y2="${SL_Y}" stroke="#f87171" stroke-width="1.3" opacity="0.8"/>
+    <text x="${X0 + 13}" y="${(ENTRY_Y + SL_Y) / 2 + 4}" font-size="11" fill="#f87171">1R</text>
 
     ${capRect}
 
     <!-- 価格の道のり -->
-    <polyline points="${o.path}" fill="none" stroke="#e5e7eb" stroke-width="2"/>
+    <polyline points="${o.path}" fill="none" stroke="#e5e7eb" stroke-width="2.8"/>
 
     <!-- エントリー点 -->
-    <circle cx="${o.entry.x}" cy="${o.entry.y}" r="4.5" fill="#60a5fa" stroke="#0b1220" stroke-width="1.5"/>
+    <circle cx="${o.entry.x}" cy="${o.entry.y}" r="5.5" fill="#60a5fa" stroke="#0b1220" stroke-width="1.5"/>
 
     <!-- 利確（メイン）点 -->
-    <circle cx="${o.tp.x}" cy="${o.tp.y}" r="5" fill="#34d399" stroke="#0b1220" stroke-width="1.5"/>
-    <text x="${o.tp.x}" y="${o.tp.y - 9}" text-anchor="middle" font-size="10" font-weight="700" fill="#34d399">${o.tp.label}</text>
-    ${o.tp.sub ? `<text x="${o.tp.x}" y="${o.tp.y + 16}" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">${o.tp.sub}</text>` : ''}
+    <circle cx="${o.tp.x}" cy="${o.tp.y}" r="6" fill="#34d399" stroke="#0b1220" stroke-width="1.5"/>
+    <text x="${o.tp.x}" y="${o.tp.y - 11}" text-anchor="middle" font-size="13" font-weight="800" fill="#34d399">${o.tp.label}</text>
 
     <!-- 最終手仕舞い点 -->
-    <circle cx="${o.exit.x}" cy="${o.exit.y}" r="4.5" fill="none" stroke="#34d399" stroke-width="2"/>
-    <text x="${o.exit.x}" y="${o.exit.up ? o.exit.y - 9 : o.exit.y + 16}" text-anchor="${o.exit.x > 300 ? 'end' : 'middle'}" font-size="9" fill="#34d399">${o.exit.label}</text>
-    ${o.exit.up ? `<text x="${o.exit.x}" y="${o.exit.y - 21}" text-anchor="end" font-size="13" fill="#34d399">↑</text>` : ''}
-
-    <!-- 利益の頭打ち注記 -->
-    ${o.capLine ? `<text x="${X1 - 4}" y="${o.capLine + 18}" text-anchor="end" font-size="9" fill="#9ca3af">${o.capText}</text>` : `<text x="${X1 - 4}" y="30" text-anchor="end" font-size="9" fill="#60a5fa">${o.capText}</text>`}
+    <circle cx="${o.exit.x}" cy="${o.exit.y}" r="5.5" fill="none" stroke="#34d399" stroke-width="2.4"/>
+    <text x="${o.exit.x}" y="${o.exit.up ? o.exit.y - 12 : o.exit.y + 18}" text-anchor="${exitAnchor}" font-size="12" font-weight="700" fill="#34d399">${o.exit.label}</text>
   </svg>`;
 }
