@@ -141,6 +141,21 @@ def run_full(skip_download: bool = False):
     if not longs_s3 and not shorts_s3:
         print("[Pipeline] No stocks passed Stage 3 filter. Logic1 still scans the full universe.")
 
+    # ── Market Health（Stage3のtechnical_screen + universe から本算出）─────────
+    # Stage6 を撤去したため、その compute_market_health を明示的に呼ぶ。
+    # （これが無いと Stage3 が overall_score=0/signal='' のプレースホルダーのままになる）
+    t0 = time.time()
+    try:
+        from pipeline.stage6_scoring import compute_market_health
+        from backend.db import get_connection as _gc_mh
+        _mh = _gc_mh()
+        compute_market_health(_mh, date.today().isoformat())
+        _mh.close()
+        log_stage("MarketHealth", "OK", "market_health updated", time.time() - t0)
+    except Exception as e:
+        log_stage("MarketHealth", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] market_health computation failed: {e}")
+
     # ── Logic2 scan ───────────────────────────────────────────────────────
     t0 = time.time()
     try:
@@ -292,6 +307,19 @@ def run_daily_full():
 
     if not longs and not shorts:
         print("[DailyFull] Stage3通過銘柄なし。Logic1は全ユニバースを継続スキャンします。")
+
+    # ── Market Health（Stage6撤去分の本算出）────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.stage6_scoring import compute_market_health
+        from backend.db import get_connection as _gc_mh
+        _mh = _gc_mh()
+        compute_market_health(_mh, date.today().isoformat())
+        _mh.close()
+        log_stage("DailyFull-MarketHealth", "OK", "market_health updated", time.time() - t0)
+    except Exception as e:
+        log_stage("DailyFull-MarketHealth", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] market_health computation failed: {e}")
 
     # ── ロジック２スキャン（日次）────────────────────────────────────────────
     t0 = time.time()

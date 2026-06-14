@@ -31,6 +31,7 @@
 """
 
 import json
+import threading
 from datetime import date, datetime, timedelta
 from backend.db import get_connection
 from config import SECTOR_DISPLAY
@@ -286,8 +287,28 @@ def _next_earnings_date(ticker):
     return None
 
 
+def _next_earnings_date_safe(ticker, timeout=20.0):
+    """yfinance の決算日取得をデーモンスレッドで timeout 秒に制限する。
+
+    yfinance(curl_cffi) はタイムアウトを持たずハングしうるため、見切って None を返す
+    （取得不可時は除外しない＝保守側。週次GHAのハングを防ぐ）。
+    """
+    result = [None]
+
+    def _work():
+        result[0] = _next_earnings_date(ticker)
+
+    th = threading.Thread(target=_work, daemon=True)
+    th.start()
+    th.join(timeout)
+    if th.is_alive():
+        print(f"[Logic4] 決算日取得タイムアウト {ticker} — 除外せず続行")
+        return None
+    return result[0]
+
+
 def _earnings_within_days(ticker, days=7):
-    next_date = _next_earnings_date(ticker)
+    next_date = _next_earnings_date_safe(ticker)
     if not next_date:
         return False, None
     return date.today() <= next_date <= date.today() + timedelta(days=days), next_date
@@ -560,6 +581,13 @@ def run():
         """, p)
     conn.commit()
     conn.close()
+
+    # ── バックテスト用シグナルログ（v2 の戦績を計測）──────────────────────────
+    try:
+        from backend.services.signal_tracker import log_signals
+        log_signals("logic4", [{**p, "direction": "LONG"} for p in picks])
+    except Exception as e:
+        print(f"[Logic4] signal_log 記録エラー: {e}")
 
     order = {"最優先候補": 0, "サポート接近中": 1, "地合いNG（休む推奨）": 2}
     picks.sort(key=lambda x: (order.get(x["verdict"], 3), -x["confidence"]))
