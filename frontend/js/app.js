@@ -5,6 +5,7 @@ import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=4";
 import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=3";
 import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=2";
+import { renderLogicCompare }         from "./components/logic-compare.js?v=1";
 import { renderBacktest }          from "./components/backtest.js?v=3";
 import { renderPositions }         from "./components/positions.js?v=2";
 import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=9";
@@ -17,6 +18,7 @@ const SECTIONS = [
   { id: "logic1",        label: "ファンダ重視", icon: "🎯", load: loadLogic1 },
   { id: "logic2",        label: "厳選押し目買いv1", icon: "🔥", load: loadLogic2 },
   { id: "logic4",        label: "厳選押し目買いv2", icon: "💎", load: loadLogic4 },
+  { id: "logic-compare", label: "v1 vs v2 比較", icon: "⚖️", load: loadLogicCompare },
   { id: "positions",     label: "保有ポジション", icon: "💼", load: loadPositions },
   { id: "trade-analytics", label: "取引分析", icon: "📈", load: loadTradeAnalytics },
   { id: "backtest",      label: "戦績", icon: "📊", load: loadBacktest },
@@ -233,6 +235,10 @@ function loadLogic4(container) {
       render: (el) => renderLogic4StrategyGuide(el),
     },
   ]);
+}
+
+function loadLogicCompare(container) {
+  renderLogicCompare(container);
 }
 
 function loadSearch(container) {
