@@ -21,6 +21,13 @@ MAX_WEEKLY_PICKS = 60
 MIN_MARKET_CAP = 1_000_000_000
 HOLDING_DAYS_EST = 45
 
+_PRICE_SQL = """
+    SELECT date, open, high, low, close, volume
+    FROM price_data
+    WHERE ticker = ?
+    ORDER BY date ASC
+"""
+
 
 def _safe_float(value):
     if value is None:
@@ -328,9 +335,9 @@ def run() -> list[dict]:
     print("[Logic1] ファンダ重視（グロース）スクリーニング開始...")
     today = date.today().isoformat()
     week_of = datetime.now().strftime("%Y-W%W")
+    # universe と cross_map は短命接続で取得して即クローズ（長時間接続を保持しない）
     conn = get_connection()
     cur = conn.cursor()
-
     cur.execute("""
         SELECT u.ticker
         FROM universe u
@@ -341,8 +348,11 @@ def run() -> list[dict]:
     """, (MIN_BARS_DAILY,))
     tickers = [r["ticker"] for r in cur.fetchall()]
     print(f"[Logic1] 対象銘柄数: {len(tickers)}")
-
     cross_map = _cross_tags(cur, today)
+
+    # ループは単一接続で price_data を読む（銘柄ごとに新規接続すると pooler の
+    # クライアント上限を圧迫して固まるため）。万一ドロップしたら都度再接続する。
+    # yfinance は _fetch_with_timeout で 25 秒上限のため接続が長時間 idle にならない。
     candidates = []
     gate_pass = 0
 
@@ -358,13 +368,13 @@ def run() -> list[dict]:
             gate_pass += 1
 
             score, breakdown = _growth_score(f)
-            cur.execute("""
-                SELECT date, open, high, low, close, volume
-                FROM price_data
-                WHERE ticker = ?
-                ORDER BY date ASC
-            """, (ticker,))
-            rows = [dict(r) for r in cur.fetchall()]
+            try:
+                cur.execute(_PRICE_SQL, (ticker,))
+                rows = [dict(r) for r in cur.fetchall()]
+            except Exception:
+                conn = get_connection(); cur = conn.cursor()   # ドロップ時は再接続
+                cur.execute(_PRICE_SQL, (ticker,))
+                rows = [dict(r) for r in cur.fetchall()]
             if len(rows) < MIN_BARS_DAILY:
                 continue
 
@@ -395,12 +405,20 @@ def run() -> list[dict]:
         except Exception as e:
             print(f"[Logic1] {ticker} エラー: {e}")
 
+    try:
+        conn.close()   # ループ用接続を閉じる
+    except Exception:
+        pass
+
     candidates.sort(key=lambda p: -p["composite_score"])
     picks = candidates[:MAX_WEEKLY_PICKS]
 
-    cur.execute("DELETE FROM weekly_picks")
+    # 最終書き込みは新しい接続で（長時間ループ中に接続が切れても確実に書く）
+    wconn = get_connection()
+    wcur = wconn.cursor()
+    wcur.execute("DELETE FROM weekly_picks")
     for p in picks:
-        cur.execute("""
+        wcur.execute("""
             INSERT INTO weekly_picks
                 (ticker, week_of, composite_score, tier, sector, themes,
                  entry_price, stop_price, tp1_price, target_price, risk_reward,
@@ -414,8 +432,8 @@ def run() -> list[dict]:
             p["holding_days_est"], p["technical_summary"], p["fundamental_summary"],
             p["fundamental_verdict"], p["verdict"], p["direction"],
         ))
-    conn.commit()
-    conn.close()
+    wconn.commit()
+    wconn.close()
 
     try:
         from backend.services.signal_tracker import log_signals

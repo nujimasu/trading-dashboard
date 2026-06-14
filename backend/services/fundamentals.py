@@ -3,6 +3,8 @@ from __future__ import annotations
 yfinance を使ったファンダメンタルズ取得（FMP不要・APIキー不要）
 """
 import sys
+import socket
+import threading
 from pathlib import Path
 from datetime import datetime, date
 
@@ -31,7 +33,13 @@ def _num(value):
 
 
 def _fetch_from_yfinance(ticker: str) -> dict | None:
-    """yfinance から基本ファンダメンタルズを取得。"""
+    """yfinance から基本ファンダメンタルズを取得。
+
+    yfinance .info はタイムアウトを持たず特定銘柄でハングするため、
+    socket デフォルトタイムアウトを一時設定してハングを防ぐ（超過時は None でスキップ）。
+    """
+    _old_to = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(20)
     try:
         info = yf.Ticker(ticker).info
         if not info or info.get("quoteType") not in ("EQUITY", "equity"):
@@ -82,6 +90,29 @@ def _fetch_from_yfinance(ticker: str) -> dict | None:
     except Exception as e:
         print(f"[Fundamentals] yfinance error {ticker}: {e}")
         return None
+    finally:
+        socket.setdefaulttimeout(_old_to)
+
+
+def _fetch_with_timeout(ticker: str, timeout: float = 25.0) -> dict | None:
+    """yfinance 取得をデーモンスレッドで実行し timeout 秒で打ち切る。
+
+    現行 yfinance は curl_cffi(libcurl) を使い socket タイムアウトが効かず
+    特定銘柄でハングしうる。join(timeout) で見切り、超過は None でスキップする
+    （ハングしたスレッドはデーモンとして放棄＝プロセス終了で消える）。
+    """
+    result: list = [None]
+
+    def _work():
+        result[0] = _fetch_from_yfinance(ticker)
+
+    th = threading.Thread(target=_work, daemon=True)
+    th.start()
+    th.join(timeout)
+    if th.is_alive():
+        print(f"[Fundamentals] timeout {ticker} (>{timeout:.0f}s) — スキップ")
+        return None
+    return result[0]
 
 
 def get_or_fetch_fundamentals(ticker: str) -> dict | None:
@@ -99,7 +130,7 @@ def get_or_fetch_fundamentals(ticker: str) -> dict | None:
         except Exception:
             pass
 
-    data = _fetch_from_yfinance(ticker)
+    data = _fetch_with_timeout(ticker)
     if not data:
         return dict(row) if row else None
 
