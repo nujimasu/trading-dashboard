@@ -14,7 +14,7 @@ on:
 jobs:
   run-daily-light:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # 軽量化に伴い 90→20 に短縮
+    timeout-minutes: 30  # Polygon grouped(約10分)+シグナル評価の余裕を確保(20→30)
 
     steps:
       - name: Checkout

@@ -408,6 +408,7 @@ def run_daily_light():
 
     # ── 全universe を Polygon grouped で前進(1コール/営業日, キーがある時のみ) ──
     # これで週次フル実行時に重い価格DLが不要になりタイムアウトを回避する。
+    grouped_ok = False
     if os.getenv("POLYGON_API_KEY"):
         t0 = time.time()
         try:
@@ -417,6 +418,7 @@ def run_daily_light():
             conn.close()
             from pipeline.stage2_price_data import run_grouped
             grouped_saved = run_grouped(uni, lookback_days=6)
+            grouped_ok = bool(grouped_saved)
             status = "OK" if grouped_saved else "WARN"
             log_stage("DailyLight-Grouped", status,
                       f"{len(grouped_saved)}/{len(uni)} tickers (Polygon grouped)", time.time() - t0)
@@ -424,30 +426,38 @@ def run_daily_light():
             log_stage("DailyLight-Grouped", "ERROR", str(e), time.time() - t0)
             print(f"[WARN] grouped前進失敗: {e} — 続行")
 
-    # オープンポジ + オープンシグナルの ticker を抽出(当日分の差分DLは従来通り yfinance)
-    conn = get_connection()
-    cur  = conn.cursor()
-    cur.execute("""
-        SELECT DISTINCT ticker FROM positions WHERE status = 'open'
-        UNION
-        SELECT DISTINCT ticker FROM signal_log WHERE status = 'open'
-    """)
-    tickers = [r["ticker"] for r in cur.fetchall()]
-    conn.close()
+    # 当日分の追加差分DL(yfinance)。
+    # Polygon grouped が成功していれば全universeを更新済みなので、オープン銘柄を
+    # yfinance で再DLするのは冗長かつ重く(タイムアウトの主因)、スキップする。
+    # grouped が無い/失敗した場合のみフォールバックとして実行する。
+    if grouped_ok:
+        log_stage("DailyLight-Stage2", "SKIP",
+                  "Polygon grouped 成功のため yfinance 増分DL は省略", 0.0)
+    else:
+        # オープンポジ + オープンシグナルの ticker を抽出
+        conn = get_connection()
+        cur  = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT ticker FROM positions WHERE status = 'open'
+            UNION
+            SELECT DISTINCT ticker FROM signal_log WHERE status = 'open'
+        """)
+        tickers = [r["ticker"] for r in cur.fetchall()]
+        conn.close()
 
-    print(f"[DailyLight] 価格更新対象: {len(tickers)} tickers")
+        print(f"[DailyLight] 価格更新対象(フォールバック): {len(tickers)} tickers")
 
-    if tickers:
-        t0 = time.time()
-        try:
-            from pipeline.stage2_price_data import run_incremental
-            updated = run_incremental(tickers, days=10)
-            missing = len(tickers) - len(updated)
-            status = "OK" if updated and missing == 0 else "WARN"
-            log_stage("DailyLight-Stage2", status, f"{len(updated)}/{len(tickers)} tickers", time.time() - t0)
-        except Exception as e:
-            log_stage("DailyLight-Stage2", "ERROR", str(e), time.time() - t0)
-            print(f"[WARN] 差分DL失敗: {e} — 評価は続行")
+        if tickers:
+            t0 = time.time()
+            try:
+                from pipeline.stage2_price_data import run_incremental
+                updated = run_incremental(tickers, days=10)
+                missing = len(tickers) - len(updated)
+                status = "OK" if updated and missing == 0 else "WARN"
+                log_stage("DailyLight-Stage2", status, f"{len(updated)}/{len(tickers)} tickers", time.time() - t0)
+            except Exception as e:
+                log_stage("DailyLight-Stage2", "ERROR", str(e), time.time() - t0)
+                print(f"[WARN] 差分DL失敗: {e} — 評価は続行")
 
     # シグナル評価
     t0 = time.time()
