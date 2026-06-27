@@ -19,7 +19,7 @@ import json
 from datetime import date, timedelta
 from typing import Optional
 
-from backend.db import db_cursor
+from backend.db import db_cursor, get_connection
 
 DEFAULT_MAX_HOLDING_DAYS = 30
 
@@ -115,55 +115,92 @@ def evaluate_open_signals(today: Optional[str] = None,
     stats = {"evaluated": 0, "stopped": 0, "tp1_hit_be": 0, "tp2_hit": 0,
              "time_exit": 0, "still_open": 0, "invalid": 0}
 
-    with db_cursor() as cur:
-        # 'open' シグナルを取得
+    # ── 接続を1本に集約し、price_data を一括取得してメモリ評価する ──
+    # 旧実装はシグナルごとに新規接続+SELECT+UPDATE を張っており、GHA→Supabase間の
+    # 接続確立遅延でオープン数百件だとタイムアウトしていた。ここで接続を1本にし、
+    # price_data は最古 signal_date 以降を1クエリでまとめて取得→メモリ評価→一括UPDATE。
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
         cur.execute("""
             SELECT id, logic_name, ticker, signal_date, direction,
                    entry_price, stop_price, tp1_price, target_price
             FROM signal_log
             WHERE status = 'open'
         """)
-        opens = cur.fetchall()
+        opens = [dict(r) for r in cur.fetchall()]
 
-    for row in opens:
-        result = _evaluate_one(dict(row), today, max_holding_days)
-        if result is None:
-            stats["still_open"] += 1
-            continue
-        # DB 更新
-        _save_eval_result(row["id"], result)
-        status = result["status"]
-        stats["evaluated"] += 1
-        if status == "stopped":      stats["stopped"] += 1
-        elif status == "tp2_hit":    stats["tp2_hit"] += 1
-        elif status == "tp1_hit_be": stats["tp1_hit_be"] += 1
-        elif status == "time_exit":  stats["time_exit"] += 1
-        elif status == "invalid":    stats["invalid"] += 1
+        if not opens:
+            print(f"[evaluator] {today}: {stats}")
+            return stats
+
+        # 全オープンシグナルの最古 signal_date 以降の price_data を一括取得
+        global_min = min(str(s["signal_date"]) for s in opens)
+        cur.execute("""
+            SELECT ticker, date, open, high, low, close
+            FROM price_data
+            WHERE date > ?
+            ORDER BY ticker ASC, date ASC
+        """, (global_min,))
+        bars_by_ticker: dict = {}
+        for b in cur.fetchall():
+            bars_by_ticker.setdefault(b["ticker"], []).append(dict(b))
+
+        # メモリ上で各シグナルを評価（旧 _evaluate_one のロジックはそのまま）
+        updates = []
+        for sig in opens:
+            # date 列は str / date が混在し得るため ISO文字列で比較に統一
+            # （旧SQL "date > 'YYYY-MM-DD'" と同義。ISO日付は辞書順=時系列順）
+            sig_date = str(sig["signal_date"])
+            ticker_bars = bars_by_ticker.get(sig["ticker"], [])
+            # 旧実装の "date > sig_date ORDER BY date ASC LIMIT max+5" を再現
+            bars = [b for b in ticker_bars if str(b["date"]) > sig_date][:max_holding_days + 5]
+            result = _evaluate_one(sig, bars, today, max_holding_days)
+            if result is None:
+                stats["still_open"] += 1
+                continue
+            updates.append((
+                result["status"], result.get("exit_date"), result.get("exit_price"),
+                result.get("realized_r"), result.get("days_held"),
+                result.get("mae_pct"), result.get("mfe_pct"),
+                bool(result.get("hit_tp1")), sig["id"],
+            ))
+            status = result["status"]
+            stats["evaluated"] += 1
+            if status == "stopped":      stats["stopped"] += 1
+            elif status == "tp2_hit":    stats["tp2_hit"] += 1
+            elif status == "tp1_hit_be": stats["tp1_hit_be"] += 1
+            elif status == "time_exit":  stats["time_exit"] += 1
+            elif status == "invalid":    stats["invalid"] += 1
+
+        # 一括 UPDATE（接続1本・1トランザクション）
+        if updates:
+            cur.executemany("""
+                UPDATE signal_log
+                SET status = ?, exit_date = ?, exit_price = ?, realized_r = ?,
+                    days_held = ?, mae_pct = ?, mfe_pct = ?, hit_tp1 = ?,
+                    evaluated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, updates)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
     print(f"[evaluator] {today}: {stats}")
     return stats
 
 
-def _evaluate_one(sig: dict, today_iso: str, max_holding_days: int) -> Optional[dict]:
-    """単一シグナルを評価。確定したら結果dictを返す。確定しなければ None。"""
-    ticker     = sig["ticker"]
-    sig_date   = str(sig["signal_date"])
+def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) -> Optional[dict]:
+    """単一シグナルを評価。確定したら結果dictを返す。確定しなければ None。
+    bars は signal_date 翌日以降の price_data（date昇順・最大 max_holding_days+5 本）。"""
     direction  = sig["direction"]
     entry_plan = float(sig["entry_price"])
     stop_plan  = float(sig["stop_price"])
     tp1_plan   = float(sig["tp1_price"]) if sig.get("tp1_price") is not None else None
     target     = float(sig["target_price"])
-
-    # signal_date 以降の price_data を取得
-    with db_cursor() as cur:
-        cur.execute("""
-            SELECT date, open, high, low, close
-            FROM price_data
-            WHERE ticker = ? AND date > ?
-            ORDER BY date ASC
-            LIMIT ?
-        """, (ticker, sig_date, max_holding_days + 5))
-        bars = cur.fetchall()
 
     bars = [dict(b) for b in bars]
     if len(bars) == 0:
@@ -268,19 +305,6 @@ def _evaluate_one(sig: dict, today_iso: str, max_holding_days: int) -> Optional[
 
     # まだ手仕舞いに至らず（バー不足）
     return None
-
-
-def _save_eval_result(signal_id: int, r: dict):
-    with db_cursor() as cur:
-        cur.execute("""
-            UPDATE signal_log
-            SET status = ?, exit_date = ?, exit_price = ?, realized_r = ?,
-                days_held = ?, mae_pct = ?, mfe_pct = ?, hit_tp1 = ?,
-                evaluated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        """, (r["status"], r.get("exit_date"), r.get("exit_price"), r.get("realized_r"),
-              r.get("days_held"), r.get("mae_pct"), r.get("mfe_pct"),
-              bool(r.get("hit_tp1")), signal_id))
 
 
 # ────────────────────────────────────────────────────────────────────
