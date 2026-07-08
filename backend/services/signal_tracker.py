@@ -8,7 +8,12 @@ Forward tracking:
 Outcome evaluator:
   - evaluate_open_signals() を毎晩のcronで呼ぶ。
   - 'open' なシグナルについて、シグナル日以降の price_data を順に見て status を確定。
-  - 翌日始値エントリー、TP1で半決済+残りトレール(BE)、30営業日でタイムアウト。
+  - 翌日始値エントリー、TP1で半決済(実Rで計上)+残りBE移動、30営業日でタイムアウト。
+
+Mark-to-market:
+  - get_open_mtm() で 'open' シグナルの含み損益をR換算で時価評価する。
+    負け(SL)は数日で確定する一方、勝ちはBE移動後もopenに残るため、
+    確定分のみの集計は構造的に悲観側へ偏る。合算表示用。
 
 Stats:
   - get_logic_stats() で各ロジックの勝率・期待値・最大DD・PF を集計。
@@ -222,6 +227,13 @@ def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) 
                 "realized_r": None, "days_held": 0, "mae_pct": None, "mfe_pct": None,
                 "hit_tp1": False}
 
+    # TP1半決済の実R（旧実装は+1.0R固定で計上しており、TP1=+1.5R設計の
+    # ロジックでは勝ちトレードを過小評価していた）
+    tp1_r = None
+    if tp1_plan is not None:
+        tp1_r = ((tp1_plan - entry_price) / risk if direction == "LONG"
+                 else (entry_price - tp1_plan) / risk)
+
     # 順次バーをチェック
     hit_tp1 = False
     current_stop = stop_plan
@@ -254,9 +266,9 @@ def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) 
         )
 
         if sl_hit:
-            # ストップ確定。BE移動後なら 0R, 元のSLなら -1R（半分は1R確保済み）
+            # ストップ確定。BE移動後なら残りは 0R（半分はTP1実Rを確保済み）
             if hit_tp1:
-                realized_r = 0.5 * 1.0 + 0.5 * 0.0  # = 0.5R
+                realized_r = 0.5 * tp1_r + 0.5 * 0.0
                 return {"status": "tp1_hit_be", "exit_date": str(bar["date"]),
                         "exit_price": current_stop, "realized_r": realized_r,
                         "days_held": days_held, "mae_pct": mae_pct, "mfe_pct": mfe_pct,
@@ -271,7 +283,7 @@ def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) 
             # TP2 (=target) 到達 → ターミナル
             target_r = (target - entry_price) / risk if direction == "LONG" else (entry_price - target) / risk
             if hit_tp1:
-                realized_r = 0.5 * 1.0 + 0.5 * target_r
+                realized_r = 0.5 * tp1_r + 0.5 * target_r
             else:
                 # TP1 を経由せず TP2 だけ届いた稀ケース → 全量 target_r とみなす
                 realized_r = target_r
@@ -295,7 +307,7 @@ def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) 
         else:
             close_r = (entry_price - last_close) / risk
         if hit_tp1:
-            realized_r = 0.5 * 1.0 + 0.5 * close_r
+            realized_r = 0.5 * tp1_r + 0.5 * close_r
         else:
             realized_r = close_r
         return {"status": "time_exit", "exit_date": str(last["date"]),
@@ -305,6 +317,121 @@ def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) 
 
     # まだ手仕舞いに至らず（バー不足）
     return None
+
+
+# ────────────────────────────────────────────────────────────────────
+# Mark-to-market（open中シグナルの時価評価）
+# ────────────────────────────────────────────────────────────────────
+
+def get_open_mtm(logic_name: Optional[str] = None) -> dict:
+    """'open' な全シグナルの含み損益をR換算で時価評価する。
+
+    エントリー=シグナル翌日始値（評価器と同一）、現値=最新close。
+    TP1到達済みは 0.5×TP1実R + 0.5×現値R で評価。
+    Returns: {open_count, priced, mtm_r, by_logic: {logic: {count, mtm_r, avg_r}}}
+    """
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        q = """
+            SELECT id, logic_name, ticker, signal_date, direction,
+                   entry_price, stop_price, tp1_price, target_price
+            FROM signal_log
+            WHERE status = 'open'
+        """
+        params: list = []
+        if logic_name:
+            q += " AND logic_name = ?"
+            params.append(logic_name)
+        cur.execute(q, tuple(params))
+        opens = [dict(r) for r in cur.fetchall()]
+        if not opens:
+            return {"open_count": 0, "priced": 0, "mtm_r": 0.0, "by_logic": {}}
+
+        global_min = min(str(s["signal_date"]) for s in opens)
+        cur.execute("""
+            SELECT ticker, date, open, high, low, close
+            FROM price_data
+            WHERE date > ?
+            ORDER BY ticker ASC, date ASC
+        """, (global_min,))
+        bars_by_ticker: dict = {}
+        for b in cur.fetchall():
+            bars_by_ticker.setdefault(b["ticker"], []).append(dict(b))
+    finally:
+        conn.close()
+
+    by_logic: dict[str, dict] = {}
+    for sig in opens:
+        bars = [b for b in bars_by_ticker.get(sig["ticker"], [])
+                if str(b["date"]) > str(sig["signal_date"])]
+        r = _mtm_one(sig, bars)
+        if r is None:
+            continue
+        d = by_logic.setdefault(sig["logic_name"], {"count": 0, "mtm_r": 0.0})
+        d["count"] += 1
+        d["mtm_r"] += r
+
+    priced = sum(d["count"] for d in by_logic.values())
+    total = sum(d["mtm_r"] for d in by_logic.values())
+    for d in by_logic.values():
+        d["avg_r"] = round(d["mtm_r"] / d["count"], 3) if d["count"] else None
+        d["mtm_r"] = round(d["mtm_r"], 2)
+    return {"open_count": len(opens), "priced": priced,
+            "mtm_r": round(total, 2), "by_logic": by_logic}
+
+
+def _mtm_one(sig: dict, bars: list) -> Optional[float]:
+    """単一openシグナルの時価R。_evaluate_one と同じ歩行規則で、
+    確定イベント（SL/ターゲット）があればその値、なければ現値評価を返す。"""
+    direction = sig["direction"]
+    stop_plan = float(sig["stop_price"])
+    tp1_plan = float(sig["tp1_price"]) if sig.get("tp1_price") is not None else None
+    target = float(sig["target_price"]) if sig.get("target_price") is not None else None
+    if not bars:
+        return None
+
+    entry_bar = bars[0]
+    entry = _safe_float(entry_bar.get("open")) or _safe_float(entry_bar.get("close"))
+    if entry is None:
+        return None
+    risk = entry - stop_plan if direction == "LONG" else stop_plan - entry
+    if risk <= 0:
+        return None
+    tp1_r = None
+    if tp1_plan is not None:
+        tp1_r = ((tp1_plan - entry) / risk if direction == "LONG"
+                 else (entry - tp1_plan) / risk)
+
+    hit_tp1 = False
+    current_stop = stop_plan
+    for bar in bars[:DEFAULT_MAX_HOLDING_DAYS]:
+        h = _safe_float(bar.get("high"))
+        l = _safe_float(bar.get("low"))
+        if h is None or l is None:
+            continue
+        sl_hit = ((direction == "LONG" and l <= current_stop) or
+                  (direction == "SHORT" and h >= current_stop))
+        if sl_hit:
+            return 0.5 * tp1_r if hit_tp1 else -1.0
+        if target is not None:
+            t_hit = ((direction == "LONG" and h >= target) or
+                     (direction == "SHORT" and l <= target))
+            if t_hit:
+                t_r = ((target - entry) / risk if direction == "LONG"
+                       else (entry - target) / risk)
+                return 0.5 * tp1_r + 0.5 * t_r if hit_tp1 else t_r
+        if tp1_r is not None and not hit_tp1:
+            if ((direction == "LONG" and h >= tp1_plan) or
+                    (direction == "SHORT" and l <= tp1_plan)):
+                hit_tp1 = True
+                current_stop = entry
+
+    last = bars[min(len(bars), DEFAULT_MAX_HOLDING_DAYS) - 1]
+    last_close = _safe_float(last.get("close")) or entry
+    cur_r = ((last_close - entry) / risk if direction == "LONG"
+             else (entry - last_close) / risk)
+    return 0.5 * tp1_r + 0.5 * cur_r if hit_tp1 else cur_r
 
 
 # ────────────────────────────────────────────────────────────────────

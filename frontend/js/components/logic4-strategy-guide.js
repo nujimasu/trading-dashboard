@@ -39,6 +39,27 @@ export function renderLogic4StrategyGuide(container) {
       </ul>
     </div>
 
+    <div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent-green);">
+      <h3>2026-07 改修: 品質フィルター2種を追加（バックテスト検証済み）</h3>
+      <p style="color:var(--text-muted);font-size:.88em;margin:6px 0 10px;">
+        3年×631銘柄のバックテストで、以下2条件の同時適用が
+        <strong>期待値 +0.136R → +0.194R（+43%）、最大DD −44%</strong>、
+        調整局面（2024-12〜2025-03）の月次損失を約1/3に圧縮することを確認。
+        両条件を満たした候補だけが「シグナル」となり戦績計測されます。未通過は
+        <strong>ウォッチ（条件待ち）</strong>として表示のみ。
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
+        <div style="background:var(--bg-card);border-left:3px solid var(--accent-green);border-radius:6px;padding:12px;">
+          <div style="font-weight:700;color:var(--accent-green);font-size:.86rem">反発足確認（自動判定）</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">当日が陽線確定 or 前日高値超えの候補のみシグナル化。「落下中は掴まない」をスキャンが判定します。エントリー時はザラ場の最新足も崩れていないか確認。</div>
+        </div>
+        <div style="background:var(--bg-card);border-left:3px solid var(--accent-green);border-radius:6px;padding:12px;">
+          <div style="font-weight:700;color:var(--accent-green);font-size:.86rem">SL幅 ≤ 5%</div>
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">エントリー→損切り（直近20日押し安値）の値幅が株価の5%超なら見送り。押し安値から遠い＝まだ下落途中の候補を構造的に除外します。</div>
+        </div>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom:16px;">
       <h3>v2で追加した4フィルタ</h3>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
@@ -60,7 +81,7 @@ export function renderLogic4StrategyGuide(container) {
         </div>
       </div>
       <p style="color:var(--text-muted);margin-top:10px;font-size:.85em">
-        v1は直近高値手前で2/3を早めに利確する高勝率型。v2は+1.5Rで半分だけ確定し、残りを20日EMAトレールで伸ばす型です。
+        v1は直近高値手前で2/3を早めに利確する高勝率型。v2は+1.5Rで半分だけ確定し、残りを建値ストップで+3Rターゲットまで伸ばす型です。
       </p>
     </div>
 
@@ -95,16 +116,16 @@ export function renderLogic4StrategyGuide(container) {
         </div>
         <div style="text-align:center;font-size:20px;">↓</div>
         <div style="background:var(--bg-card);border:1px solid var(--accent-green);border-radius:6px;padding:12px;">
-          <strong>④ 引き金（反発足）＝ あなたが当日に確認 🔔</strong>
+          <strong>④ 品質フィルター（反発足＋SL幅）＝ スキャンが自動判定 ✅</strong>
           <p style="color:var(--text-muted);margin:6px 0 0 0;font-size:.88em">
-            ダッシュボードは③までを自動抽出して<strong>ウォッチリスト</strong>にします。最後の引き金は
-            <strong>夜、米国寄り付き後の数時間で反発足（陽線確定 or 前日高値超え）を自分で確認</strong>して引きます。
+            <strong>反発足（陽線確定 or 前日高値超え）とSL幅≤5%</strong>を自動判定し、
+            両方揃った候補だけをシグナル化します。未達成は「ウォッチ（条件待ち）」として表示のみ。
             <span style="color:#f87171">落下中は絶対に掴まない。</span>
           </p>
         </div>
       </div>
       <p style="color:var(--text-muted);margin-top:10px;font-size:.82em;">
-        ※ 反発足はリアルタイム判断が本質のため自動化しません（週末スクリーニング時点の反発足は、平日エントリー時には古くなるため）。
+        ※ 判定はスキャン実行時点の日足に基づきます。エントリー時はザラ場の最新足が崩れていないか（前日安値割れ等）を自分でも確認してください。
       </p>
     </div>
 
@@ -116,8 +137,8 @@ export function renderLogic4StrategyGuide(container) {
         <tbody>
           <tr><td><strong>損切り（1R）</strong></td><td>直近20日の押し安値の少し下に<span style="color:#f87171">固定・裁量で動かさない</span>。エントリー〜損切りの値幅＝1R</td></tr>
           <tr><td><strong>第1利確</strong></td><td><span style="color:var(--accent-green)">+1.5R で半分を確定</span>（負けトレードの損失をほぼ相殺＝メンタルが軽くなる）</td></tr>
-          <tr><td><strong>残り半分</strong></td><td>20日EMA を<strong>終値で割るまで保有</strong>（トレーリングでトレンドに乗せ続ける）。感情でなく機械的に</td></tr>
-          <tr><td><strong>保有上限</strong></td><td><span style="color:#f87171">8営業日経過で含み損なら問答無用で全決済</span>。8日超で持つのは含み益が伸びる強トレンド時のみ</td></tr>
+          <tr><td><strong>残り半分</strong></td><td>ストップを<strong>建値に切り上げ、+3R をターゲット</strong>に伸ばす。<span style="color:var(--text-muted);font-size:.85em">（旧: 20日EMAトレール＋8日含み損カットは、3年バックテストで期待値が劣後したため2026-07に廃止）</span></td></tr>
+          <tr><td><strong>見直し期限</strong></td><td>30営業日で未決着なら手仕舞い（勝ち筋の中心は4〜7日保有）</td></tr>
           <tr><td><strong>ポジションサイズ</strong></td><td>1トレードの損失上限＝口座の1〜2%。株数＝（口座資金 × リスク%）÷ 1Rの値幅</td></tr>
         </tbody>
       </table>
@@ -127,8 +148,9 @@ export function renderLogic4StrategyGuide(container) {
     <div class="card" style="margin-bottom:16px;">
       <h3>候補リストの判定ラベル</h3>
       <ul style="margin:0 0 0 16px;color:var(--text-muted);">
-        <li><strong style="color:var(--accent-green)">最優先候補</strong>：EMAタッチ（±2%）済み。反発足を当日確認すれば引き金。出来高枯れ併発ならさらに優先</li>
-        <li><strong>サポート接近中</strong>：EMAに接近（±5%）。タッチ待ちのウォッチ対象</li>
+        <li><strong style="color:var(--accent-green)">最優先候補</strong>：EMAタッチ（±2%）＋出来高枯れ＋品質フィルター通過。すぐ検討できるシグナル</li>
+        <li><strong>サポート接近中</strong>：EMA圏内＋品質フィルター通過。タッチ／売り枯れ待ち</li>
+        <li><strong style="color:#f59e0b">ウォッチ（条件待ち）</strong>：反発足未確認 or SL幅5%超。条件が揃うまでエントリーしない（シグナル記録もされない）</li>
         <li><strong style="color:#f87171">地合いNG（休む推奨）</strong>：指数が200日EMA割れ。v3では無理に買わず休む局面</li>
       </ul>
     </div>

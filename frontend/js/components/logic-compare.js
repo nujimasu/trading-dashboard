@@ -37,7 +37,7 @@ export function renderLogicCompare(container) {
         <div style="font-weight:800;color:#60a5fa;font-size:1.05rem">厳選押し目買い v2</div>
         <div style="color:var(--text-muted);font-size:.86rem;margin-top:4px">利大損小・伸ばすタイプ（v3確定版・実トレード1,713件分析）</div>
         <div style="margin-top:8px;font-size:.92rem;line-height:1.6">
-          <strong>+1.5R で半分だけ利確</strong>し、残り半分を 20日EMA でトレールして伸ばす。
+          <strong>+1.5R で半分だけ利確</strong>し、残り半分を建値ストップで <strong>+3R ターゲット</strong>まで伸ばす。
           勝率はやや落ちても <strong>1勝を大きく</strong>する。トレンド継続ランナー向け。
         </div>
       </div>
@@ -77,7 +77,7 @@ export function renderLogicCompare(container) {
             exit:  { x: 334, y: 40,  label: '残り半分を伸ばす ↑', up: true, anchor: 'end' },
             capLine: null,
           })}
-          <div class="lc-cap">→ <b>+1.5Rで半分</b>を確定し、残り半分を 20日EMA トレールで <b>青天井に伸ばす</b>（1勝を大きく）。</div>
+          <div class="lc-cap">→ <b>+1.5Rで半分</b>を確定し、残り半分は<b>建値ストップで +3R ターゲット</b>まで伸ばす（1勝を大きく）。</div>
         </div>
       </div>
       <p style="color:var(--text-muted);margin-top:10px;font-size:.82rem;">
@@ -119,13 +119,13 @@ export function renderLogicCompare(container) {
         <tbody>
           <tr><td><strong>入口トリガー</strong></td>
             <td>4H足の<strong>厳格トリガー</strong>（ダブルボトム/ピンバー等が発火、または押し目接近中のみ表示）</td>
-            <td>日足フィルタで抽出→<strong>当日に反発足を自分で確認</strong>して引く（ウォッチ型）</td></tr>
+            <td>日足フィルタで抽出→<strong>反発足（陽線 or 前日高値超え）＋SL幅≤5% をスキャンが自動判定</strong>（2026-07改修）</td></tr>
           <tr><td><strong>利確（メイン）</strong></td>
             <td><span style="color:#34d399">直近高値手前で <strong>2/3</strong> を利確</span>（早め）</td>
             <td><span style="color:#60a5fa"><strong>+1.5R</strong> で半分を利確</span></td></tr>
           <tr><td><strong>残り玉</strong></td>
             <td>1/3 を 20日EMA 終値割れまでトレール</td>
-            <td>半分を 20日EMA 終値割れまでトレール（<strong>大きく伸ばす</strong>）</td></tr>
+            <td>半分を建値ストップで <strong>+3R ターゲット</strong>まで伸ばす（2026-07改修・実測優位）</td></tr>
           <tr><td><strong>損切り</strong></td>
             <td>サポートの少し下に固定＝<span style="color:#f87171">1R</span></td>
             <td>直近20日押し安値の少し下に固定＝<span style="color:#f87171">1R</span></td></tr>
@@ -134,10 +134,10 @@ export function renderLogicCompare(container) {
             <td>SL=1R 前提、<strong>+1.5R</strong> 基準（伸びれば青天井）</td></tr>
           <tr><td><strong>保有上限</strong></td>
             <td>8営業日（含み損なら撤退）</td>
-            <td>8営業日（含み損なら撤退）</td></tr>
+            <td>30営業日で見直し（勝ち筋の中心は4〜7日）</td></tr>
           <tr><td><strong>追加フィルタ</strong></td>
             <td>4Hトリガーの厳格さで質を担保</td>
-            <td>決算7日除外 / レジサポ加点 / VIX慎重 / レバETF動的除外</td></tr>
+            <td>反発足確認 / SL幅≤5% / 決算7日除外 / レジサポ加点 / VIX慎重 / レバETF動的除外</td></tr>
           <tr><td><strong>性格</strong></td>
             <td>高勝率・利確早め・<strong>利益は頭打ち</strong></td>
             <td>勝率はやや低め・<strong>利大損小</strong>・伸ばす</td></tr>

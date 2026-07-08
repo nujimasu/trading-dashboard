@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 
-from backend.services.signal_tracker import get_logic_stats, get_tag_stats
+from backend.services.signal_tracker import get_logic_stats, get_open_mtm, get_tag_stats
 
 router = APIRouter()
 
@@ -12,8 +12,14 @@ def get_stats(
     logic: Optional[str] = Query(None, description="logic1|logic2|logic4"),
     days:  Optional[int] = Query(None, ge=1, le=3650, description="集計期間 (日数)"),
 ):
-    """ロジック別戦績の集計を返す。"""
-    return get_logic_stats(logic_name=logic, since_days=days)
+    """ロジック別戦績の集計を返す。open中シグナルの時価評価（含み損益）も添える。"""
+    stats = get_logic_stats(logic_name=logic, since_days=days)
+    try:
+        stats["open_mtm"] = get_open_mtm(logic_name=logic)
+    except Exception as e:
+        print(f"[backtest/stats] open_mtm error: {e}")
+        stats["open_mtm"] = None
+    return stats
 
 
 @router.get("/api/backtest/tag-stats")

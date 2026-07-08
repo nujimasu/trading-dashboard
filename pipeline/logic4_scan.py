@@ -9,9 +9,9 @@
 分割決済（+1.5R 半分→残り 20日EMA トレーリング）で 1勝を大きくする。
 
 スキャンの役割:
-  「地合い → トレンド → EMAタッチ/接近 → 出来高枯れ」までを自動抽出し、
-  ウォッチリスト化する。最後の引き金（反発足の確認）は本人が当日に行う前提
-  （v3 C項: 夜、米国寄り付き後の数時間で反発足を確認してエントリー）。
+  「地合い → トレンド → EMAタッチ/接近 → 出来高枯れ → 品質フィルター」を自動抽出。
+  品質フィルター（2026-07 バックテスト改修）を通過したものだけをシグナルとして
+  signal_log に記録し、未通過は「ウォッチ（条件待ち）」として表示のみ行う。
 
 一次フィルター:
   A. 地合い: SP500(^GSPC) または QQQ が 200日EMA の上（割れていれば「休む」）
@@ -23,11 +23,15 @@
   - 20日 or 50日EMA への タッチ（±2%）/ 接近（±5%）
   - 出来高枯れ（直近3日平均 < 20日平均 × 0.8 ＝ 売り枯れ）
 
+品質フィルター（3年×631銘柄バックテストで検証。期待値+0.136→+0.194R、maxDD-44%）:
+  - 反発足確認: 当日が陽線確定 or 前日高値超え（「落下中は掴まない」の自動判定）
+  - SL幅: エントリー→損切りの値幅が株価の5%以内（遠い押し安値=まだ落下中の除外）
+
 リスク設計（各銘柄に提示）:
   - 損切り: 直近20日押し安値の少し下に固定（= 1R）
   - 第1利確: +1.5R で半分
-  - 残り半分: 20日EMA 終値割れまで保有（トレーリング）
-  - 保有上限: 8営業日（含み損なら全決済）
+  - 残り半分: ストップを建値へ切り上げ、+3R ターゲット（最長30営業日）
+    ※旧ルール（20EMAトレール+8日含み損カット）はバックテストで劣後したため廃止
 """
 
 import json
@@ -51,8 +55,10 @@ EMA_NEAR_PCT    = 5.0        # EMA 接近圏（±5%）= サポート接近中
 EMA_TOUCH_PCT   = 2.0        # EMA タッチ（±2%）= 押し目到達
 VOL_DRYUP_RATIO = 0.8        # 出来高枯れ: 直近3日平均 < 20日平均 × 0.8
 STOP_LOOKBACK   = 20         # 損切り基準の押し安値ルックバック（日）
-HOLDING_LIMIT   = 8          # 保有上限（営業日）
+HOLDING_EST     = 8          # 保有日数の目安（表示用。勝ち筋は4〜7日保有）
+MAX_HOLD_DAYS   = 30         # 見直し期限（評価器のタイムアウトと同一）
 TP1_R           = 1.5        # 第1利確 = +1.5R
+MAX_SL_WIDTH_PCT = 5.0       # SL幅上限（エントリー→SLが株価比5%以内）
 REGIME_SYMBOLS  = ("^GSPC", "QQQ")  # 地合い判定に使う指数/ETF
 
 LEVERAGED_ETF = {
@@ -367,6 +373,7 @@ def run():
     sector_map = _build_sector_map(cur)
 
     picks = []
+    signal_picks = []   # 品質フィルター通過分のみ（signal_log 記録対象）
     trend_pass = entry_zone = 0
 
     for ticker in tickers:
@@ -384,6 +391,7 @@ def run():
             if len(rows) < MIN_BARS_DAILY:
                 continue
 
+            O = [r["open"]   for r in rows]
             C = [r["close"]  for r in rows]
             H = [r["high"]   for r in rows]
             L = [r["low"]    for r in rows]
@@ -459,8 +467,15 @@ def run():
             if r_value <= 0:
                 continue
             tp1_price    = round(entry + TP1_R * r_value, 2)   # +1.5R 半分利確
-            target_price = round(entry + 3.0 * r_value, 2)     # 参考（トレーリングで伸ばす）
+            target_price = round(entry + 3.0 * r_value, 2)     # 残り半分のターゲット（+3R）
             rr = round((tp1_price - entry) / r_value, 2)       # = 1.5
+
+            # 品質フィルター（3年バックテストで検証済み・2026-07改修）
+            #  - 反発足確認: 陽線確定 or 前日高値超え（落下中を掴まない）
+            #  - SL幅: 1R が株価の5%以内（押し安値から遠い=下落途中の候補を除外）
+            conf_bar = C[i] > O[i] or (i >= 1 and C[i] > H[i - 1])
+            sl_width_pct = r_value / entry * 100
+            qualified = conf_bar and sl_width_pct <= MAX_SL_WIDTH_PCT
 
             rsi_now  = rsi_arr[i]
             rsi_flag = rsi_now is not None and 30 <= rsi_now <= 50
@@ -496,6 +511,18 @@ def run():
                 confidence += 0.05
             if leverage_penalty:
                 confidence -= leverage_penalty
+
+            # 品質フィルター未通過はウォッチ格下げ（表示のみ・signal_log 非記録）
+            if qualified:
+                reasons.append(f"反発足確認済み・SL幅 {sl_width_pct:.1f}%（≤{MAX_SL_WIDTH_PCT:.0f}%）")
+            else:
+                verdict = "ウォッチ（条件待ち）"
+                confidence = min(confidence, 0.45)
+                if not conf_bar:
+                    reasons.append("反発足未確認（陽線確定 or 前日高値超え待ち）")
+                if sl_width_pct > MAX_SL_WIDTH_PCT:
+                    reasons.append(f"SL幅 {sl_width_pct:.1f}% が広すぎ（>{MAX_SL_WIDTH_PCT:.0f}% ＝押し安値から遠い）")
+
             confidence = max(0.0, min(0.99, confidence))
 
             # 地合い NG: 候補は見せるが「休む」警告で減点（v3 A項）
@@ -513,12 +540,19 @@ def run():
             if leverage_note and leverage_status != "exclude":
                 v3_signals.append(leverage_note)
 
+            if qualified:
+                v3_signals.append(
+                    "反発足確認済み（陽線確定 or 前日高値超え）。ザラ場の最新足も崩れていないか確認してからエントリー"
+                )
+            else:
+                v3_signals.append(
+                    "⚠️条件待ちウォッチ: 反発足（陽線確定 or 前日高値超え）と SL幅≤5% が揃うまでエントリーしない"
+                )
             v3_signals += [
-                "引き金（当日確認）: 反発足を確認（陽線確定 or 前日高値超え）してからエントリー。落下中は掴まない",
                 f"損切り: ${sl_price}（1R = {r_value:.2f}）に固定・裁量で動かさない",
                 f"第1利確: +1.5R = ${tp1_price} で半分を確定",
-                "残り半分: 20日EMA を終値で割るまで保有（トレーリング）",
-                f"保有上限: {HOLDING_LIMIT}営業日経過で含み損なら全決済",
+                f"残り半分: ストップを建値に切り上げ、+3R = ${target_price} を狙う（実測で20EMAトレール+8日ルールより優位）",
+                f"見直し期限: {MAX_HOLD_DAYS}営業日で未決着なら手仕舞い",
             ]
 
             picks.append({
@@ -548,12 +582,14 @@ def run():
                 "composite_score":  round(confidence * 100, 1),
                 "sector":           sector_map.get(ticker),
                 "current_price":    round(entry, 2),
-                "holding_days_est": HOLDING_LIMIT,
+                "holding_days_est": HOLDING_EST,
                 "signals_json":     json.dumps(v3_signals, ensure_ascii=False),
                 "price_to_support_pct": round(touch_dist, 1),
                 "h1_trigger":       None,
                 "h4_structure":     "neutral",
             })
+            if qualified and regime_ok:
+                signal_picks.append(picks[-1])
 
         except Exception as e:
             print(f"[Logic4] {ticker} エラー: {e}")
@@ -582,16 +618,18 @@ def run():
     conn.commit()
     conn.close()
 
-    # ── バックテスト用シグナルログ（v2 の戦績を計測）──────────────────────────
+    # ── バックテスト用シグナルログ（品質フィルター通過分のみ計測）──────────────
     try:
         from backend.services.signal_tracker import log_signals
-        log_signals("logic4", [{**p, "direction": "LONG"} for p in picks])
+        log_signals("logic4", [{**p, "direction": "LONG"} for p in signal_picks])
     except Exception as e:
         print(f"[Logic4] signal_log 記録エラー: {e}")
 
-    order = {"最優先候補": 0, "サポート接近中": 1, "地合いNG（休む推奨）": 2}
-    picks.sort(key=lambda x: (order.get(x["verdict"], 3), -x["confidence"]))
-    print(f"[Logic4] 完了 — トレンド通過:{trend_pass} エントリー圏:{entry_zone} 採用:{len(picks)}")
+    order = {"最優先候補": 0, "サポート接近中": 1,
+             "ウォッチ（条件待ち）": 2, "地合いNG（休む推奨）": 3}
+    picks.sort(key=lambda x: (order.get(x["verdict"], 4), -x["confidence"]))
+    print(f"[Logic4] 完了 — トレンド通過:{trend_pass} エントリー圏:{entry_zone} "
+          f"採用:{len(picks)}（うちシグナル:{len(signal_picks)}）")
     for p in picks[:5]:
         print(f"  {p['ticker']:8s} {p['verdict']} RR={p['risk_reward']:.2f} "
               f"乖離={p['price_to_support_pct']:+.1f}% conf={p['confidence']:.2f}")

@@ -89,13 +89,17 @@ async function _loadStats(container) {
     ]);
 
     if (stats.trades === 0) {
+      const mtm = stats.open_mtm;
+      const mtmLine = mtm && mtm.priced > 0
+        ? `<br><span style="color:var(--text-muted);font-size:.78rem;">open中 ${mtm.priced}件の含み評価: ${_signR(mtm.mtm_r)}R</span>`
+        : "";
       content.innerHTML = `
         <div class="empty-state">
           まだ評価済みのシグナルがありません。<br>
           シグナルが発生してから30営業日経過すると評価されます。<br>
           <span style="color:var(--text-muted);font-size:.78rem;margin-top:8px;display:inline-block;">
             （未評価のシグナルが${recent.signals.filter(s=>s.status==='open').length}件あります）
-          </span>
+          </span>${mtmLine}
         </div>`;
       return;
     }
@@ -107,8 +111,8 @@ async function _loadStats(container) {
     } catch (_) { /* ignore */ }
 
     content.innerHTML = `
-      ${_renderSummary(stats.summary)}
-      ${_state.logic === null ? _renderByLogic(stats.by_logic) : ""}
+      ${_renderSummary(stats.summary, stats.open_mtm)}
+      ${_state.logic === null ? _renderByLogic(stats.by_logic, stats.open_mtm) : ""}
       ${_renderEquityCurve(stats.summary.equity_curve || [])}
       ${tagStats && tagStats.tags && tagStats.tags.length ? _renderTagStats(tagStats.tags) : ""}
       ${_renderRecentSignals(recent.signals)}
@@ -118,17 +122,32 @@ async function _loadStats(container) {
   }
 }
 
-function _renderSummary(s) {
+function _renderSummary(s, openMtm) {
   const cards = [
     { label: "トレード数",  value: s.trades, color: "" },
     { label: "勝率",         value: `${s.win_rate}%`, color: _winRateColor(s.win_rate) },
     { label: "期待値",       value: `${_signR(s.expectancy_r)}R/件`, color: _rColor(s.expectancy_r) },
     { label: "Profit Factor", value: s.profit_factor != null ? s.profit_factor.toFixed(2) : "—", color: _pfColor(s.profit_factor) },
-    { label: "累積R",        value: _signR(s.total_r), color: _rColor(s.total_r) },
+    { label: "累積R (確定)", value: _signR(s.total_r), color: _rColor(s.total_r) },
     { label: "最大DD",       value: `${(-s.max_dd_r).toFixed(2)}R`, color: "var(--red)" },
     { label: "平均勝ち",     value: `${_signR(s.avg_win_r)}R`, color: "var(--green)" },
     { label: "平均負け",     value: `${_signR(s.avg_loss_r)}R`, color: "var(--red)" },
   ];
+
+  if (openMtm && openMtm.priced > 0) {
+    const combined = s.total_r + openMtm.mtm_r;
+    cards.push(
+      { label: `含み評価 (open ${openMtm.priced}件)`, value: _signR(openMtm.mtm_r), color: _rColor(openMtm.mtm_r) },
+      { label: "合算R (確定+含み)", value: _signR(Math.round(combined * 100) / 100), color: _rColor(combined) },
+    );
+  }
+
+  const note = openMtm && openMtm.priced > 0
+    ? `<p style="color:var(--text-muted);font-size:.78rem;margin:6px 2px 0;">
+         ※ 負け（SL）は数日で確定する一方、勝ちは建値ストップ移行後もopenに残るため、
+         「確定のみの累積R」は悲観側に偏ります。実力の把握は<strong>合算R</strong>で行ってください。
+       </p>`
+    : "";
 
   return `
     <div class="bt-summary-grid">
@@ -137,14 +156,19 @@ function _renderSummary(s) {
           <div class="bt-stat-label">${c.label}</div>
           <div class="bt-stat-value" ${c.color ? `style="color:${c.color}"` : ""}>${c.value}</div>
         </div>`).join("")}
-    </div>`;
+    </div>${note}`;
 }
 
-function _renderByLogic(byLogic) {
+function _renderByLogic(byLogic, openMtm) {
   const entries = Object.entries(byLogic);
   if (!entries.length) return "";
 
-  const rows = entries.map(([name, s]) => `
+  const mtmBy = (openMtm && openMtm.by_logic) || {};
+  const rows = entries.map(([name, s]) => {
+    const m = mtmBy[name];
+    const mtmR = m ? m.mtm_r : 0;
+    const combined = Math.round((s.total_r + mtmR) * 100) / 100;
+    return `
     <tr>
       <td><strong>${name}</strong></td>
       <td>${s.trades}</td>
@@ -152,8 +176,11 @@ function _renderByLogic(byLogic) {
       <td style="color:${_rColor(s.expectancy_r)}">${_signR(s.expectancy_r)}R</td>
       <td>${s.profit_factor != null ? s.profit_factor.toFixed(2) : "—"}</td>
       <td style="color:${_rColor(s.total_r)}">${_signR(s.total_r)}R</td>
+      <td style="color:${_rColor(mtmR)}">${m ? `${_signR(m.mtm_r)}R (${m.count})` : "—"}</td>
+      <td style="color:${_rColor(combined)};font-weight:700">${_signR(combined)}R</td>
       <td style="color:var(--red)">${(-s.max_dd_r).toFixed(2)}R</td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
 
   return `
     <h3 class="bt-section-h">ロジック別</h3>
@@ -162,7 +189,7 @@ function _renderByLogic(byLogic) {
         <thead>
           <tr>
             <th>ロジック</th><th>件数</th><th>勝率</th><th>期待値</th>
-            <th>PF</th><th>累積R</th><th>最大DD</th>
+            <th>PF</th><th>確定R</th><th>含み (open件数)</th><th>合算R</th><th>最大DD</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
