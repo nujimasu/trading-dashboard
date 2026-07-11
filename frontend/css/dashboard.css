@@ -1506,6 +1506,21 @@ body {
   color: var(--text-primary);
 }
 
+.bt-note-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: .8rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+.bt-note-card strong { color: var(--text-primary); }
+.bt-note-card ul { margin: 6px 0 0; padding-left: 18px; }
+.bt-note-card li { margin-bottom: 3px; }
+
 .bt-table-wrap {
   background: var(--bg-card);
   border: 1px solid var(--border);

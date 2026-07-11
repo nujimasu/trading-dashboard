@@ -7,6 +7,7 @@ import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.j
 import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=3";
 import { renderLogicCompare }         from "./components/logic-compare.js?v=3";
 import { renderBacktest }          from "./components/backtest.js?v=4";
+import { renderIntradayBacktest }  from "./components/intraday-backtest.js?v=1";
 import { renderPositions }         from "./components/positions.js?v=2";
 import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=9";
 import { apiFetch }                from "./utils/api.js?v=3";
@@ -22,6 +23,7 @@ const SECTIONS = [
   { id: "positions",     label: "保有ポジション", icon: "💼", load: loadPositions },
   { id: "trade-analytics", label: "取引分析", icon: "📈", load: loadTradeAnalytics },
   { id: "backtest",      label: "戦績", icon: "📊", load: loadBacktest },
+  { id: "intraday",      label: "Intraday戦績", icon: "⏱", load: loadIntraday },
   { id: "search",        label: "銘柄検索", icon: "🔍", load: loadSearch },
 ];
 
@@ -247,6 +249,10 @@ function loadSearch(container) {
 
 async function loadBacktest(container) {
   await renderBacktest(container);
+}
+
+async function loadIntraday(container) {
+  await renderIntradayBacktest(container);
 }
 
 async function loadPositions(container) {

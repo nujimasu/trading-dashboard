@@ -268,6 +268,37 @@ else:
         );
         CREATE INDEX IF NOT EXISTS idx_signal_log_logic_date ON signal_log(logic_name, signal_date);
         CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status);
+        CREATE TABLE IF NOT EXISTS signal_log_intraday (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            signal_id       INTEGER NOT NULL,
+            logic_name      TEXT NOT NULL,
+            ticker          TEXT NOT NULL,
+            signal_date     TEXT NOT NULL,
+            fill_mode       TEXT NOT NULL,
+            direction       TEXT NOT NULL DEFAULT 'LONG',
+            status          TEXT NOT NULL DEFAULT 'open',
+            entry_plan      REAL,
+            fill_price      REAL,
+            fill_at         TEXT,
+            stop_price      REAL,
+            tp1_price       REAL,
+            target_price    REAL,
+            exit_price      REAL,
+            exit_at         TEXT,
+            exit_reason     TEXT,
+            realized_r      REAL,
+            mtm_r           REAL,
+            hit_tp1         INTEGER DEFAULT 0,
+            bars_held       INTEGER,
+            days_held       INTEGER,
+            mae_pct         REAL,
+            mfe_pct         REAL,
+            confidence      REAL,
+            verdict         TEXT,
+            evaluated_at    TEXT DEFAULT (datetime('now')),
+            UNIQUE(signal_id, fill_mode)
+        );
+        CREATE INDEX IF NOT EXISTS idx_signal_intraday_mode_logic ON signal_log_intraday(fill_mode, logic_name);
         CREATE TABLE IF NOT EXISTS positions (
             id                INTEGER PRIMARY KEY AUTOINCREMENT,
             ticker            TEXT NOT NULL,
@@ -380,6 +411,7 @@ else:
             ("logic4_picks",      "h4_structure TEXT DEFAULT 'neutral'"),
             ("logic2_picks",      "chart_pattern TEXT"),
             ("logic4_picks",      "chart_pattern TEXT"),
+            ("signal_log_intraday", "verdict TEXT"),
         ]
         for tbl, col_def in migrations:
             try:

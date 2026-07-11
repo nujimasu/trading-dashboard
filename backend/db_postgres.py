@@ -437,6 +437,39 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status) WHERE status = 'open'",
         "CREATE INDEX IF NOT EXISTS idx_signal_log_logic_signal_date ON signal_log(logic_name, signal_date DESC)",
         """
+        CREATE TABLE IF NOT EXISTS signal_log_intraday (
+            id              SERIAL PRIMARY KEY,
+            signal_id       INTEGER NOT NULL,
+            logic_name      TEXT NOT NULL,
+            ticker          TEXT NOT NULL,
+            signal_date     DATE NOT NULL,
+            fill_mode       TEXT NOT NULL,
+            direction       TEXT NOT NULL DEFAULT 'LONG',
+            status          TEXT NOT NULL DEFAULT 'open',
+            entry_plan      NUMERIC,
+            fill_price      NUMERIC,
+            fill_at         TIMESTAMPTZ,
+            stop_price      NUMERIC,
+            tp1_price       NUMERIC,
+            target_price    NUMERIC,
+            exit_price      NUMERIC,
+            exit_at         TIMESTAMPTZ,
+            exit_reason     TEXT,
+            realized_r      NUMERIC,
+            mtm_r           NUMERIC,
+            hit_tp1         BOOLEAN DEFAULT FALSE,
+            bars_held       INTEGER,
+            days_held       INTEGER,
+            mae_pct         NUMERIC,
+            mfe_pct         NUMERIC,
+            confidence      NUMERIC,
+            verdict         TEXT,
+            evaluated_at    TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE UNIQUE INDEX IF NOT EXISTS uniq_signal_intraday ON signal_log_intraday(signal_id, fill_mode)",
+        "CREATE INDEX IF NOT EXISTS idx_signal_intraday_mode_logic ON signal_log_intraday(fill_mode, logic_name)",
+        """
         CREATE TABLE IF NOT EXISTS positions (
             id                SERIAL PRIMARY KEY,
             ticker            TEXT NOT NULL,
@@ -511,6 +544,7 @@ def init_db():
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h1_trigger TEXT",
         "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h4_structure TEXT DEFAULT 'neutral'",
         "ALTER TABLE logic2_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
+        "ALTER TABLE signal_log_intraday ADD COLUMN IF NOT EXISTS verdict TEXT",
     ]
     for m in pg_migrations:
         try:

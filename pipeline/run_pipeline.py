@@ -469,6 +469,17 @@ def run_daily_light():
         log_stage("DailyLight-Eval", "ERROR", str(e), time.time() - t0)
         print(f"[ERROR] シグナル評価失敗: {e}")
 
+    # Intraday評価 (5分足・指値タッチ約定)。5分足は直近60日のローリングウィンドウで
+    # 差分更新だと状態がずれるため毎回まるごと再計算する。失敗しても日次は落とさない。
+    t0 = time.time()
+    try:
+        from backend.services.intraday_tracker import rebuild as rebuild_intraday
+        stats = rebuild_intraday()
+        log_stage("DailyLight-Intraday", "OK", str(stats.get("by_mode")), time.time() - t0)
+    except Exception as e:
+        log_stage("DailyLight-Intraday", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Intraday評価失敗: {e} — 続行")
+
     print(f"[DailyLight] 完了")
 
 
