@@ -22,7 +22,7 @@ import {
 } from "../utils/pick-normalizer.js?v=2";
 
 const FUNDA_MODES = new Set(["weekly", "daily", "take-profit", "hybrid-entry"]);
-const TECH_MODES = new Set(["logic2", "logic4"]);
+const TECH_MODES = new Set(["logic2", "logic4", "logic5"]);
 
 export function renderPickList(container, picks, title, mode = "weekly") {
   if (!picks.length) {
@@ -231,7 +231,7 @@ function _buildDetail(p, idx, mode) {
   if (FUNDA_MODES.has(mode)) {
     return buildFundaDetailPanel(p, idx, mode);
   }
-  if (mode === "logic2" || mode === "logic4") {
+  if (mode === "logic2" || mode === "logic4" || mode === "logic5") {
     return _buildDetailPanelLogic4(p, idx);
   }
   return buildTechDetailPanel(p, idx);

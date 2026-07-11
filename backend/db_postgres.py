@@ -409,6 +409,35 @@ def init_db():
         )
         """,
         """
+        CREATE TABLE IF NOT EXISTS logic5_picks (
+            ticker           TEXT PRIMARY KEY,
+            scan_date        DATE,
+            sector           TEXT,
+            current_price    NUMERIC,
+            entry_price      NUMERIC,
+            stop_price       NUMERIC,
+            tp1_price        NUMERIC,
+            target_price     NUMERIC,
+            risk_reward      NUMERIC,
+            ema_label        TEXT,
+            ema_dist_pct     NUMERIC,
+            support_price    NUMERIC,
+            pa_count         INTEGER DEFAULT 0,
+            osc_count        INTEGER DEFAULT 0,
+            perf_3m          NUMERIC,
+            perf_6m          NUMERIC,
+            avg_vol_20d      NUMERIC,
+            rsi              NUMERIC,
+            atr              NUMERIC,
+            verdict          TEXT,
+            confidence       NUMERIC,
+            composite_score  NUMERIC,
+            holding_days_est INTEGER DEFAULT 10,
+            reasons_json     TEXT DEFAULT '[]',
+            rules_json       TEXT DEFAULT '[]'
+        )
+        """,
+        """
         CREATE TABLE IF NOT EXISTS signal_log (
             id              SERIAL PRIMARY KEY,
             logic_name      TEXT NOT NULL,

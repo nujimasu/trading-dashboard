@@ -242,6 +242,33 @@ else:
             holding_days_est INTEGER DEFAULT 14,
             signals_json    TEXT DEFAULT '[]'
         );
+        CREATE TABLE IF NOT EXISTS logic5_picks (
+            ticker           TEXT PRIMARY KEY,
+            scan_date        TEXT,
+            sector           TEXT,
+            current_price    REAL,
+            entry_price      REAL,
+            stop_price       REAL,
+            tp1_price        REAL,
+            target_price     REAL,
+            risk_reward      REAL,
+            ema_label        TEXT,
+            ema_dist_pct     REAL,
+            support_price    REAL,
+            pa_count         INTEGER DEFAULT 0,
+            osc_count        INTEGER DEFAULT 0,
+            perf_3m          REAL,
+            perf_6m          REAL,
+            avg_vol_20d      REAL,
+            rsi              REAL,
+            atr              REAL,
+            verdict          TEXT,
+            confidence       REAL,
+            composite_score  REAL,
+            holding_days_est INTEGER DEFAULT 10,
+            reasons_json     TEXT DEFAULT '[]',
+            rules_json       TEXT DEFAULT '[]'
+        );
         CREATE TABLE IF NOT EXISTS signal_log (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             logic_name      TEXT NOT NULL,

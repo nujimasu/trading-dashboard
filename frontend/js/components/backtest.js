@@ -18,6 +18,7 @@ const LOGIC_TABS = [
   { id: "logic1",  label: "ファンダ重視" },
   { id: "logic2",  label: "厳選押し目買いv1" },
   { id: "logic4",  label: "厳選押し目買いv2" },
+  { id: "logic5",  label: "押し目リバーサル" },
 ];
 
 let _state = { period: 90, logic: null };

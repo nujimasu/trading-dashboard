@@ -176,6 +176,16 @@ def run_full(skip_download: bool = False):
         log_stage("Logic4", "ERROR", str(e), time.time() - t0)
         print(f"[WARN] Logic4 scan failed: {e}")
 
+    # ── Logic5 scan: 押し目リバーサル ──────────────────────────────────────
+    t0 = time.time()
+    try:
+        from pipeline.logic5_scan import run as logic5_run
+        logic5_run()
+        log_stage("Logic5", "OK", "Logic5 picks generated", time.time() - t0)
+    except Exception as e:
+        log_stage("Logic5", "ERROR", str(e), time.time() - t0)
+        print(f"[WARN] Logic5 scan failed: {e}")
+
     # ── Logic1 scan: ファンダ重視（グロース）───────────────────────────────
     # logic2/logic4 の後に実行する（当日の logic2_picks/logic4_picks を
     # クロスタグ「v1/v2にも出現」で参照するため）。

@@ -1,13 +1,14 @@
 import { renderMarketHealth }       from "./components/market-health.js?v=7";
 import { renderEconomicDashboard }  from "./components/economic-dashboard.js?v=2";
-import { renderPickList }          from "./components/pick-list.js?v=3";
+import { renderPickList }          from "./components/pick-list.js?v=4";
 import { renderSearchUI }          from "./components/stock-search.js?v=2";
 import { renderStrategyGuide }        from "./components/strategy-guide.js?v=4";
 import { renderLogic2StrategyGuide }  from "./components/logic2-strategy-guide.js?v=3";
 import { renderLogic4StrategyGuide }  from "./components/logic4-strategy-guide.js?v=3";
+import { renderLogic5StrategyGuide }  from "./components/logic5-strategy-guide.js?v=1";
 import { renderLogicCompare }         from "./components/logic-compare.js?v=3";
-import { renderBacktest }          from "./components/backtest.js?v=4";
-import { renderIntradayBacktest }  from "./components/intraday-backtest.js?v=1";
+import { renderBacktest }          from "./components/backtest.js?v=5";
+import { renderIntradayBacktest }  from "./components/intraday-backtest.js?v=2";
 import { renderPositions }         from "./components/positions.js?v=2";
 import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=9";
 import { apiFetch }                from "./utils/api.js?v=3";
@@ -19,6 +20,7 @@ const SECTIONS = [
   { id: "logic1",        label: "ファンダ重視", icon: "🎯", load: loadLogic1 },
   { id: "logic2",        label: "厳選押し目買いv1", icon: "🔥", load: loadLogic2 },
   { id: "logic4",        label: "厳選押し目買いv2", icon: "💎", load: loadLogic4 },
+  { id: "logic5",        label: "押し目リバーサル", icon: "🎯", load: loadLogic5 },
   { id: "logic-compare", label: "v1 vs v2 比較", icon: "⚖️", load: loadLogicCompare },
   { id: "positions",     label: "保有ポジション", icon: "💼", load: loadPositions },
   { id: "trade-analytics", label: "取引分析", icon: "📈", load: loadTradeAnalytics },
@@ -235,6 +237,28 @@ function loadLogic4(container) {
     {
       id: "guide", label: "説明", icon: "💎",
       render: (el) => renderLogic4StrategyGuide(el),
+    },
+  ]);
+}
+
+// 押し目リバーサル
+function loadLogic5(container) {
+  renderTabbedSection(container, [
+    {
+      id: "picks", label: "候補リスト", icon: "📋",
+      render: async (el) => {
+        el.innerHTML = `<div class="loading"><div class="spinner"></div><span>候補取得中...</span></div>`;
+        try {
+          const picks = await apiFetch("/api/logic5-picks");
+          renderPickList(el, picks, "🎯 押し目リバーサル", "logic5");
+        } catch (e) {
+          el.innerHTML = `<div class="empty-state">取得失敗: ${e.message}</div>`;
+        }
+      },
+    },
+    {
+      id: "guide", label: "説明", icon: "🎯",
+      render: (el) => renderLogic5StrategyGuide(el),
     },
   ]);
 }
