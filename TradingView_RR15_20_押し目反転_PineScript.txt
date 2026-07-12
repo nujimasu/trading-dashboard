@@ -1,19 +1,19 @@
 ================================================================
- TradingView Pine Script v6 — RR1.5〜2.0 押し目反転
+ TradingView Pine Script v6 — RR1.5〜2.0 押し目反転インジケーター
 ================================================================
 
 使い方:
-  1. TradingViewのPineエディタへ、下のコード部分を貼り付ける。
-  2. 日足チャートで使用する。
-  3. SPY/QQQ地合い、個別トレンド、押し、反転条件を満たすとシグナル表示。
-  4. 本番運用では翌日寄り付き直後に表示されたOpen RRを確認し、
+  1. TradingViewのPineエディタに最初からあるコードをすべて削除する。
+  2. 下のコード部分を先頭の //@version=6 から最後まで貼り付ける。
+  3. 日足チャートで使用する。
+  4. SPY/QQQ地合い、個別トレンド、押し、反転条件を満たすとSETUPを表示。
+  5. 翌日の始値RRが1.5〜2.0ならENTRYを表示する。
+  6. 本番運用では翌日寄り付き直後に表示されたOpen RRを確認し、
      1.5〜2.0の範囲だけを成行エントリーする。
 
 重要な差異:
-  ・TradingViewの通常の履歴バックテストでは「翌日始値を確認して、その同じ始値で
-    新規注文を約定」する処理を完全には再現できない。
-  ・下記strategyは前日終値基準RRが1.5〜2.0の時に注文し、次の始値で約定する近似版。
-  ・正確な本番条件は、翌日始値で openRR を再計算して範囲外なら見送ること。
+  ・これはstrategyではなくindicator。注文は発注せず、売買候補だけを表示する。
+  ・ENTRYはシグナル翌日の実際の始値でRRを再計算して判定する。
   ・ダッシュボード側の全米株横断ランキング、最大30銘柄、既存open件数管理は
     TradingView単一チャートでは再現しない。
   ・決算日除外は含まない。
@@ -23,10 +23,7 @@
 ----------------------------------------------------------------
 
 //@version=6
-strategy("RR1.5-2.0 Pullback Reversal", overlay=true, pyramiding=0,
-     initial_capital=100000, commission_type=strategy.commission.percent,
-     commission_value=0.10, process_orders_on_close=false,
-     calc_on_order_fills=true)
+indicator("RR1.5-2.0 Pullback Reversal", overlay=true)
 
 // ----- Inputs -----
 minRR          = input.float(1.5, "Minimum RR", step=0.1)
@@ -34,7 +31,6 @@ maxRR          = input.float(2.0, "Maximum RR", step=0.1)
 stopLookback   = input.int(20, "Stop lookback", minval=5)
 targetLookback = input.int(60, "Resistance lookback", minval=20)
 atrBuffer      = input.float(0.1, "ATR buffer", step=0.05)
-maxHolding     = input.int(30, "Maximum holding bars", minval=1)
 minVolumeRatio = input.float(0.8, "Minimum volume ratio", step=0.05)
 minPaCount     = input.int(4, "Minimum PA count", minval=1, maxval=7)
 minOscCount    = input.int(1, "Minimum oscillator count", minval=1, maxval=3)
@@ -102,42 +98,35 @@ plannedRR     = plannedRisk > 0 ? (plannedTarget - close) / plannedRisk : na
 
 baseSignal = barstate.isconfirmed and marketOk and trendOk and pullbackOk and reversalOk
 provisionalRR = plannedRR >= minRR and plannedRR <= maxRR
-entrySignal = baseSignal and provisionalRR and strategy.position_size == 0
 
-// Orders submitted at the signal close fill at the next available open.
-var float activeStop = na
-var float activeTarget = na
-var int entryBar = na
+// シグナル確定時のテクニカルSL/TPを保存し、翌日の実際の始値でRRを再計算。
+var float pendingStop = na
+var float pendingTarget = na
+var int setupBar = na
 
-if entrySignal
-    activeStop := plannedStop
-    activeTarget := plannedTarget
-    strategy.entry("Long", strategy.long)
+if baseSignal
+    pendingStop := plannedStop
+    pendingTarget := plannedTarget
+    setupBar := bar_index
 
-if strategy.position_size > 0 and strategy.position_size[1] <= 0
-    entryBar := bar_index
-
-// Actual RR is displayed after the next bar opens.
-actualRisk = strategy.position_size > 0 ? strategy.position_avg_price - activeStop : na
-openRR = strategy.position_size > 0 and actualRisk > 0 ?
-     (activeTarget - strategy.position_avg_price) / actualRisk : na
-
-if strategy.position_size > 0
-    strategy.exit("Structure Exit", "Long", stop=activeStop, limit=activeTarget)
-    if bar_index - entryBar >= maxHolding
-        strategy.close("Long", comment="Time exit")
+isEntryBar = not na(setupBar) and bar_index == setupBar + 1
+actualRisk = isEntryBar ? open - pendingStop : na
+openRR = isEntryBar and actualRisk > 0 ? (pendingTarget - open) / actualRisk : na
+entryValid = isEntryBar and openRR >= minRR and openRR <= maxRR
 
 // ----- Visuals -----
 plot(ema20, "EMA20", color=color.new(color.teal, 0))
 plot(ema50, "EMA50", color=color.new(color.orange, 0))
 plot(ema200, "EMA200", color=color.new(color.red, 0), linewidth=2)
-plot(strategy.position_size > 0 ? activeStop : na, "Stop", color=color.red,
+plot(entryValid ? pendingStop : na, "Stop", color=color.red,
      style=plot.style_linebr, linewidth=2)
-plot(strategy.position_size > 0 ? activeTarget : na, "60D Resistance Target",
+plot(entryValid ? pendingTarget : na, "60D Resistance Target",
      color=color.lime, style=plot.style_linebr, linewidth=2)
 
 plotshape(baseSignal, title="Setup", style=shape.circle, location=location.belowbar,
-     color=provisionalRR ? color.lime : color.orange, size=size.tiny, text="RR")
+     color=provisionalRR ? color.lime : color.orange, size=size.tiny, text="SETUP")
+plotshape(entryValid, title="Entry", style=shape.labelup, location=location.belowbar,
+     color=color.lime, textcolor=color.black, size=size.small, text="ENTRY")
 
 bgcolor(not marketOk ? color.new(color.red, 92) : na, title="Market gate off")
 
@@ -151,6 +140,8 @@ plot(ema50Dist * 100, "EMA50 Distance %", display=display.data_window)
 plot(volRatio, "Volume Ratio", display=display.data_window)
 
 alertcondition(baseSignal, title="RR Pullback Setup",
-     message="Pullback reversal setup. Recalculate RR at next open; enter only at RR 1.5-2.0.")
+     message="Pullback reversal SETUP. Check tomorrow's opening RR.")
+alertcondition(entryValid, title="RR Pullback Entry",
+     message="ENTRY: opening RR is within 1.5-2.0. Check the displayed stop and target.")
 
 ================================================================
