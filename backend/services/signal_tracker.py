@@ -118,6 +118,7 @@ def evaluate_open_signals(today: Optional[str] = None,
         today = date.today().isoformat()
 
     stats = {"evaluated": 0, "stopped": 0, "tp1_hit_be": 0, "tp2_hit": 0,
+             "ema20_exit": 0,
              "time_exit": 0, "still_open": 0, "invalid": 0}
 
     # ── 接続を1本に集約し、price_data を一括取得してメモリ評価する ──
@@ -129,7 +130,7 @@ def evaluate_open_signals(today: Optional[str] = None,
         cur = conn.cursor()
         cur.execute("""
             SELECT id, logic_name, ticker, signal_date, direction,
-                   entry_price, stop_price, tp1_price, target_price
+                   entry_price, stop_price, tp1_price, target_price, meta
             FROM signal_log
             WHERE status = 'open'
         """)
@@ -139,14 +140,16 @@ def evaluate_open_signals(today: Optional[str] = None,
             print(f"[evaluator] {today}: {stats}")
             return stats
 
-        # 全オープンシグナルの最古 signal_date 以降の price_data を一括取得
-        global_min = min(str(s["signal_date"]) for s in opens)
-        cur.execute("""
+        # 対象ティッカーの全履歴を取得。構造出口のEMA20をポイントインタイムで
+        # 正確に再計算するため、シグナル以前のウォームアップも必要。
+        open_tickers = sorted({s["ticker"] for s in opens})
+        placeholders = ",".join("?" for _ in open_tickers)
+        cur.execute(f"""
             SELECT ticker, date, open, high, low, close
             FROM price_data
-            WHERE date > ?
+            WHERE ticker IN ({placeholders})
             ORDER BY ticker ASC, date ASC
-        """, (global_min,))
+        """, tuple(open_tickers))
         bars_by_ticker: dict = {}
         for b in cur.fetchall():
             bars_by_ticker.setdefault(b["ticker"], []).append(dict(b))
@@ -160,7 +163,13 @@ def evaluate_open_signals(today: Optional[str] = None,
             ticker_bars = bars_by_ticker.get(sig["ticker"], [])
             # 旧実装の "date > sig_date ORDER BY date ASC LIMIT max+5" を再現
             bars = [b for b in ticker_bars if str(b["date"]) > sig_date][:max_holding_days + 5]
-            result = _evaluate_one(sig, bars, today, max_holding_days)
+            meta = _parse_meta(sig.get("meta"))
+            if meta.get("exit_mode") in ("resistance_ema20", "resistance_target"):
+                result = _evaluate_resistance_ema20(
+                    sig, ticker_bars, today, max_holding_days, meta
+                )
+            else:
+                result = _evaluate_one(sig, bars, today, max_holding_days)
             if result is None:
                 stats["still_open"] += 1
                 continue
@@ -176,6 +185,7 @@ def evaluate_open_signals(today: Optional[str] = None,
             elif status == "tp2_hit":    stats["tp2_hit"] += 1
             elif status == "tp1_hit_be": stats["tp1_hit_be"] += 1
             elif status == "time_exit":  stats["time_exit"] += 1
+            elif status == "ema20_exit": stats["ema20_exit"] += 1
             elif status == "invalid":    stats["invalid"] += 1
 
         # 一括 UPDATE（接続1本・1トランザクション）
@@ -196,6 +206,152 @@ def evaluate_open_signals(today: Optional[str] = None,
 
     print(f"[evaluator] {today}: {stats}")
     return stats
+
+
+def _evaluate_resistance_ema20(sig: dict, ticker_bars: list, today_iso: str,
+                               max_holding_days: int, meta: dict) -> Optional[dict]:
+    """logic5構造出口: レジスタンスで2/3利確、残りをEMA20で追随。"""
+    direction = sig["direction"]
+    signal_date = str(sig["signal_date"])
+    all_bars = [dict(b) for b in ticker_bars]
+    post = [b for b in all_bars if str(b["date"]) > signal_date]
+    if not post:
+        return None
+
+    entry_bar = post[0]
+    entry_price = _safe_float(entry_bar.get("open")) or _safe_float(entry_bar.get("close"))
+    stop_plan = _safe_float(sig.get("stop_price"))
+    resistance = _safe_float(sig.get("tp1_price"))
+    if entry_price is None or stop_plan is None or resistance is None:
+        return {"status": "invalid", "exit_date": str(entry_bar["date"]),
+                "exit_price": entry_price, "realized_r": None, "days_held": 0,
+                "mae_pct": None, "mfe_pct": None, "hit_tp1": False}
+    risk = entry_price - stop_plan if direction == "LONG" else stop_plan - entry_price
+    if risk <= 0:
+        return {"status": "invalid", "exit_date": str(entry_bar["date"]),
+                "exit_price": entry_price, "realized_r": None, "days_held": 0,
+                "mae_pct": None, "mfe_pct": None, "hit_tp1": False}
+
+    entry_rr = ((resistance - entry_price) / risk if direction == "LONG"
+                else (entry_price - resistance) / risk)
+    min_entry_rr = _safe_float(meta.get("min_entry_rr"))
+    max_entry_rr = _safe_float(meta.get("max_entry_rr"))
+    if ((min_entry_rr is not None and entry_rr < min_entry_rr)
+            or (max_entry_rr is not None and entry_rr > max_entry_rr)):
+        # 寄り付き時点で注文を見送るため、損益ゼロではなく未成立扱い。
+        return {"status": "invalid", "exit_date": str(entry_bar["date"]),
+                "exit_price": entry_price, "realized_r": None, "days_held": 0,
+                "mae_pct": None, "mfe_pct": None, "hit_tp1": False}
+
+    fraction = _safe_float(meta.get("exit_fraction")) or (2 / 3)
+    fraction = max(0.0, min(1.0, fraction))
+    cost_bps = _safe_float(meta.get("cost_bps")) or 0.0
+    friction_r = 2 * cost_bps / 10000 * entry_price / risk
+
+    # 全履歴からEMA20を再現し、日付で引け値と対応させる。
+    ema_by_date = {}
+    ema = None
+    seed = []
+    alpha = 2 / 21
+    for b in all_bars:
+        close = _safe_float(b.get("close"))
+        if close is None:
+            continue
+        if ema is None:
+            seed.append(close)
+            if len(seed) == 20:
+                ema = sum(seed) / 20
+        else:
+            ema = close * alpha + ema * (1 - alpha)
+        if ema is not None:
+            ema_by_date[str(b["date"])] = ema
+
+    hit_target = False
+    current_stop = stop_plan
+    pending_ema_exit = False
+    mae_pct = mfe_pct = 0.0
+    bars = post[:max_holding_days + 1]
+    for i, bar in enumerate(bars):
+        days_held = i + 1
+        o = _safe_float(bar.get("open"))
+        h = _safe_float(bar.get("high"))
+        l = _safe_float(bar.get("low"))
+        c = _safe_float(bar.get("close"))
+        if None in (o, h, l):
+            continue
+
+        if pending_ema_exit:
+            runner_r = ((o - entry_price) / risk if direction == "LONG"
+                        else (entry_price - o) / risk)
+            tp_r = ((resistance - entry_price) / risk if direction == "LONG"
+                    else (entry_price - resistance) / risk)
+            realized = fraction * tp_r + (1 - fraction) * runner_r - friction_r
+            return {"status": "ema20_exit", "exit_date": str(bar["date"]),
+                    "exit_price": o, "realized_r": realized, "days_held": days_held,
+                    "mae_pct": mae_pct, "mfe_pct": mfe_pct, "hit_tp1": True}
+
+        if direction == "LONG":
+            mae_pct = min(mae_pct, (l - entry_price) / entry_price * 100)
+            mfe_pct = max(mfe_pct, (h - entry_price) / entry_price * 100)
+            sl_hit = l <= current_stop
+            stop_fill = o if o <= current_stop else current_stop
+            target_hit = h >= resistance
+        else:
+            mae_pct = min(mae_pct, (entry_price - h) / entry_price * 100)
+            mfe_pct = max(mfe_pct, (entry_price - l) / entry_price * 100)
+            sl_hit = h >= current_stop
+            stop_fill = o if o >= current_stop else current_stop
+            target_hit = l <= resistance
+
+        # 日足内の順序不明は保守的にSL先行。
+        if sl_hit:
+            if hit_target:
+                tp_r = ((resistance - entry_price) / risk if direction == "LONG"
+                        else (entry_price - resistance) / risk)
+                runner_r = ((stop_fill - entry_price) / risk if direction == "LONG"
+                            else (entry_price - stop_fill) / risk)
+                realized = fraction * tp_r + (1 - fraction) * runner_r - friction_r
+                return {"status": "tp1_hit_be", "exit_date": str(bar["date"]),
+                        "exit_price": stop_fill, "realized_r": realized,
+                        "days_held": days_held, "mae_pct": mae_pct,
+                        "mfe_pct": mfe_pct, "hit_tp1": True}
+            stop_r = ((stop_fill - entry_price) / risk if direction == "LONG"
+                      else (entry_price - stop_fill) / risk)
+            return {"status": "stopped", "exit_date": str(bar["date"]),
+                    "exit_price": stop_fill, "realized_r": stop_r - friction_r,
+                    "days_held": days_held, "mae_pct": mae_pct,
+                    "mfe_pct": mfe_pct, "hit_tp1": False}
+
+        if target_hit and not hit_target:
+            hit_target = True
+            current_stop = entry_price
+            if fraction >= 0.999:
+                tp_r = ((resistance - entry_price) / risk if direction == "LONG"
+                        else (entry_price - resistance) / risk)
+                return {"status": "tp2_hit", "exit_date": str(bar["date"]),
+                        "exit_price": resistance, "realized_r": tp_r - friction_r,
+                        "days_held": days_held, "mae_pct": mae_pct,
+                        "mfe_pct": mfe_pct, "hit_tp1": True}
+
+        ema20 = ema_by_date.get(str(bar["date"]))
+        if hit_target and c is not None and ema20 is not None:
+            pending_ema_exit = (c < ema20 if direction == "LONG" else c > ema20)
+
+        if days_held >= max_holding_days:
+            close_r = ((c - entry_price) / risk if direction == "LONG"
+                       else (entry_price - c) / risk)
+            if hit_target:
+                tp_r = ((resistance - entry_price) / risk if direction == "LONG"
+                        else (entry_price - resistance) / risk)
+                realized = fraction * tp_r + (1 - fraction) * close_r - friction_r
+            else:
+                realized = close_r - friction_r
+            return {"status": "time_exit", "exit_date": str(bar["date"]),
+                    "exit_price": c, "realized_r": realized, "days_held": days_held,
+                    "mae_pct": mae_pct, "mfe_pct": mfe_pct,
+                    "hit_tp1": hit_target}
+
+    return None
 
 
 def _evaluate_one(sig: dict, bars: list, today_iso: str, max_holding_days: int) -> Optional[dict]:
