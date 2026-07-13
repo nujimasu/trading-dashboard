@@ -16,7 +16,11 @@ def get_logic5_picks(
 ):
     conn = get_connection()
     cur  = conn.cursor()
-    where = "" if include_watchlist else "WHERE verdict IN ('最優先候補', 'クールダウン中')"
+    # 標準画面は実際に検討可能な構造RRだけを表示する。ウォッチ一覧では
+    # RR範囲外も含め、どの条件が未達かを診断できるようにする。
+    where = ("" if include_watchlist else
+             "WHERE verdict IN ('最優先候補', 'クールダウン中') "
+             "AND risk_reward BETWEEN 1.5 AND 2.0")
     cur.execute(f"""
         SELECT ticker, scan_date, sector, current_price, entry_price, stop_price,
                tp1_price, target_price, risk_reward, ema_label, ema_dist_pct,
