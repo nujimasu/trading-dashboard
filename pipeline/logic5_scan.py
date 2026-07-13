@@ -218,7 +218,9 @@ def run():
     picks, signal_picks = [], []
     zone_count = 0
 
-    for ticker, sector in universe.items():
+    for ticker_index, (ticker, sector) in enumerate(universe.items(), start=1):
+        if ticker_index == 1 or ticker_index % 10 == 0:
+            print(f"[Logic5] 進捗 {ticker_index}/{len(universe)}")
         try:
             if _is_excluded(ticker):
                 continue
