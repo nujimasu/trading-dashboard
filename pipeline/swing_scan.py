@@ -238,6 +238,36 @@ def _replace_picks(cursor: Any, scan_date: str, rows: list[dict[str, Any]]) -> N
             )
 
 
+def _prune_old_picks(cursor: Any, retention_days: int) -> int:
+    """Delete picks outside the newest N distinct scan dates."""
+    if retention_days < 1:
+        raise ValueError("retention_days must be at least 1")
+    cursor.execute(
+        """
+        DELETE FROM swing_picks
+        WHERE scan_date < (
+            SELECT MIN(d)
+            FROM (
+                SELECT DISTINCT scan_date AS d
+                FROM swing_picks
+                ORDER BY d DESC
+                LIMIT ?
+            ) AS retained_dates
+        )
+        """,
+        (retention_days,),
+    )
+    return max(cursor.rowcount, 0)
+
+
+def _save_and_prune_picks(
+    cursor: Any, scan_date: str, rows: list[dict[str, Any]], retention_days: int
+) -> int:
+    """Persist the current scan before pruning, within the caller's transaction."""
+    _replace_picks(cursor, scan_date, rows)
+    return _prune_old_picks(cursor, retention_days)
+
+
 def run() -> None:
     """Update data, screen the universe, and persist picks plus funnel metrics."""
     started = time.perf_counter()
@@ -251,10 +281,14 @@ def run() -> None:
     init_db()
 
     with db_cursor() as cursor:
-        _replace_picks(cursor, scan_date, rows)
+        pruned = _save_and_prune_picks(
+            cursor, scan_date, rows, config.SWING_PICKS_RETENTION_DAYS
+        )
+    print(f"[SwingScan] pruned {pruned} old swing_picks rows")
 
     duration = time.perf_counter() - started
     message = dict(funnel)
+    message["pruned"] = pruned
     if failed_days:
         message["failed_days"] = failed_days
     funnel_json = json.dumps(message, ensure_ascii=False)

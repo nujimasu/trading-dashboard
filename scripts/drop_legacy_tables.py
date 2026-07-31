@@ -15,6 +15,7 @@ from backend.db import get_connection
 TABLES = [
     "logic2_picks",
     "logic4_picks",
+    "logic5_picks",
     "daily_picks",
     "weekly_picks",
     "tech_daily_picks",
