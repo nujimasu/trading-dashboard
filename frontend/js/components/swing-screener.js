@@ -28,6 +28,118 @@ const VOLUME_VERDICTS = Object.freeze({
   selling_pressure: { label: "⚠️ 売り圧力", icon: "⚠️", tone: "red", weight: -2 },
 });
 
+const PREFS_KEY = "swing-screener-prefs-v1";
+const FILTER_GROUPS = Object.freeze({
+  volumeVerdicts: {
+    label: "出来高判定",
+    values: Object.keys(VOLUME_VERDICTS),
+    labels: Object.fromEntries(Object.entries(VOLUME_VERDICTS).map(([key, meta]) => [key, meta.label])),
+  },
+  dowTrends: {
+    label: "ダウ理論",
+    values: ["up", "neutral", "down"],
+    labels: { up: "上昇", neutral: "中立", down: "下降" },
+  },
+  pickStates: {
+    label: "状態",
+    values: ["bounced", "pulling"],
+    labels: { bounced: "✅ 反発確認済", pulling: "⏳ 押し目進行中" },
+  },
+  priceZones: {
+    label: "価格位置",
+    values: ["high", "mid", "low"],
+    labels: { high: "高値圏", mid: "中間", low: "安値圏" },
+  },
+});
+
+const DEFAULT_PREFS = Object.freeze({
+  adxEnabled: true,
+  adxMin: 25,
+  filters: {
+    volumeVerdicts: [...FILTER_GROUPS.volumeVerdicts.values],
+    dowTrends: ["up", "neutral"],
+    pickStates: [...FILTER_GROUPS.pickStates.values],
+    priceZones: [...FILTER_GROUPS.priceZones.values],
+  },
+  sorts: [
+    { key: "rs126", direction: -1 },
+    { key: null, direction: -1 },
+    { key: null, direction: -1 },
+  ],
+});
+
+function defaultPrefs() {
+  return JSON.parse(JSON.stringify(DEFAULT_PREFS));
+}
+
+export function sanitizeSwingPrefs(value) {
+  const fallback = defaultPrefs();
+  if (!value || typeof value !== "object" || Array.isArray(value)) return fallback;
+  const validColumnKeys = new Set(COLUMNS.map(column => column.key));
+  const result = defaultPrefs();
+  if (typeof value.adxEnabled === "boolean") result.adxEnabled = value.adxEnabled;
+  if (Number.isFinite(value.adxMin) && value.adxMin >= 15 && value.adxMin <= 35) result.adxMin = value.adxMin;
+  if (value.filters && typeof value.filters === "object" && !Array.isArray(value.filters)) {
+    for (const [groupKey, group] of Object.entries(FILTER_GROUPS)) {
+      const selected = value.filters[groupKey];
+      if (Array.isArray(selected) && selected.every(item => typeof item === "string")) {
+        result.filters[groupKey] = [...new Set(selected.filter(item => group.values.includes(item)))];
+      }
+    }
+  }
+  if (Array.isArray(value.sorts) && value.sorts.length === 3) {
+    result.sorts = value.sorts.map((sort, index) => {
+      if (!sort || typeof sort !== "object" || Array.isArray(sort)) return fallback.sorts[index];
+      const key = sort.key === null || sort.key === "" ? null : sort.key;
+      if (key !== null && !validColumnKeys.has(key)) return fallback.sorts[index];
+      return { key, direction: sort.direction === 1 ? 1 : -1 };
+    });
+  }
+  return result;
+}
+
+export function loadSwingPrefs(storage) {
+  try {
+    const target = storage === undefined ? globalThis.localStorage : storage;
+    const raw = target?.getItem(PREFS_KEY);
+    return raw ? sanitizeSwingPrefs(JSON.parse(raw)) : defaultPrefs();
+  } catch {
+    return defaultPrefs();
+  }
+}
+
+function saveSwingPrefs(prefs, storage) {
+  try {
+    const target = storage === undefined ? globalThis.localStorage : storage;
+    target?.setItem(PREFS_KEY, JSON.stringify(sanitizeSwingPrefs(prefs)));
+  } catch {
+    // Storage can be unavailable (privacy mode or quota); rendering must continue.
+  }
+}
+
+function pickGroupValue(pick, groupKey) {
+  if (groupKey === "volumeVerdicts") return pick.volume?.verdict;
+  if (groupKey === "dowTrends") return pick.dow_trend;
+  if (groupKey === "pickStates") return pick.state;
+  if (groupKey === "priceZones") return pick.volume?.price_zone;
+  return undefined;
+}
+
+export function filterSwingPicks(picks, prefs, omittedGroup = null) {
+  const safePrefs = sanitizeSwingPrefs(prefs);
+  return picks.filter(pick => {
+    if (safePrefs.adxEnabled && (!finite(pick.adx) || Number(pick.adx) < safePrefs.adxMin)) return false;
+    for (const groupKey of Object.keys(FILTER_GROUPS)) {
+      if (groupKey === omittedGroup) continue;
+      const selected = safePrefs.filters[groupKey];
+      if (!selected.length) continue;
+      if ((groupKey === "volumeVerdicts" || groupKey === "priceZones") && !pick.volume) continue;
+      if (!selected.includes(pickGroupValue(pick, groupKey))) return false;
+    }
+    return true;
+  });
+}
+
 const LINE_COLORS = {
   trendline: "#f59e0b",
   neckline: "#22d3ee",
@@ -59,14 +171,31 @@ const STYLE = `
   .swing-funnel-node strong { display:block; margin-top:2px; color:#e2e8f0; font-size:1.05rem; font-variant-numeric:tabular-nums; }
   .swing-funnel-arrow { align-self:center; color:#47617f; font-weight:900; }
   .swing-note { margin-top:10px; color:#fbbf24; font-size:.72rem; }
-  .swing-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding:12px; border:1px solid var(--sw-line); border-radius:12px; background:var(--sw-panel); }
+  .swing-controls { display:grid; gap:12px; padding:12px; border:1px solid var(--sw-line); border-radius:12px; background:var(--sw-panel); }
+  .swing-control-top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
   .swing-control { display:flex; align-items:center; gap:8px; min-height:34px; padding:5px 9px; border:1px solid #2a3a54; border-radius:8px; background:#0d1727; font-size:.76rem; color:#cbd5e1; }
   .swing-control input[type="checkbox"] { accent-color:#3b82f6; }
   .swing-adx-range { width:116px; accent-color:#3b82f6; }
   .swing-adx-value { min-width:24px; color:#93c5fd; font-weight:800; font-variant-numeric:tabular-nums; }
-  .swing-state-group { display:flex; padding:3px; border:1px solid #2a3a54; border-radius:9px; background:#0d1727; }
-  .swing-state-btn { border:0; border-radius:6px; padding:6px 9px; background:transparent; color:var(--text-muted); font:inherit; font-size:.73rem; cursor:pointer; }
-  .swing-state-btn.active { color:#eaf2ff; background:#29466e; box-shadow:inset 0 0 0 1px #3c5f8e; }
+  .swing-reset, .swing-mini { border:1px solid #365071; border-radius:6px; background:#16253a; color:#bfdbfe; font:inherit; cursor:pointer; }
+  .swing-reset { min-height:32px; padding:5px 10px; font-size:.72rem; }
+  .swing-mini { padding:2px 6px; font-size:.62rem; }
+  .swing-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .swing-filter-group { min-width:0; padding:9px; border:1px solid #2a3a54; border-radius:9px; background:#0d1727; }
+  .swing-filter-group.unfiltered { border-style:dashed; opacity:.72; }
+  .swing-filter-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; }
+  .swing-filter-title { color:#dbeafe; font-size:.72rem; font-weight:800; }
+  .swing-filter-actions { display:flex; align-items:center; gap:5px; }
+  .swing-unfiltered { color:#93c5fd; font-size:.61rem; }
+  .swing-filter-options { display:flex; flex-wrap:wrap; gap:6px; }
+  .swing-filter-chip { display:inline-flex; align-items:center; gap:5px; min-height:27px; padding:3px 7px; border:1px solid #30435e; border-radius:999px; color:#cbd5e1; font-size:.67rem; cursor:pointer; }
+  .swing-filter-chip:has(input:checked) { border-color:#4775aa; background:#1a3150; color:#eaf2ff; }
+  .swing-filter-chip input { margin:0; accent-color:#3b82f6; }
+  .swing-option-count { color:#8294aa; font-variant-numeric:tabular-nums; }
+  .swing-sort-panel { display:grid; gap:7px; padding-top:10px; border-top:1px solid #26354d; }
+  .swing-sort-row { display:grid; grid-template-columns:76px minmax(130px,220px) minmax(92px,130px); align-items:center; gap:7px; }
+  .swing-sort-label { color:var(--text-muted); font-size:.69rem; font-weight:700; }
+  .swing-select { width:100%; min-height:31px; border:1px solid #30435e; border-radius:6px; padding:4px 7px; background:#0d1727; color:#dbeafe; font:inherit; font-size:.71rem; }
   .swing-results { border:1px solid var(--sw-line); border-radius:12px; background:#0d1727; overflow:hidden; }
   .swing-results-bar { display:flex; justify-content:space-between; gap:12px; padding:10px 13px; border-bottom:1px solid var(--sw-line); color:var(--text-muted); font-size:.74rem; }
   .swing-count { color:#dbeafe; font-weight:800; }
@@ -121,12 +250,18 @@ const STYLE = `
   @media (max-width:720px) {
     .swing-hero { padding:15px; }
     .swing-hero::after { font-size:2.8rem; }
-    .swing-control { width:100%; justify-content:space-between; }
-    .swing-state-group { width:100%; overflow:auto; }
-    .swing-state-btn { flex:1; white-space:nowrap; }
+    .swing-control-top, .swing-control { width:100%; }
+    .swing-control { justify-content:space-between; }
+    .swing-filter-grid { grid-template-columns:1fr; }
     .swing-volume-card { grid-template-columns:1fr; }
     .swing-week-bars { justify-content:flex-start; }
     .swing-chart-slot { padding:5px; }
+  }
+  @media (max-width:480px) {
+    .swing-controls { padding:9px; }
+    .swing-adx-range { min-width:70px; width:34vw; }
+    .swing-filter-chip { max-width:100%; }
+    .swing-sort-row { grid-template-columns:68px minmax(0,1fr) 90px; }
   }
 `;
 
@@ -242,7 +377,7 @@ function comparePicks(left, right, key, direction) {
   const aMissing = a == null || (column?.kind === "number" && !finite(a));
   const bMissing = b == null || (column?.kind === "number" && !finite(b));
   if (aMissing || bMissing) {
-    if (aMissing && bMissing) return String(left.ticker).localeCompare(String(right.ticker));
+    if (aMissing && bMissing) return 0;
     return aMissing ? 1 : -1;
   }
   const result = column?.kind === "number"
@@ -250,9 +385,33 @@ function comparePicks(left, right, key, direction) {
     : column?.kind === "verdict"
       ? Number(a) - Number(b)
     : String(a).localeCompare(String(b), "ja");
-  return result === 0
-    ? String(left.ticker).localeCompare(String(right.ticker))
-    : result * direction;
+  return result * direction;
+}
+
+export function sortSwingPicks(picks, sorts) {
+  const safeSorts = sanitizeSwingPrefs({ sorts, filters: defaultPrefs().filters }).sorts;
+  const effective = safeSorts[0].key ? safeSorts.filter(sort => sort.key) : [{ key: "rs126", direction: -1 }];
+  return picks.map((pick, index) => ({ pick, index })).sort((left, right) => {
+    for (const sort of effective) {
+      const result = comparePicks(left.pick, right.pick, sort.key, sort.direction);
+      if (result !== 0) return result;
+    }
+    return left.index - right.index;
+  }).map(item => item.pick);
+}
+
+function filterGroupHtml(groupKey, group) {
+  return `<fieldset class="swing-filter-group" data-filter-group="${groupKey}">
+    <div class="swing-filter-head">
+      <span class="swing-filter-title">${group.label}</span>
+      <span class="swing-filter-actions"><span class="swing-unfiltered" hidden>全件表示中</span><button class="swing-mini" type="button" data-filter-all="${groupKey}">全選択</button><button class="swing-mini" type="button" data-filter-none="${groupKey}">全解除</button></span>
+    </div>
+    <div class="swing-filter-options">${group.values.map(value => `<label class="swing-filter-chip"><input type="checkbox" data-filter="${groupKey}" value="${value}"><span>${group.labels[value]}</span><span class="swing-option-count" data-count="${groupKey}:${value}">(0)</span></label>`).join("")}</div>
+  </fieldset>`;
+}
+
+function sortOptions() {
+  return `<option value="">なし</option>${COLUMNS.map(column => `<option value="${column.key}">${column.label}</option>`).join("")}`;
 }
 
 function lineColor(line) {
@@ -365,12 +524,7 @@ export async function renderSwingScreener(container) {
   const picks = Array.isArray(payload.picks) ? payload.picks : [];
   const funnel = payload.funnel || {};
   const state = {
-    adxEnabled: true,
-    adxMin: 25,
-    excludeDown: true,
-    pickState: "all",
-    sortKey: "rs126",
-    sortDirection: -1,
+    ...loadSwingPrefs(),
     activeTicker: null,
     extended: false,
     requestId: 0,
@@ -396,20 +550,18 @@ export async function renderSwingScreener(container) {
       </section>
 
       <section class="swing-controls" aria-label="スクリーナーフィルタ">
-        <label class="swing-control">
-          <input type="checkbox" data-control="adx-enabled" checked>
-          <span>ADXで絞る</span>
-          <input class="swing-adx-range" data-control="adx-min" type="range" min="15" max="35" value="25" aria-label="ADX下限">
-          <output class="swing-adx-value">25</output>
-        </label>
-        <label class="swing-control">
-          <input type="checkbox" data-control="exclude-down" checked>
-          <span>ダウ理論「下降」を除外</span>
-        </label>
-        <div class="swing-state-group" role="group" aria-label="状態フィルタ">
-          <button class="swing-state-btn active" data-state="all" type="button">すべて</button>
-          <button class="swing-state-btn" data-state="bounced" type="button">✅ 反発確認済</button>
-          <button class="swing-state-btn" data-state="pulling" type="button">⏳ 押し目進行中</button>
+        <div class="swing-control-top">
+          <label class="swing-control">
+            <input type="checkbox" data-control="adx-enabled">
+            <span>ADXで絞る</span>
+            <input class="swing-adx-range" data-control="adx-min" type="range" min="15" max="35" aria-label="ADX下限">
+            <output class="swing-adx-value"></output>
+          </label>
+          <button class="swing-reset" data-reset-prefs type="button">デフォルトに戻す</button>
+        </div>
+        <div class="swing-filter-grid">${Object.entries(FILTER_GROUPS).map(([key, group]) => filterGroupHtml(key, group)).join("")}</div>
+        <div class="swing-sort-panel" aria-label="複数ソート">
+          ${[0, 1, 2].map(index => `<label class="swing-sort-row"><span class="swing-sort-label">第${index + 1}ソート</span><select class="swing-select" data-sort-key="${index}">${sortOptions()}</select><select class="swing-select" data-sort-direction="${index}"><option value="-1">降順</option><option value="1">昇順</option></select></label>`).join("")}
         </div>
       </section>
 
@@ -421,7 +573,7 @@ export async function renderSwingScreener(container) {
         <div class="swing-table-wrap">
           <table class="swing-table">
             <thead><tr>${COLUMNS.map(column => `
-              <th aria-sort="${column.key === "rs126" ? "descending" : "none"}"><button type="button" class="swing-sort${column.key === "rs126" ? " active" : ""}" data-sort="${column.key}">${column.label}${column.key === "rs126" ? " ↓" : ""}</button></th>
+              <th aria-sort="none"><button type="button" class="swing-sort" data-sort="${column.key}">${column.label}</button></th>
             `).join("")}</tr></thead>
             <tbody></tbody>
           </table>
@@ -434,6 +586,46 @@ export async function renderSwingScreener(container) {
   const body = container.querySelector(".swing-table tbody");
   const detail = container.querySelector(".swing-detail");
   const count = container.querySelector(".swing-count");
+
+  function persistPrefs() {
+    saveSwingPrefs(state);
+  }
+
+  function syncControls() {
+    container.querySelector('[data-control="adx-enabled"]').checked = state.adxEnabled;
+    container.querySelector('[data-control="adx-min"]').value = state.adxMin;
+    container.querySelector(".swing-adx-value").textContent = state.adxMin;
+    for (const [groupKey, group] of Object.entries(FILTER_GROUPS)) {
+      const selected = state.filters[groupKey];
+      const fieldset = container.querySelector(`[data-filter-group="${groupKey}"]`);
+      fieldset.classList.toggle("unfiltered", selected.length === 0);
+      fieldset.querySelector(".swing-unfiltered").hidden = selected.length !== 0;
+      for (const input of fieldset.querySelectorAll(`[data-filter="${groupKey}"]`)) {
+        input.checked = group.values.includes(input.value) && selected.includes(input.value);
+      }
+    }
+    state.sorts.forEach((sort, index) => {
+      container.querySelector(`[data-sort-key="${index}"]`).value = sort.key || "";
+      container.querySelector(`[data-sort-direction="${index}"]`).value = String(sort.direction);
+    });
+    const primary = state.sorts[0].key ? state.sorts[0] : { key: "rs126", direction: -1 };
+    container.querySelectorAll(".swing-sort").forEach(button => {
+      const active = button.dataset.sort === primary.key;
+      button.classList.toggle("active", active);
+      button.textContent = COLUMNS.find(column => column.key === button.dataset.sort).label + (active ? (primary.direction > 0 ? " ↑" : " ↓") : "");
+      button.parentElement.setAttribute("aria-sort", active ? (primary.direction > 0 ? "ascending" : "descending") : "none");
+    });
+  }
+
+  function updateFacetCounts() {
+    for (const [groupKey, group] of Object.entries(FILTER_GROUPS)) {
+      const candidates = filterSwingPicks(picks, state, groupKey);
+      for (const value of group.values) {
+        const matches = candidates.filter(pick => pickGroupValue(pick, groupKey) === value).length;
+        container.querySelector(`[data-count="${groupKey}:${value}"]`).textContent = `(${matches.toLocaleString("ja-JP")})`;
+      }
+    }
+  }
 
   function closeDetail() {
     state.activeTicker = null;
@@ -487,14 +679,11 @@ export async function renderSwingScreener(container) {
   }
 
   function renderRows() {
-    const filtered = picks.filter(pick => {
-      if (state.adxEnabled && (!finite(pick.adx) || Number(pick.adx) < state.adxMin)) return false;
-      if (state.excludeDown && pick.dow_trend === "down") return false;
-      if (state.pickState !== "all" && pick.state !== state.pickState) return false;
-      return true;
-    }).sort((a, b) => comparePicks(a, b, state.sortKey, state.sortDirection));
+    const filtered = sortSwingPicks(filterSwingPicks(picks, state), state.sorts);
 
     if (state.activeTicker && !filtered.some(pick => pick.ticker === state.activeTicker)) closeDetail();
+    syncControls();
+    updateFacetCounts();
     count.textContent = `${filtered.length.toLocaleString("ja-JP")}件`;
     body.innerHTML = filtered.length
       ? filtered.map(rowHtml).join("")
@@ -510,37 +699,61 @@ export async function renderSwingScreener(container) {
 
   container.querySelector('[data-control="adx-enabled"]').addEventListener("change", event => {
     state.adxEnabled = event.currentTarget.checked;
+    persistPrefs();
     renderRows();
   });
   container.querySelector('[data-control="adx-min"]').addEventListener("input", event => {
     state.adxMin = Number(event.currentTarget.value);
-    container.querySelector(".swing-adx-value").textContent = state.adxMin;
+    persistPrefs();
     renderRows();
   });
-  container.querySelector('[data-control="exclude-down"]').addEventListener("change", event => {
-    state.excludeDown = event.currentTarget.checked;
-    renderRows();
+  container.querySelectorAll("[data-filter]").forEach(input => {
+    input.addEventListener("change", () => {
+      const groupKey = input.dataset.filter;
+      const group = FILTER_GROUPS[groupKey];
+      if (!group || !group.values.includes(input.value)) return;
+      state.filters[groupKey] = group.values.filter(value => container.querySelector(`[data-filter="${groupKey}"][value="${value}"]`).checked);
+      persistPrefs();
+      renderRows();
+    });
   });
-  container.querySelectorAll(".swing-state-btn").forEach(button => {
+  container.querySelectorAll("[data-filter-all], [data-filter-none]").forEach(button => {
     button.addEventListener("click", () => {
-      state.pickState = button.dataset.state;
-      container.querySelectorAll(".swing-state-btn").forEach(item => item.classList.toggle("active", item === button));
+      const groupKey = button.dataset.filterAll || button.dataset.filterNone;
+      const group = FILTER_GROUPS[groupKey];
+      if (!group) return;
+      state.filters[groupKey] = button.dataset.filterAll ? [...group.values] : [];
+      persistPrefs();
+      renderRows();
+    });
+  });
+  container.querySelectorAll("[data-sort-key], [data-sort-direction]").forEach(select => {
+    select.addEventListener("change", () => {
+      const index = Number(select.dataset.sortKey ?? select.dataset.sortDirection);
+      if (!Number.isInteger(index) || index < 0 || index > 2) return;
+      if (select.dataset.sortKey != null) state.sorts[index].key = select.value || null;
+      else state.sorts[index].direction = Number(select.value) === 1 ? 1 : -1;
+      persistPrefs();
       renderRows();
     });
   });
   container.querySelectorAll(".swing-sort").forEach(button => {
     button.addEventListener("click", () => {
       const key = button.dataset.sort;
-      state.sortDirection = state.sortKey === key ? state.sortDirection * -1 : (key === "ticker" ? 1 : -1);
-      state.sortKey = key;
-      container.querySelectorAll(".swing-sort").forEach(item => {
-        const active = item.dataset.sort === key;
-        item.classList.toggle("active", active);
-        item.textContent = COLUMNS.find(column => column.key === item.dataset.sort).label + (active ? (state.sortDirection > 0 ? " ↑" : " ↓") : "");
-        item.parentElement.setAttribute("aria-sort", active ? (state.sortDirection > 0 ? "ascending" : "descending") : "none");
-      });
+      state.sorts[0].direction = state.sorts[0].key === key ? state.sorts[0].direction * -1 : (key === "ticker" ? 1 : -1);
+      state.sorts[0].key = key;
+      persistPrefs();
       renderRows();
     });
+  });
+  container.querySelector("[data-reset-prefs]").addEventListener("click", () => {
+    try { globalThis.localStorage?.removeItem(PREFS_KEY); } catch { /* Ignore unavailable storage. */ }
+    const reset = defaultPrefs();
+    state.adxEnabled = reset.adxEnabled;
+    state.adxMin = reset.adxMin;
+    state.filters = reset.filters;
+    state.sorts = reset.sorts;
+    renderRows();
   });
 
   renderRows();

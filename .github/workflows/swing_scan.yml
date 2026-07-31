@@ -1,0 +1,51 @@
+name: Swing Scan
+
+on:
+  schedule:
+    - cron: "45 22 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download swing store
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p data
+          gh release download swing-store --repo "$GITHUB_REPOSITORY" --pattern swing_store.pkl --dir data --clobber
+
+      - name: Verify swing store
+        run: |
+          test -f data/swing_store.pkl
+          test "$(stat -c%s data/swing_store.pkl)" -ge 104857600
+
+      - name: Run swing scan
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: python -u -m pipeline.swing_scan
+
+      - name: Upload updated swing store
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload swing-store data/swing_store.pkl --repo "$GITHUB_REPOSITORY" --clobber
