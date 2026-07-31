@@ -176,7 +176,12 @@ def update_store(
     return store, failed_days
 
 
-def _database_rows(scan_date: str, rows: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
+def _database_rows(
+    scan_date: str,
+    rows: list[dict[str, Any]],
+    *,
+    include_volume: bool = True,
+) -> list[tuple[Any, ...]]:
     return [
         (
             scan_date,
@@ -193,6 +198,11 @@ def _database_rows(scan_date: str, rows: list[dict[str, Any]]) -> list[tuple[Any
             row["ema20_dist"],
             row["po_weeks"],
             json.dumps(row["levels"], ensure_ascii=False, allow_nan=False),
+            *(
+                (json.dumps(row["volume"], ensure_ascii=False, allow_nan=False),)
+                if include_volume
+                else ()
+            ),
         )
         for row in rows
     ]
@@ -201,17 +211,31 @@ def _database_rows(scan_date: str, rows: list[dict[str, Any]]) -> list[tuple[Any
 def _replace_picks(cursor: Any, scan_date: str, rows: list[dict[str, Any]]) -> None:
     """Atomically replace one scan date's picks using the caller's transaction."""
     cursor.execute("DELETE FROM swing_picks WHERE scan_date = ?", (scan_date,))
-    values = _database_rows(scan_date, rows)
+    include_volume = all("volume" in row for row in rows)
+    values = _database_rows(scan_date, rows, include_volume=include_volume)
     if values:
-        cursor.executemany(
-            """
+        if include_volume:
+            cursor.executemany(
+                """
             INSERT INTO swing_picks (
                 scan_date, ticker, price, state, touch_days_ago, dow_trend,
-                adx, rs63, rs126, atr_pct, dollar_vol, ema20_dist, po_weeks, levels
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            values,
-        )
+                adx, rs63, rs126, atr_pct, dollar_vol, ema20_dist, po_weeks,
+                levels, volume
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                values,
+            )
+        else:
+            cursor.executemany(
+                """
+                INSERT INTO swing_picks (
+                    scan_date, ticker, price, state, touch_days_ago, dow_trend,
+                    adx, rs63, rs126, atr_pct, dollar_vol, ema20_dist, po_weeks,
+                    levels
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                values,
+            )
 
 
 def run() -> None:

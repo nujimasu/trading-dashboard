@@ -50,7 +50,7 @@ def swing_picks() -> dict[str, Any]:
     """Return every pick from the latest scan; UI filters remain client-side."""
     columns = (
         "ticker, price, state, touch_days_ago, dow_trend, adx, rs63, rs126, "
-        "atr_pct, dollar_vol, ema20_dist, po_weeks, levels"
+        "atr_pct, dollar_vol, ema20_dist, po_weeks, levels, volume"
     )
     with db_cursor() as cursor:
         cursor.execute("SELECT MAX(scan_date) AS scan_date FROM swing_picks")
@@ -78,6 +78,7 @@ def swing_picks() -> dict[str, Any]:
 
     for row in rows:
         row["levels"] = _parse_json_object(row.get("levels"))
+        row["volume"] = _parse_json_object(row.get("volume"))
     funnel = _parse_json_object(log_row["message"] if log_row else None)
     return {
         "scan_date": _as_iso_date(scan_date_value),

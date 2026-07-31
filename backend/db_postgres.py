@@ -181,13 +181,14 @@ def init_db():
             id SERIAL PRIMARY KEY, scan_date DATE NOT NULL, ticker TEXT NOT NULL,
             price REAL, state TEXT, touch_days_ago INTEGER, dow_trend TEXT,
             adx REAL, rs63 REAL, rs126 REAL, atr_pct REAL, dollar_vol REAL,
-            ema20_dist REAL, po_weeks INTEGER, levels TEXT,
+            ema20_dist REAL, po_weeks INTEGER, levels TEXT, volume TEXT,
             created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(scan_date, ticker)
         )
         """,
     ]
     for statement in statements:
         cur.execute(statement)
+    cur.execute("ALTER TABLE swing_picks ADD COLUMN IF NOT EXISTS volume TEXT")
     conn.commit()
     conn.close()
     print("[DB] PostgreSQL tables initialized (Supabase)")

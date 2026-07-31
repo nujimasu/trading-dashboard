@@ -3,6 +3,7 @@ import { apiFetch } from "../utils/api.js?v=3";
 const COLUMNS = [
   { key: "ticker", label: "ティッカー", kind: "text" },
   { key: "state", label: "状態", kind: "text" },
+  { key: "volume", label: "出来高", kind: "verdict" },
   { key: "dow_trend", label: "ダウ理論", kind: "text" },
   { key: "touch_days_ago", label: "タッチ", kind: "number" },
   { key: "price", label: "株価", kind: "number" },
@@ -14,6 +15,18 @@ const COLUMNS = [
   { key: "dollar_vol", label: "売買代金($M)", kind: "number" },
   { key: "po_weeks", label: "PO継続週", kind: "number" },
 ];
+
+const VOLUME_VERDICTS = Object.freeze({
+  bounce_confirmed: { label: "✅ 出来高を伴う反発", icon: "✅", tone: "green", weight: 3 },
+  healthy_pullback: { label: "✅ 健全な押し目", icon: "✅", tone: "green", weight: 2 },
+  accumulation: { label: "✅ 買い意欲", icon: "✅", tone: "green", weight: 2 },
+  selling_climax: { label: "🔄 セリクラの可能性", icon: "🔄", tone: "yellow", weight: 1 },
+  quiet_setup: { label: "💤 ブレイク待ち", icon: "💤", tone: "gray", weight: 0 },
+  neutral: { label: "―", icon: "―", tone: "gray", weight: 0 },
+  weak_bounce: { label: "⚠️ 出来高薄い反発", icon: "⚠️", tone: "yellow", weight: -1 },
+  distribution: { label: "⚠️ 分配の疑い", icon: "⚠️", tone: "red", weight: -2 },
+  selling_pressure: { label: "⚠️ 売り圧力", icon: "⚠️", tone: "red", weight: -2 },
+});
 
 const LINE_COLORS = {
   trendline: "#f59e0b",
@@ -74,6 +87,7 @@ const STYLE = `
   .swing-dow-up { color:#86efac; background:rgba(34,197,94,.13); }
   .swing-dow-neutral, .swing-dow-unknown { color:#cbd5e1; background:rgba(148,163,184,.13); }
   .swing-dow-down { color:#fca5a5; background:rgba(239,68,68,.13); }
+  .swing-volume-icon { display:inline-grid; min-width:24px; place-items:center; font-size:.84rem; }
   .swing-positive { color:#86efac; }
   .swing-negative { color:#fca5a5; }
   .swing-empty { padding:34px 16px; color:var(--text-muted); text-align:center; }
@@ -82,6 +96,22 @@ const STYLE = `
   .swing-detail-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:11px 14px; border-bottom:1px solid #263750; background:#111d31; }
   .swing-detail-title { display:flex; align-items:baseline; gap:10px; font-weight:850; }
   .swing-detail-sub { color:var(--text-muted); font-size:.7rem; font-weight:500; }
+  .swing-volume-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:14px; border-bottom:1px solid #263750; background:linear-gradient(110deg,#0f1b2d,#101827); }
+  .swing-volume-copy { min-width:0; }
+  .swing-volume-lead { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+  .swing-volume-badge { display:inline-flex; align-items:center; border:1px solid; border-radius:999px; padding:4px 9px; font-size:.72rem; font-weight:850; }
+  .swing-volume-green { color:#86efac; border-color:rgba(34,197,94,.36); background:rgba(34,197,94,.13); }
+  .swing-volume-yellow { color:#fde68a; border-color:rgba(245,158,11,.38); background:rgba(245,158,11,.13); }
+  .swing-volume-gray { color:#cbd5e1; border-color:rgba(148,163,184,.28); background:rgba(148,163,184,.10); }
+  .swing-volume-red { color:#fca5a5; border-color:rgba(239,68,68,.38); background:rgba(239,68,68,.13); }
+  .swing-volume-comment { margin-top:7px; overflow:hidden; color:#dbe5f3; font-size:.77rem; text-overflow:ellipsis; white-space:nowrap; }
+  .swing-volume-stats { display:flex; flex-wrap:wrap; gap:7px 16px; margin-top:10px; color:var(--text-muted); font-size:.68rem; }
+  .swing-volume-stats strong { margin-left:4px; color:#e2e8f0; font-size:.76rem; font-variant-numeric:tabular-nums; }
+  .swing-week-bars { display:flex; align-items:flex-end; gap:6px; height:76px; padding:3px 2px 0; }
+  .swing-week-bar { display:grid; grid-template-rows:54px 14px; align-items:end; justify-items:center; width:20px; color:#718198; font-size:.56rem; }
+  .swing-week-stick { width:10px; min-height:3px; border-radius:3px 3px 1px 1px; box-shadow:0 0 10px currentColor; }
+  .swing-week-stick.up { color:#22c55e; background:#22c55e; }
+  .swing-week-stick.down { color:#ef4444; background:#ef4444; }
   .swing-chart-slot { min-height:440px; padding:12px; }
   .swing-chart { width:100%; height:410px; }
   .swing-chart-legend { display:flex; flex-wrap:wrap; gap:7px 12px; padding:0 4px 8px; color:var(--text-muted); font-size:.68rem; }
@@ -94,6 +124,8 @@ const STYLE = `
     .swing-control { width:100%; justify-content:space-between; }
     .swing-state-group { width:100%; overflow:auto; }
     .swing-state-btn { flex:1; white-space:nowrap; }
+    .swing-volume-card { grid-template-columns:1fr; }
+    .swing-week-bars { justify-content:flex-start; }
     .swing-chart-slot { padding:5px; }
   }
 `;
@@ -140,6 +172,43 @@ function dowBadge(trend) {
   return `<span class="swing-badge swing-dow-${meta[1]}">${meta[0]}</span>`;
 }
 
+function volumeMeta(verdict) {
+  return VOLUME_VERDICTS[verdict] || VOLUME_VERDICTS.neutral;
+}
+
+function volumeIcon(volume) {
+  const meta = volumeMeta(volume?.verdict);
+  return `<span class="swing-volume-icon" title="${escapeHtml(meta.label)}">${meta.icon}</span>`;
+}
+
+function volumeCard(volume) {
+  const safeVolume = volume && typeof volume === "object" ? volume : {};
+  const meta = volumeMeta(safeVolume.verdict);
+  const zones = { high: "高値圏", mid: "中間", low: "安値圏" };
+  const zone = zones[safeVolume.price_zone] || "—";
+  const bars = Array.isArray(safeVolume.week_bars) ? safeVolume.week_bars.slice(-5) : [];
+  return `
+    <div class="swing-volume-card">
+      <div class="swing-volume-copy">
+        <div class="swing-volume-lead"><span class="swing-volume-badge swing-volume-${meta.tone}">${meta.label}</span><span class="swing-detail-sub">日次出来高の評価</span></div>
+        <div class="swing-volume-comment" title="${escapeHtml(safeVolume.comment || "")}">${escapeHtml(safeVolume.comment || "評価データなし")}</div>
+        <div class="swing-volume-stats">
+          <span>当日出来高<strong>${fixed(safeVolume.vol_ratio_today, 1)}倍</strong></span>
+          <span>価格位置<strong>${zone} ${percent(safeVolume.zone_pct, 0)}</strong></span>
+          <span>1週間<strong class="${signedClass(safeVolume.week_price_chg)}">${percent(safeVolume.week_price_chg)}</strong></span>
+        </div>
+      </div>
+      <div class="swing-week-bars" aria-label="直近5営業日の出来高倍率">
+        ${bars.map(bar => {
+          const ratio = finite(bar?.vol_ratio) ? Math.max(0, Number(bar.vol_ratio)) : 0;
+          const height = Math.max(3, Math.min(ratio, 3) / 3 * 54);
+          const dateLabel = /^\d{4}-\d{2}-\d{2}$/.test(bar?.date || "") ? `${bar.date.slice(8)}日` : "—";
+          return `<span class="swing-week-bar" title="${escapeHtml(bar?.date || "")} ${fixed(ratio, 1)}倍"><i class="swing-week-stick ${bar?.up === true ? "up" : "down"}" style="height:${height.toFixed(1)}px"></i><small>${dateLabel}</small></span>`;
+        }).join("")}
+      </div>
+    </div>`;
+}
+
 function funnelNode(label, value) {
   const display = finite(value) ? Number(value).toLocaleString("ja-JP") : "—";
   return `<div class="swing-funnel-node"><span>${label}</span><strong>${display}</strong></div>`;
@@ -152,6 +221,7 @@ function rowHtml(pick) {
     <tr class="swing-row" data-ticker="${ticker}">
       <td><a class="swing-tv" href="${tvUrl}" target="_blank" rel="noopener noreferrer">${ticker} ↗</a></td>
       <td>${stateBadge(pick.state)}</td>
+      <td>${volumeIcon(pick.volume)}</td>
       <td>${dowBadge(pick.dow_trend)}</td>
       <td>${finite(pick.touch_days_ago) ? `${Number(pick.touch_days_ago)}日目` : "—"}</td>
       <td>$${fixed(pick.price, 2)}</td>
@@ -167,8 +237,8 @@ function rowHtml(pick) {
 
 function comparePicks(left, right, key, direction) {
   const column = COLUMNS.find(item => item.key === key);
-  const a = left[key];
-  const b = right[key];
+  const a = column?.kind === "verdict" ? volumeMeta(left.volume?.verdict).weight : left[key];
+  const b = column?.kind === "verdict" ? volumeMeta(right.volume?.verdict).weight : right[key];
   const aMissing = a == null || (column?.kind === "number" && !finite(a));
   const bMissing = b == null || (column?.kind === "number" && !finite(b));
   if (aMissing || bMissing) {
@@ -177,6 +247,8 @@ function comparePicks(left, right, key, direction) {
   }
   const result = column?.kind === "number"
     ? Number(a) - Number(b)
+    : column?.kind === "verdict"
+      ? Number(a) - Number(b)
     : String(a).localeCompare(String(b), "ja");
   return result === 0
     ? String(left.ticker).localeCompare(String(right.ticker))
@@ -396,12 +468,14 @@ export async function renderSwingScreener(container) {
     }
     state.activeTicker = ticker;
     state.extended = false;
+    const pick = picks.find(item => item.ticker === ticker);
     detail.hidden = false;
     detail.innerHTML = `
       <div class="swing-detail-head">
         <div class="swing-detail-title">${escapeHtml(ticker)} <span class="swing-detail-sub">15分足・直近5営業日</span></div>
         <label class="swing-control"><input type="checkbox" data-extended> 時間外も表示</label>
       </div>
+      ${volumeCard(pick?.volume)}
       <div class="swing-chart-slot"></div>`;
     detail.querySelector("[data-extended]").addEventListener("change", event => {
       state.extended = event.currentTarget.checked;
@@ -424,7 +498,7 @@ export async function renderSwingScreener(container) {
     count.textContent = `${filtered.length.toLocaleString("ja-JP")}件`;
     body.innerHTML = filtered.length
       ? filtered.map(rowHtml).join("")
-      : '<tr><td class="swing-empty" colspan="12">条件に一致する銘柄がありません</td></tr>';
+      : `<tr><td class="swing-empty" colspan="${COLUMNS.length}">条件に一致する銘柄がありません</td></tr>`;
     body.querySelectorAll(".swing-row").forEach(row => {
       row.classList.toggle("selected", row.dataset.ticker === state.activeTicker);
       row.addEventListener("click", () => openDetail(row.dataset.ticker));

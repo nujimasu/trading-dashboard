@@ -186,6 +186,154 @@ def _finite_or_none(value: Any) -> float | None:
     return number if np.isfinite(number) else None
 
 
+def volume_assessment(
+    df: pd.DataFrame,
+    *,
+    bounced: bool | None = None,
+    range_window: int = 60,
+    volume_sma_window: int = 50,
+    week_sessions: int = 5,
+    atr_period: int = 14,
+    high_zone_threshold: float = 0.70,
+    low_zone_threshold: float = 0.30,
+    climax_body_atr_ratio: float = 1.0,
+    climax_volume_ratio: float = 2.0,
+    accumulation_volume_ratio: float = 1.5,
+    distribution_volume_ratio: float = 1.2,
+    distribution_max_price_change: float = 0.01,
+    selling_pressure_price_change: float = -0.02,
+    selling_pressure_volume_ratio: float = 1.2,
+    bounce_confirmed_volume_ratio: float = 1.2,
+    weak_bounce_volume_ratio: float = 0.8,
+    healthy_pullback_max_price_change: float = 0.0,
+    contraction_volume_ratio: float = 0.8,
+    range_contraction_ratio: float = 1.0,
+) -> dict[str, Any] | None:
+    """Assess recent daily volume/price behavior without external state."""
+    if len(df) < range_window or any(column not in df.columns for column in OHLCV_COLUMNS):
+        return None
+
+    volume_sma = df["Volume"].rolling(volume_sma_window, min_periods=volume_sma_window).mean()
+    latest_sma = float(volume_sma.iloc[-1])
+    if not np.isfinite(latest_sma) or latest_sma <= 0:
+        return None
+
+    recent_close = df["Close"].tail(range_window)
+    range_low = float(recent_close.min())
+    range_high = float(recent_close.max())
+    latest_close = float(df["Close"].iloc[-1])
+    if not all(np.isfinite(value) for value in (range_low, range_high, latest_close)):
+        return None
+    zone_pct = (
+        float(np.clip((latest_close - range_low) / (range_high - range_low), 0.0, 1.0))
+        if range_high > range_low
+        else 0.5
+    )
+    price_zone = (
+        "high" if zone_pct >= high_zone_threshold
+        else "low" if zone_pct <= low_zone_threshold
+        else "mid"
+    )
+
+    latest_volume = float(df["Volume"].iloc[-1])
+    vol_ratio_today = latest_volume / latest_sma
+    recent_volume = float(df["Volume"].iloc[-week_sessions:].mean())
+    previous_volume = float(df["Volume"].iloc[-2 * week_sessions:-week_sessions].mean())
+    week_vol_ratio = recent_volume / previous_volume if previous_volume > 0 else float("nan")
+    previous_week_close = float(df["Close"].iloc[-week_sessions - 1])
+    week_price_chg = latest_close / previous_week_close - 1.0 if previous_week_close else float("nan")
+    required = (vol_ratio_today, week_vol_ratio, week_price_chg)
+    if not all(np.isfinite(value) for value in required):
+        return None
+
+    week_frame = df.tail(week_sessions)
+    week_sma = volume_sma.tail(week_sessions)
+    if week_sma.isna().any() or (week_sma <= 0).any():
+        return None
+    week_bars = [
+        {
+            "date": pd.Timestamp(index).date().isoformat(),
+            "vol_ratio": float(row["Volume"] / week_sma.loc[index]),
+            "up": bool(row["Close"] > row["Open"]),
+        }
+        for index, row in week_frame.iterrows()
+    ]
+
+    latest = df.iloc[-1]
+    latest_up = bool(latest["Close"] > latest["Open"])
+    latest_down = bool(latest["Close"] < latest["Open"])
+    body = abs(float(latest["Close"] - latest["Open"]))
+    atr = float(
+        _true_range(df).ewm(alpha=1.0 / atr_period, adjust=False).mean().iloc[-1]
+    )
+    current_ranges = (df["High"] - df["Low"]).iloc[-week_sessions:].mean()
+    previous_ranges = (df["High"] - df["Low"]).iloc[-2 * week_sessions:-week_sessions].mean()
+    x_today = f"{vol_ratio_today:.1f}"
+    x_week = f"{week_vol_ratio:.1f}"
+    y_price = f"{week_price_chg * 100:.1f}"
+
+    if (
+        price_zone == "low"
+        and latest_down
+        and np.isfinite(atr)
+        and body >= atr * climax_body_atr_ratio
+        and vol_ratio_today >= climax_volume_ratio
+    ):
+        verdict = "selling_climax"
+        comment = f"安値圏で出来高{x_today}倍の大陰線。投げ売り一巡ならセリングクライマックス＝反転点になりやすい"
+    elif price_zone == "low" and latest_up and vol_ratio_today >= accumulation_volume_ratio:
+        verdict = "accumulation"
+        comment = f"安値圏での出来高{x_today}倍を伴う反発。買い集めの兆候"
+    elif (
+        price_zone == "high"
+        and week_vol_ratio >= distribution_volume_ratio
+        and week_price_chg <= distribution_max_price_change
+    ):
+        verdict = "distribution"
+        comment = f"高値圏で出来高が増えている（前週比{x_week}倍）のに株価が上がらない（{y_price}%）。利確売り優勢＝分配の疑い"
+    elif (
+        week_price_chg <= selling_pressure_price_change
+        and week_vol_ratio >= selling_pressure_volume_ratio
+    ):
+        verdict = "selling_pressure"
+        comment = f"1週間で株価{y_price}%の下落に出来高増（前週比{x_week}倍）が伴う。押し目ではなく下落転換の可能性"
+    elif bounced is True and vol_ratio_today >= bounce_confirmed_volume_ratio:
+        verdict = "bounce_confirmed"
+        comment = f"20EMAからの反発を出来高{x_today}倍が支持。押し目買いが入っている"
+    elif bounced is True and vol_ratio_today < weak_bounce_volume_ratio:
+        verdict = "weak_bounce"
+        comment = f"反発しているが当日出来高は{x_today}倍と薄い。買いの勢いが確認できず、だましの可能性"
+    elif (
+        week_price_chg < healthy_pullback_max_price_change
+        and week_vol_ratio <= contraction_volume_ratio
+    ):
+        verdict = "healthy_pullback"
+        comment = f"株価{y_price}%の押しに対し出来高は前週比{x_week}倍に収縮。売り物が枯れつつある健全な押し目"
+    elif (
+        week_vol_ratio <= contraction_volume_ratio
+        and current_ranges < previous_ranges * range_contraction_ratio
+    ):
+        verdict = "quiet_setup"
+        comment = "出来高・値幅ともに収縮。エネルギー溜め込み中＝動き出しの出来高増を待つ"
+    elif bounced is False and vol_ratio_today <= weak_bounce_volume_ratio:
+        verdict = "healthy_pullback"
+        comment = f"押し目進行中で当日出来高は{x_today}倍に収縮。売り急ぎがなく健全"
+    else:
+        verdict = "neutral"
+        comment = f"特筆すべき出来高シグナルなし（当日{x_today}倍・前週比{x_week}倍）"
+
+    return {
+        "price_zone": price_zone,
+        "zone_pct": zone_pct,
+        "vol_ratio_today": float(vol_ratio_today),
+        "week_price_chg": float(week_price_chg),
+        "week_vol_ratio": float(week_vol_ratio),
+        "week_bars": week_bars,
+        "verdict": verdict,
+        "comment": comment,
+    }
+
+
 def screen_universe(
     store: dict[str, pd.DataFrame],
     spy: pd.DataFrame,
@@ -247,6 +395,7 @@ def screen_universe(
                 "dollar_vol": _finite_or_none(dollar_volume),
                 "ema20_dist": dip["ema20_dist"],
                 "po_weeks": po["po_weeks"],
+                "volume": volume_assessment(df, bounced=dip["bounced"]),
                 "levels": {
                     "ema20": dip["ema20"],
                     "swing_high": high_pivots[-1][1] if high_pivots else None,

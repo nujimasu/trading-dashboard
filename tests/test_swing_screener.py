@@ -9,6 +9,7 @@ from backend.services.swing_screener import (
     dip_check,
     dow_trend,
     screen_universe,
+    volume_assessment,
     weekly_po,
 )
 
@@ -147,6 +148,142 @@ def test_screen_universe_funnel_and_row_schema():
         "dollar_vol",
         "ema20_dist",
         "po_weeks",
+        "volume",
         "levels",
     }
     assert set(rows[0]["levels"]) == {"ema20", "swing_high", "swing_low", "vol_band"}
+    assert rows[0]["volume"]["verdict"] in {
+        "selling_climax", "accumulation", "distribution", "selling_pressure",
+        "healthy_pullback", "quiet_setup", "neutral",
+    }
+
+
+def _volume_frame(verdict: str) -> pd.DataFrame:
+    index = pd.bdate_range("2026-01-01", periods=70)
+    close = np.linspace(90.0, 100.0, len(index))
+    df = _frame(index, close, volume=100.0)
+
+    if verdict == "selling_climax":
+        df.iloc[-1, df.columns.get_loc("Open")] = 91.0
+        df.iloc[-1, df.columns.get_loc("Close")] = 80.0
+        df.iloc[-1, df.columns.get_loc("High")] = 92.0
+        df.iloc[-1, df.columns.get_loc("Low")] = 79.0
+        df.iloc[-1, df.columns.get_loc("Volume")] = 300.0
+    elif verdict == "accumulation":
+        df.iloc[-1, df.columns.get_loc("Open")] = 79.0
+        df.iloc[-1, df.columns.get_loc("Close")] = 80.0
+        df.iloc[-1, df.columns.get_loc("High")] = 81.0
+        df.iloc[-1, df.columns.get_loc("Low")] = 78.0
+        df.iloc[-1, df.columns.get_loc("Volume")] = 200.0
+    elif verdict == "distribution":
+        df.iloc[-6:, df.columns.get_loc("Close")] = 100.0
+        df.iloc[-5:, df.columns.get_loc("Volume")] = 150.0
+    elif verdict == "selling_pressure":
+        df.iloc[-6, df.columns.get_loc("Close")] = 100.0
+        df.iloc[-5:, df.columns.get_loc("Close")] = np.linspace(98.0, 90.0, 5)
+        df.iloc[-5:, df.columns.get_loc("Open")] = df["Close"].iloc[-5:] - 0.2
+        df.iloc[-5:, df.columns.get_loc("Volume")] = 150.0
+    elif verdict == "healthy_pullback":
+        df.iloc[-6, df.columns.get_loc("Close")] = 100.0
+        df.iloc[-5:, df.columns.get_loc("Close")] = np.linspace(99.0, 95.0, 5)
+        df.iloc[-5:, df.columns.get_loc("Open")] = df["Close"].iloc[-5:] - 0.2
+        df.iloc[-5:, df.columns.get_loc("Volume")] = 70.0
+    elif verdict == "quiet_setup":
+        df.iloc[-6:, df.columns.get_loc("Close")] = 100.0
+        df.iloc[-10:-5, df.columns.get_loc("High")] = df["Close"].iloc[-10:-5] + 2.0
+        df.iloc[-10:-5, df.columns.get_loc("Low")] = df["Close"].iloc[-10:-5] - 2.0
+        df.iloc[-5:, df.columns.get_loc("High")] = 100.5
+        df.iloc[-5:, df.columns.get_loc("Low")] = 99.5
+        df.iloc[-5:, df.columns.get_loc("Volume")] = 70.0
+    elif verdict == "neutral":
+        pass
+    else:
+        raise ValueError(verdict)
+    return df
+
+
+@pytest.mark.parametrize(
+    "expected",
+    [
+        "selling_climax",
+        "accumulation",
+        "distribution",
+        "selling_pressure",
+        "healthy_pullback",
+        "quiet_setup",
+        "neutral",
+    ],
+)
+def test_volume_assessment_verdicts(expected):
+    result = volume_assessment(_volume_frame(expected))
+    assert result is not None
+    assert result["verdict"] == expected
+    assert result["comment"]
+    assert len(result["week_bars"]) == 5
+    assert all(bar["date"].startswith("2026-") for bar in result["week_bars"])
+    assert result["week_bars"][-1]["vol_ratio"] == pytest.approx(
+        result["vol_ratio_today"]
+    )
+
+
+def test_volume_assessment_embeds_measured_values_and_bar_ratio():
+    result = volume_assessment(_volume_frame("selling_pressure"))
+    assert result is not None
+    assert f"{result['week_price_chg'] * 100:.1f}%" in result["comment"]
+    assert f"{result['week_vol_ratio']:.1f}倍" in result["comment"]
+    expected_ratio = 150.0 / ((45 * 100.0 + 5 * 150.0) / 50.0)
+    assert result["week_bars"][-1]["vol_ratio"] == pytest.approx(expected_ratio)
+
+
+def test_volume_assessment_returns_none_for_insufficient_data():
+    short = _frame(pd.bdate_range("2026-01-01", periods=59), np.arange(59) + 100.0)
+    assert volume_assessment(short) is None
+
+
+def _bounce_volume_frame(latest_volume: float) -> pd.DataFrame:
+    df = _volume_frame("neutral")
+    df.iloc[-1, df.columns.get_loc("Volume")] = latest_volume
+    return df
+
+
+@pytest.mark.parametrize(
+    ("bounced", "latest_volume", "expected", "comment_fragment"),
+    [
+        (True, 130.0, "bounce_confirmed", "押し目買いが入っている"),
+        (True, 50.0, "weak_bounce", "だましの可能性"),
+    ],
+)
+def test_volume_assessment_bounce_verdicts(
+    bounced, latest_volume, expected, comment_fragment
+):
+    result = volume_assessment(
+        _bounce_volume_frame(latest_volume), bounced=bounced
+    )
+    assert result is not None
+    assert result["verdict"] == expected
+    assert f"{result['vol_ratio_today']:.1f}倍" in result["comment"]
+    assert comment_fragment in result["comment"]
+
+
+def test_volume_assessment_pulling_low_volume_is_healthy():
+    df = _bounce_volume_frame(70.0)
+    df.iloc[-1, df.columns.get_loc("Open")] = df["Close"].iloc[-1] + 0.2
+    result = volume_assessment(df, bounced=False)
+    assert result is not None
+    assert result["verdict"] == "healthy_pullback"
+    assert result["comment"] == (
+        f"押し目進行中で当日出来高は{result['vol_ratio_today']:.1f}倍に収縮。"
+        "売り急ぎがなく健全"
+    )
+
+
+def test_volume_assessment_accumulation_precedes_bounce_confirmed():
+    result = volume_assessment(_volume_frame("accumulation"), bounced=True)
+    assert result is not None
+    assert result["verdict"] == "accumulation"
+
+
+def test_volume_assessment_none_bounced_skips_new_rules():
+    result = volume_assessment(_bounce_volume_frame(130.0), bounced=None)
+    assert result is not None
+    assert result["verdict"] == "neutral"

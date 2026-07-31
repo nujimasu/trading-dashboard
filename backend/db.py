@@ -86,9 +86,15 @@ else:
             ticker TEXT NOT NULL, price REAL, state TEXT, touch_days_ago INTEGER,
             dow_trend TEXT, adx REAL, rs63 REAL, rs126 REAL, atr_pct REAL,
             dollar_vol REAL, ema20_dist REAL, po_weeks INTEGER, levels TEXT,
+            volume TEXT,
             created_at TEXT DEFAULT (datetime('now')), UNIQUE(scan_date, ticker)
         );
         """)
+        swing_columns = {
+            row[1] for row in cur.execute("PRAGMA table_info(swing_picks)").fetchall()
+        }
+        if "volume" not in swing_columns:
+            cur.execute("ALTER TABLE swing_picks ADD COLUMN volume TEXT")
         conn.commit()
         conn.close()
         print(f"[DB] SQLite initialized: {DB_PATH}")
