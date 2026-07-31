@@ -1,0 +1,58 @@
+{
+  "rule": {
+    "family": "pullback",
+    "min_ddv": 10000000.0,
+    "min_price": 5.0,
+    "regime": "spy200",
+    "trend": true,
+    "mom_min": 0.15,
+    "rsi2_max": 100.0,
+    "rsi14_max": 100.0,
+    "ret21_max": 1.0,
+    "dist_ema20_max": 1.0,
+    "dist_ema50_min": -1.0,
+    "dist_hh60_min": -1.0,
+    "atr_ratio_max": 10.0,
+    "vol_ratio_min": 0.0,
+    "up_close": true,
+    "strong_close": true
+  },
+  "sl_atr": 3.0,
+  "rr": 2.0,
+  "n_configs": 1575,
+  "trades_total": 73309,
+  "cluster_all": {
+    "avg_r": 0.18762881806526926,
+    "n": 73309,
+    "clusters": 148,
+    "se_cluster": 0.048382808796505264,
+    "se_naive": 0.005657444764929968,
+    "design_effect": 73.1377354440842,
+    "eff_n": 1002.3416715718076,
+    "t_cluster": 3.8780059019397375
+  },
+  "cluster_train": {
+    "avg_r": 0.21605144045443836,
+    "n": 27939,
+    "clusters": 74,
+    "se_cluster": 0.06760121400566324,
+    "se_naive": 0.00920209547550844,
+    "design_effect": 53.967900180352004,
+    "eff_n": 517.6966290449021,
+    "t_cluster": 3.1959698303101303
+  },
+  "bootstrap_all": {
+    "ci_lo": 0.09777274016967061,
+    "ci_hi": 0.2776104621127351,
+    "p_le_zero": 0.0
+  },
+  "null": {
+    "iters": 150,
+    "mean": 0.16259028533155032,
+    "sd": 0.010024157764116118,
+    "p95": 0.18017801704175296,
+    "selection_threshold": 0.03846459010216472,
+    "observed": 0.18762881806526926,
+    "clears_threshold": true
+  }
+}

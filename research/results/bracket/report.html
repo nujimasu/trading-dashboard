@@ -1,0 +1,423 @@
+<title>純TP/SL戦略 検証レポート — 目標年率+50%は到達可能か</title>
+<style>
+:root {
+  --ground:#EEF1F3; --surface:#FFFFFF; --ink:#101820; --mute:#5C6874;
+  --rule:#CFD6DC; --rule-soft:#E1E7EB;
+  --bench:#0B6E5D; --strat:#B0523C; --flag:#8A5A00;
+  --bench-wash:rgba(11,110,93,.10); --strat-wash:rgba(176,82,60,.10);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:#0C1116; --surface:#131B22; --ink:#E2E8ED; --mute:#8B98A5;
+    --rule:#26313B; --rule-soft:#1C242C;
+    --bench:#43A891; --strat:#D4795F; --flag:#C99A3C;
+    --bench-wash:rgba(67,168,145,.13); --strat-wash:rgba(212,121,95,.13);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0C1116; --surface:#131B22; --ink:#E2E8ED; --mute:#8B98A5;
+  --rule:#26313B; --rule-soft:#1C242C;
+  --bench:#43A891; --strat:#D4795F; --flag:#C99A3C;
+  --bench-wash:rgba(67,168,145,.13); --strat-wash:rgba(212,121,95,.13);
+}
+:root[data-theme="light"] {
+  --ground:#EEF1F3; --surface:#FFFFFF; --ink:#101820; --mute:#5C6874;
+  --rule:#CFD6DC; --rule-soft:#E1E7EB;
+  --bench:#0B6E5D; --strat:#B0523C; --flag:#8A5A00;
+  --bench-wash:rgba(11,110,93,.10); --strat-wash:rgba(176,82,60,.10);
+}
+
+*, *::before, *::after { box-sizing:border-box; }
+body {
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  font-size:16px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+.wrap { max-width:1120px; margin:0 auto; padding:clamp(28px,5vw,72px) clamp(18px,4vw,40px) 96px; }
+.col { max-width:66ch; }
+h1, h2, h3 {
+  font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Hiragino Mincho ProN","Yu Mincho",serif;
+  text-wrap:balance; margin:0; font-weight:600; letter-spacing:.01em;
+}
+h1 { font-size:clamp(30px,4.4vw,46px); line-height:1.22; }
+h2 { font-size:clamp(21px,2.5vw,27px); line-height:1.32; }
+h3 { font-size:17px; line-height:1.4; }
+p { margin:0; }
+a { color:var(--bench); }
+.mono, td.n, th.n, .num {
+  font-family:"SF Mono","Cascadia Mono","JetBrains Mono",ui-monospace,monospace;
+  font-variant-numeric:tabular-nums;
+}
+
+header { border-bottom:2px solid var(--ink); padding-bottom:22px; }
+.kicker {
+  font-family:"SF Mono","Cascadia Mono",ui-monospace,monospace; font-size:11.5px;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--mute); margin-bottom:14px;
+}
+.standfirst { font-size:18px; color:var(--mute); margin-top:16px; max-width:60ch; }
+.meta {
+  display:flex; flex-wrap:wrap; gap:6px 26px; margin-top:22px;
+  font-family:"SF Mono","Cascadia Mono",ui-monospace,monospace; font-size:12px;
+  color:var(--mute); font-variant-numeric:tabular-nums;
+}
+.meta b { color:var(--ink); font-weight:500; }
+
+section { margin-top:clamp(44px,6vw,76px); }
+.eyebrow {
+  font-family:"SF Mono","Cascadia Mono",ui-monospace,monospace; font-size:11px;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--mute);
+  padding-bottom:8px; margin-bottom:18px; border-bottom:1px solid var(--rule);
+}
+section > h2 + p, section > p + p, .col > * + * { margin-top:14px; }
+.stack { display:flex; flex-direction:column; gap:14px; }
+.stack-lg { display:flex; flex-direction:column; gap:26px; }
+
+.verdicts { display:grid; gap:2px; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); background:var(--rule); border:1px solid var(--rule); }
+.v { background:var(--surface); padding:22px 22px 24px; display:flex; flex-direction:column; gap:8px; }
+.v-q { font-size:13.5px; color:var(--mute); }
+.v-a { font-family:"Iowan Old Style",Palatino,"Hiragino Mincho ProN",serif; font-size:26px; line-height:1.2; }
+.v-n { font-family:"SF Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums; font-size:12.5px; color:var(--mute); }
+.v.no .v-a { color:var(--strat); }
+.v.ok .v-a { color:var(--bench); }
+
+figure { margin:0; }
+.panel { background:var(--surface); border:1px solid var(--rule); padding:clamp(18px,3vw,28px); }
+figcaption { font-size:13px; color:var(--mute); margin-top:14px; max-width:74ch; }
+.legend { display:flex; flex-wrap:wrap; gap:8px 22px; font-size:12.5px; color:var(--mute); margin-bottom:16px; }
+.legend span { display:inline-flex; align-items:center; gap:7px; }
+.swatch { width:16px; height:3px; border-radius:2px; display:inline-block; }
+
+.chart-scroll { overflow-x:auto; }
+svg.curve { display:block; width:100%; min-width:560px; height:auto; }
+.gl { stroke:var(--rule-soft); stroke-width:1; }
+.gt, .xt { fill:var(--mute); font-family:"SF Mono",ui-monospace,monospace; font-size:11px; }
+.xt { text-anchor:middle; }
+.ln { fill:none; stroke-width:2; stroke-linejoin:round; }
+.ln.b { stroke:var(--bench); }
+.ln.s { stroke:var(--strat); }
+
+.decomp { display:flex; height:76px; border:1px solid var(--rule); background:var(--surface); }
+.decomp > div { display:flex; align-items:center; justify-content:center; font-family:"SF Mono",ui-monospace,monospace; font-size:12.5px; text-align:center; padding:0 8px; }
+.d-beta { flex:0 0 86.7%; background:var(--bench-wash); color:var(--bench); border-right:1px solid var(--rule); }
+.d-edge { flex:1; background:var(--strat-wash); color:var(--strat); }
+.noise { position:relative; height:30px; margin-top:6px; }
+.noise-band {
+  position:absolute; right:0; width:20.5%; height:100%;
+  background:repeating-linear-gradient(135deg,var(--rule) 0 2px,transparent 2px 6px);
+  border:1px solid var(--rule); display:flex; align-items:center; justify-content:center;
+}
+.noise-lab { font-family:"SF Mono",ui-monospace,monospace; font-size:11px; color:var(--mute); white-space:nowrap; }
+
+.years { display:flex; gap:clamp(4px,1vw,12px); align-items:flex-end; min-width:520px; }
+.yr { flex:1; display:flex; flex-direction:column; gap:7px; }
+.yr-pair { display:flex; gap:3px; height:150px; align-items:flex-end; }
+.yr-col { flex:1; height:100%; display:flex; align-items:flex-end; }
+.yr-bar { width:100%; display:block; min-height:2px; }
+.yr-bar.strat { background:var(--strat); }
+.yr-bar.bench { background:var(--bench); }
+.yr-bar.neg { opacity:.34; }
+.yr-lab { font-family:"SF Mono",ui-monospace,monospace; font-size:11px; color:var(--mute); text-align:center; }
+
+.tbl-scroll { overflow-x:auto; }
+table { border-collapse:collapse; width:100%; min-width:460px; font-size:14.5px; background:var(--surface); }
+caption { text-align:left; font-size:13px; color:var(--mute); padding-bottom:10px; }
+th, td { text-align:left; padding:11px 14px; border-bottom:1px solid var(--rule-soft); vertical-align:top; }
+thead th { font-size:11.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--mute); font-weight:500; border-bottom:1px solid var(--rule); }
+th.n, td.n { text-align:right; }
+tbody tr:last-child td { border-bottom:1px solid var(--rule); }
+tr.hi td { background:var(--strat-wash); }
+tr.win td { background:var(--bench-wash); }
+.dn { color:var(--strat); }
+.up { color:var(--bench); }
+
+.note { border-left:2px solid var(--flag); padding:2px 0 2px 18px; color:var(--mute); font-size:14.5px; }
+ol.steps { margin:0; padding:0; list-style:none; counter-reset:s; display:flex; flex-direction:column; gap:20px; }
+ol.steps > li { counter-increment:s; display:grid; grid-template-columns:34px 1fr; gap:16px; }
+ol.steps > li::before {
+  content:counter(s); font-family:"SF Mono",ui-monospace,monospace; font-size:12px;
+  color:var(--mute); border-top:1px solid var(--ink); padding-top:6px;
+}
+ol.steps h3 { margin-bottom:6px; }
+ul.plain { margin:0; padding-left:1.15em; }
+ul.plain li + li { margin-top:8px; }
+footer { margin-top:76px; padding-top:22px; border-top:1px solid var(--rule); font-size:13px; color:var(--mute); }
+@media (prefers-reduced-motion:no-preference) {
+  .ln { stroke-dasharray:4200; animation:draw 1.6s ease-out both; }
+  @keyframes draw { from { stroke-dashoffset:4200; } to { stroke-dashoffset:0; } }
+}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="kicker">戦略検証レポート · 2026-07-29</div>
+  <h1>純TP/SL・ロングのみ・最大DD30%で、<br>年率+50%は成立するか</h1>
+  <p class="standfirst">米国株2,420銘柄・14.2年・1,575通りのルール設定を検証した結論は「成立しない」。
+  さらに、見つかった候補のエッジは、エントリー判断ではなくほぼ全てが市場そのものの上昇でした。</p>
+  <div class="meta">
+    <span>検証期間 <b>2012-01 → 2026-03</b></span>
+    <span>対象 <b>2,420銘柄</b></span>
+    <span>探索設定 <b>1,575</b></span>
+    <span>運用構成 <b>840</b></span>
+    <span>総トレード <b>73,309</b></span>
+  </div>
+</header>
+
+<section>
+  <div class="eyebrow">判定</div>
+  <div class="verdicts">
+    <div class="v no">
+      <div class="v-q">理想目標：年率 +300%</div>
+      <div class="v-a">数学的に不可能</div>
+      <div class="v-n">300%はDD 70〜90%級の建玉を要し、DD30%制約と両立しない</div>
+    </div>
+    <div class="v no">
+      <div class="v-q">最低目標：年率 +50%</div>
+      <div class="v-a">未達</div>
+      <div class="v-n">DD30%以内で到達した最良は 10.0%（安定設定）／ 13.4%（不安定）</div>
+    </div>
+    <div class="v no">
+      <div class="v-q">地合いが悪くても年間プラス</div>
+      <div class="v-a">未達</div>
+      <div class="v-n">全設定で3〜5回の負け年。最良設定でも15年中5回マイナス</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">計測 · 到達点</div>
+  <div class="col stack">
+    <h2>最良設定は、SPYを買って持つより成績が悪い</h2>
+    <p>1,575通りのルール設定から近傍も機能する安定領域を選び、さらに840通りの運用構成
+    （選別基準×同時保有数×リスク率）を検証しました。最も安定した設定の成績は次の通りです。</p>
+  </div>
+  <figure style="margin-top:26px">
+    <div class="tbl-scroll">
+    <table>
+      <caption>最大DD −30%以内という制約を満たした構成のうち、学習期と検証期の成績が一致する最安定設定</caption>
+      <thead><tr><th>比較対象</th><th class="n">年率（CAGR）</th><th class="n">最大DD</th><th class="n">MAR比</th><th class="n">14.2年で1ドルが</th><th class="n">負け年</th></tr></thead>
+      <tbody>
+        <tr class="win"><td><b>SPY を買って持つだけ</b></td><td class="n">13.88%</td><td class="n">−33.7%</td><td class="n">0.41</td><td class="n">7.48ドル</td><td class="n">3回</td></tr>
+        <tr class="hi"><td><b>本戦略（最安定設定）</b></td><td class="n">10.00%</td><td class="n">−26.5%</td><td class="n">0.38</td><td class="n">4.18ドル</td><td class="n">5回</td></tr>
+        <tr><td>本戦略（840構成中の最良／不安定）</td><td class="n">13.38%</td><td class="n">−25.9%</td><td class="n">0.52</td><td class="n">—</td><td class="n">3回</td></tr>
+        <tr><td>目標水準（+50%）に必要なMAR比</td><td class="n">50.00%</td><td class="n">−30.0%</td><td class="n dn">1.67</td><td class="n">—</td><td class="n">—</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <figcaption>MAR比は 年率リターン ÷ 最大DD。最安定設定は、学習期（2012–2018）で11.0%、検証期（2019–2022）で11.2%と成績が一致しており、
+    偶然当たった構成ではありません。一方「840構成中の最良」は学習期5.5%・検証期22.9%と大きく食い違うため、採用に足りません。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="eyebrow">計測 · 資産推移</div>
+  <figure>
+    <div class="panel">
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--bench)"></i>SPY を買って持つだけ</span>
+        <span><i class="swatch" style="background:var(--strat)"></i>本戦略（最安定設定・1トレード1%リスク・同時10銘柄）</span>
+      </div>
+      <div class="chart-scroll">
+        <svg class="curve" viewBox="0 -14 1050 344" role="img"
+             aria-label="対数目盛の資産推移。SPYが7.48倍、本戦略が4.18倍。">
+          <line class="gl" x1="0" y1="270.4" x2="1000" y2="270.4"/><text class="gt" x="1006" y="274.4">1x</text>
+<line class="gl" x1="0" y1="178.5" x2="1000" y2="178.5"/><text class="gt" x="1006" y="182.5">2x</text>
+<line class="gl" x1="0" y1="86.6" x2="1000" y2="86.6"/><text class="gt" x="1006" y="90.6">4x</text>
+          <text class="xt" x="0.0" y="322">2012</text>
+<text class="xt" x="136.8" y="322">2014</text>
+<text class="xt" x="273.7" y="322">2016</text>
+<text class="xt" x="413.2" y="322">2018</text>
+<text class="xt" x="550.0" y="322">2020</text>
+<text class="xt" x="686.8" y="322">2022</text>
+<text class="xt" x="823.7" y="322">2024</text>
+<text class="xt" x="960.5" y="322">2026</text>
+          <path class="ln b" d="M0.0,270.2 L2.6,265.9 L5.3,263.3 L7.9,261.5 L10.5,260.6 L13.2,257.2 L15.8,256.7 L18.4,260.2 L21.1,257.1 L23.7,261.7 L26.3,265.1 L28.9,264.1 L31.6,263.1 L34.2,261.1 L36.8,260.1 L39.5,257.4 L42.1,254.7 L44.7,255.7 L47.4,250.1 L50.0,252.3 L52.6,253.3 L55.3,254.8 L57.9,257.8 L60.5,254.8 L63.2,253.8 L65.8,252.5 L68.4,249.2 L71.1,247.4 L73.7,244.9 L76.3,244.1 L78.9,244.1 L81.6,240.3 L84.2,239.6 L86.8,237.8 L89.5,238.3 L92.1,234.0 L94.7,232.5 L97.4,232.9 L100.0,236.9 L102.6,233.6 L105.3,228.7 L107.9,227.3 L110.5,231.4 L113.2,233.1 L115.8,228.6 L118.4,228.3 L121.1,227.2 L123.7,222.9 L126.3,221.9 L128.9,219.3 L131.6,219.2 L134.2,218.0 L136.8,217.0 L139.5,216.5 L142.1,220.5 L144.7,216.2 L147.4,214.6 L150.0,215.8 L152.6,214.6 L155.3,217.5 L157.9,214.0 L160.5,212.8 L163.2,211.2 L165.8,207.7 L168.4,206.7 L171.1,205.2 L173.7,205.5 L176.3,209.0 L178.9,206.8 L181.6,203.5 L184.2,204.5 L186.8,204.7 L189.5,209.8 L192.1,205.7 L194.7,201.1 L197.4,199.0 L200.0,198.1 L202.6,198.4 L205.3,199.1 L207.9,201.5 L210.5,203.0 L213.2,196.3 L215.8,195.7 L218.4,198.8 L221.1,198.3 L223.7,195.5 L226.3,194.5 L228.9,194.5 L231.6,193.7 L234.2,195.7 L236.8,194.4 L239.5,196.6 L242.1,193.4 L244.7,194.6 L247.4,195.3 L250.0,201.9 L252.6,203.6 L255.3,205.5 L257.9,199.8 L260.5,195.8 L263.2,194.2 L265.8,194.7 L268.4,194.5 L271.1,199.9 L273.7,197.4 L276.3,208.2 L278.9,204.1 L281.6,209.1 L284.2,203.2 L286.8,198.1 L289.5,197.2 L292.1,196.3 L294.7,193.4 L297.4,195.5 L300.0,195.6 L302.6,192.6 L305.3,194.3 L307.9,192.1 L310.5,188.4 L313.2,187.6 L315.8,186.8 L318.4,187.5 L321.1,190.0 L323.7,187.7 L326.3,188.3 L328.9,188.9 L331.6,192.3 L334.2,186.1 L336.8,185.4 L339.5,181.5 L342.1,182.3 L344.7,180.3 L347.4,179.2 L350.0,177.7 L352.6,174.7 L355.3,174.2 L357.9,175.8 L360.5,175.0 L363.2,175.4 L365.8,172.5 L368.4,173.3 L371.1,170.1 L373.7,170.2 L376.3,170.7 L378.9,168.7 L381.6,167.9 L384.2,169.4 L386.8,169.2 L389.5,168.1 L392.1,165.9 L394.7,163.3 L397.4,161.9 L400.0,161.2 L402.6,161.5 L405.3,158.2 L407.9,156.5 L410.5,156.3 L413.2,150.9 L415.8,146.9 L418.4,159.0 L421.1,152.5 L423.7,150.5 L426.3,160.2 L428.9,159.4 L431.6,155.9 L434.2,156.2 L436.8,153.6 L439.5,152.5 L442.1,150.2 L444.7,153.0 L447.4,149.0 L450.0,148.1 L452.6,147.3 L455.3,145.3 L457.9,145.3 L460.5,142.6 L463.2,144.6 L465.8,150.0 L468.4,152.1 L471.1,151.2 L473.7,150.3 L476.3,157.8 L478.9,163.7 L481.6,157.8 L484.2,154.3 L486.8,152.0 L489.5,147.8 L492.1,150.1 L494.7,147.2 L497.4,142.9 L500.0,142.2 L502.6,140.4 L505.3,144.1 L507.9,149.1 L510.5,142.5 L513.2,140.2 L515.8,136.8 L518.4,136.2 L521.1,140.8 L523.7,143.9 L526.3,137.9 L528.9,137.2 L531.6,139.0 L534.2,137.4 L536.8,133.8 L539.5,131.3 L542.1,130.3 L544.7,129.0 L547.4,126.1 L550.0,124.9 L552.6,123.7 L555.3,122.3 L557.9,121.8 L560.5,136.9 L563.2,170.9 L565.8,160.2 L568.4,141.1 L571.1,142.9 L573.7,141.2 L576.3,133.1 L578.9,133.2 L581.6,134.4 L584.2,126.9 L586.8,125.5 L589.5,120.0 L592.1,118.1 L594.7,116.9 L597.4,121.0 L600.0,119.7 L602.6,114.5 L605.3,122.7 L607.9,110.4 L610.5,108.4 L613.2,107.4 L615.8,105.9 L618.4,101.6 L621.1,101.0 L623.7,99.3 L626.3,98.6 L628.9,100.7 L631.6,98.3 L634.2,94.6 L636.8,89.2 L639.5,89.2 L642.1,89.4 L644.7,88.3 L647.4,87.0 L650.0,85.8 L652.6,83.1 L655.3,81.7 L657.9,81.0 L660.5,80.7 L663.2,77.8 L665.8,80.9 L668.4,83.0 L671.1,79.5 L673.7,75.6 L676.3,73.3 L678.9,75.7 L681.6,72.3 L684.2,71.9 L686.8,73.2 L689.5,81.4 L692.1,78.2 L694.7,82.6 L697.4,83.2 L700.0,79.1 L702.6,76.6 L705.3,81.1 L707.9,89.1 L710.5,92.5 L713.2,88.1 L715.8,96.5 L718.4,95.8 L721.1,96.3 L723.7,94.1 L726.3,88.1 L728.9,85.3 L731.6,95.1 L734.2,96.8 L736.8,106.9 L739.5,106.8 L742.1,95.6 L744.7,92.4 L747.4,91.2 L750.0,94.2 L752.6,97.1 L755.3,95.3 L757.9,92.7 L760.5,87.3 L763.2,88.9 L765.8,89.9 L768.4,94.2 L771.1,87.7 L773.7,86.8 L776.3,85.6 L778.9,87.0 L781.6,84.3 L784.2,81.3 L786.8,79.8 L789.5,78.1 L792.1,74.1 L794.7,75.7 L797.4,78.7 L800.0,74.4 L802.6,76.2 L805.3,81.1 L807.9,79.8 L810.5,86.4 L813.2,77.0 L815.8,72.7 L818.4,71.3 L821.1,66.9 L823.7,68.5 L826.3,64.5 L828.9,61.2 L831.6,59.9 L834.2,56.4 L836.8,56.7 L839.5,53.3 L842.1,56.5 L844.7,57.2 L847.4,53.9 L850.0,51.7 L852.6,50.6 L855.3,47.6 L857.9,45.2 L860.5,46.5 L863.2,50.5 L865.8,45.2 L868.4,43.0 L871.1,43.4 L873.7,40.8 L876.3,38.9 L878.9,39.0 L881.6,34.7 L884.2,35.3 L886.8,32.6 L889.5,35.9 L892.1,35.7 L894.7,34.4 L897.4,33.5 L900.0,31.8 L902.6,35.2 L905.3,42.4 L907.9,43.7 L910.5,48.9 L913.2,44.9 L915.8,41.6 L918.4,38.2 L921.1,33.7 L923.7,34.4 L926.3,27.6 L928.9,27.1 L931.6,28.4 L934.2,23.8 L936.8,23.5 L939.5,21.0 L942.1,19.7 L944.7,21.5 L947.4,16.7 L950.0,17.9 L952.6,20.3 L955.3,15.0 L957.9,15.6 L960.5,15.1 L963.2,13.5 L965.8,13.4 L968.4,15.4 L971.1,14.6 L973.7,19.2 L976.3,24.6 L978.9,15.5 L981.6,8.9 L984.2,4.6 L986.8,3.2 L989.5,4.6 L992.1,2.6 L994.7,3.0 L997.4,3.2 L1000.0,3.7"/>
+          <path class="ln s" d="M0.0,270.4 L2.6,270.4 L5.3,270.4 L7.9,270.4 L10.5,270.4 L13.2,270.4 L15.8,270.4 L18.4,270.4 L21.1,270.4 L23.7,270.4 L26.3,270.4 L28.9,270.4 L31.6,270.4 L34.2,270.4 L36.8,270.4 L39.5,265.7 L42.1,264.2 L44.7,264.5 L47.4,257.7 L50.0,259.7 L52.6,262.2 L55.3,261.9 L57.9,263.2 L60.5,261.8 L63.2,262.9 L65.8,260.1 L68.4,253.9 L71.1,249.8 L73.7,246.1 L76.3,245.2 L78.9,248.6 L81.6,242.6 L84.2,242.8 L86.8,242.1 L89.5,238.5 L92.1,235.0 L94.7,233.8 L97.4,237.1 L100.0,242.9 L102.6,238.5 L105.3,232.1 L107.9,229.0 L110.5,235.2 L113.2,237.6 L115.8,227.7 L118.4,224.5 L121.1,223.8 L123.7,217.7 L126.3,215.7 L128.9,209.3 L131.6,206.1 L134.2,203.2 L136.8,201.7 L139.5,199.3 L142.1,202.9 L144.7,192.3 L147.4,185.0 L150.0,187.4 L152.6,187.5 L155.3,195.0 L157.9,192.7 L160.5,191.3 L163.2,190.4 L165.8,185.5 L168.4,185.7 L171.1,184.4 L173.7,188.7 L176.3,191.3 L178.9,191.4 L181.6,187.7 L184.2,186.5 L186.8,189.5 L189.5,198.4 L192.1,196.6 L194.7,191.0 L197.4,189.5 L200.0,185.1 L202.6,183.4 L205.3,186.8 L207.9,185.5 L210.5,185.5 L213.2,181.7 L215.8,177.6 L218.4,176.5 L221.1,173.0 L223.7,173.2 L226.3,176.4 L228.9,178.1 L231.6,177.8 L234.2,177.6 L236.8,175.5 L239.5,178.6 L242.1,177.5 L244.7,176.2 L247.4,177.2 L250.0,191.7 L252.6,191.7 L255.3,191.7 L257.9,191.7 L260.5,191.7 L263.2,192.0 L265.8,190.5 L268.4,188.7 L271.1,193.0 L273.7,189.5 L276.3,201.5 L278.9,201.7 L281.6,202.0 L284.2,200.7 L286.8,200.7 L289.5,200.7 L292.1,201.0 L294.7,199.8 L297.4,200.8 L300.0,201.5 L302.6,198.2 L305.3,198.4 L307.9,193.8 L310.5,192.4 L313.2,193.7 L315.8,194.1 L318.4,196.6 L321.1,198.3 L323.7,195.2 L326.3,195.9 L328.9,195.7 L331.6,204.0 L334.2,193.4 L336.8,192.7 L339.5,189.3 L342.1,189.9 L344.7,187.2 L347.4,185.5 L350.0,182.7 L352.6,181.6 L355.3,182.5 L357.9,185.4 L360.5,182.9 L363.2,183.9 L365.8,183.7 L368.4,183.9 L371.1,183.1 L373.7,184.4 L376.3,181.9 L378.9,177.9 L381.6,179.2 L384.2,183.8 L386.8,182.8 L389.5,180.9 L392.1,176.0 L394.7,168.2 L397.4,166.2 L400.0,164.4 L402.6,163.7 L405.3,159.4 L407.9,158.0 L410.5,157.1 L413.2,147.8 L415.8,145.7 L418.4,161.7 L421.1,152.0 L423.7,148.9 L426.3,161.5 L428.9,163.7 L431.6,159.5 L434.2,158.8 L436.8,152.5 L439.5,153.3 L442.1,146.6 L444.7,151.0 L447.4,149.7 L450.0,150.6 L452.6,146.6 L455.3,143.2 L457.9,144.0 L460.5,144.4 L463.2,149.4 L465.8,157.3 L468.4,158.9 L471.1,157.8 L473.7,158.8 L476.3,166.3 L478.9,173.3 L481.6,173.3 L484.2,173.3 L486.8,173.3 L489.5,173.3 L492.1,172.7 L494.7,166.9 L497.4,166.8 L500.0,169.2 L502.6,162.7 L505.3,165.3 L507.9,165.6 L510.5,156.3 L513.2,151.9 L515.8,149.4 L518.4,150.3 L521.1,152.2 L523.7,151.8 L526.3,141.9 L528.9,144.5 L531.6,149.4 L534.2,148.3 L536.8,143.6 L539.5,144.0 L542.1,141.2 L544.7,140.6 L547.4,140.0 L550.0,137.0 L552.6,135.0 L555.3,133.9 L557.9,136.0 L560.5,159.8 L563.2,167.4 L565.8,167.4 L568.4,167.4 L571.1,167.4 L573.7,167.4 L576.3,167.4 L578.9,170.1 L581.6,166.0 L584.2,161.1 L586.8,160.9 L589.5,153.1 L592.1,154.9 L594.7,159.2 L597.4,162.0 L600.0,158.6 L602.6,153.3 L605.3,161.2 L607.9,153.0 L610.5,146.9 L613.2,148.1 L615.8,143.9 L618.4,141.6 L621.1,135.7 L623.7,135.0 L626.3,135.8 L628.9,136.4 L631.6,133.6 L634.2,133.6 L636.8,130.7 L639.5,125.5 L642.1,126.3 L644.7,124.3 L647.4,123.1 L650.0,123.2 L652.6,127.8 L655.3,133.1 L657.9,129.2 L660.5,134.1 L663.2,130.1 L665.8,131.6 L668.4,130.1 L671.1,124.3 L673.7,124.4 L676.3,118.0 L678.9,122.2 L681.6,120.9 L684.2,119.2 L686.8,115.1 L689.5,120.5 L692.1,116.3 L694.7,117.7 L697.4,117.0 L700.0,115.3 L702.6,111.5 L705.3,108.9 L707.9,115.0 L710.5,117.1 L713.2,114.5 L715.8,115.6 L718.4,117.2 L721.1,117.2 L723.7,117.2 L726.3,117.2 L728.9,117.2 L731.6,117.2 L734.2,117.2 L736.8,117.2 L739.5,117.2 L742.1,117.2 L744.7,117.2 L747.4,117.2 L750.0,117.2 L752.6,117.2 L755.3,117.2 L757.9,117.2 L760.5,117.2 L763.2,114.7 L765.8,116.7 L768.4,125.2 L771.1,119.3 L773.7,122.1 L776.3,118.9 L778.9,124.1 L781.6,126.7 L784.2,122.3 L786.8,124.2 L789.5,121.2 L792.1,117.2 L794.7,114.8 L797.4,120.0 L800.0,114.7 L802.6,115.8 L805.3,118.9 L807.9,122.4 L810.5,129.4 L813.2,124.3 L815.8,119.5 L818.4,121.6 L821.1,116.0 L823.7,118.3 L826.3,116.4 L828.9,113.6 L831.6,112.0 L834.2,109.2 L836.8,107.4 L839.5,99.6 L842.1,104.2 L844.7,103.2 L847.4,101.6 L850.0,100.9 L852.6,104.4 L855.3,103.6 L857.9,104.9 L860.5,100.5 L863.2,102.6 L865.8,99.0 L868.4,94.9 L871.1,95.7 L873.7,89.3 L876.3,85.3 L878.9,88.1 L881.6,81.7 L884.2,77.8 L886.8,78.3 L889.5,86.3 L892.1,84.7 L894.7,82.8 L897.4,81.0 L900.0,82.9 L902.6,85.3 L905.3,91.5 L907.9,87.9 L910.5,97.9 L913.2,97.6 L915.8,96.1 L918.4,92.9 L921.1,91.7 L923.7,89.8 L926.3,87.8 L928.9,90.0 L931.6,85.7 L934.2,81.0 L936.8,79.1 L939.5,78.8 L942.1,75.5 L944.7,78.1 L947.4,74.6 L950.0,80.8 L952.6,82.9 L955.3,83.2 L957.9,83.7 L960.5,81.7 L963.2,81.4 L965.8,83.2 L968.4,79.4 L971.1,82.6 L973.7,89.6 L976.3,91.9 L978.9,85.5 L981.6,81.7 L984.2,83.4 L986.8,86.2 L989.5,84.5 L992.1,83.8 L994.7,82.6 L997.4,80.6 L1000.0,80.9"/>
+        </svg>
+      </div>
+    </div>
+    <figcaption>縦軸は対数目盛（同じ縦幅が同じ倍率）。本戦略の最大DDは −26.5%（日中の時価評価ベース）でSPYの −33.7% より浅いものの、
+    最終資産は 4.18ドル 対 7.48ドル で決着しています。下振れを抑えた分を上回って、上昇も取り逃しています。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="eyebrow">検証 · 最重要</div>
+  <div class="col stack">
+    <h2>エントリー判断が生んでいる利益は、全体の13%だけ</h2>
+    <p>これが今回いちばん重要な検証です。同じルール・同じ銘柄・同じTP/SL設定のまま、
+    <b>エントリーする日付だけをランダムにずらして</b>150回シミュレーションしました。
+    エントリー判断に価値があるなら、日付をずらした途端に成績は崩れるはずです。</p>
+    <p>崩れませんでした。</p>
+  </div>
+  <figure style="margin-top:28px">
+    <div class="decomp">
+      <div class="d-beta">日付をランダムにしても得られる分<br>+0.1626R（86.7%）</div>
+      <div class="d-edge">エントリー<br>判断<br>+0.0250R</div>
+    </div>
+    <div class="noise">
+      <div class="noise-band"><span class="noise-lab">1,575設定を探索すれば偶然この幅まで出る（+0.0385R）</span></div>
+    </div>
+    <figcaption>1トレードあたり平均利益 +0.1876R の内訳。ハッチ部分は、エッジがまったく無い場合でも1,575通りを試せば
+    期待される上振れ幅です。エントリー判断の寄与（+0.0250R）はこの幅の中に収まっており、<b>探索ノイズと統計的に区別できません</b>。</figcaption>
+  </figure>
+  <div class="col stack" style="margin-top:26px">
+    <p>言い換えると、この戦略が稼いでいるのは「地合いが良いときに、3ATRの損切りと2倍の利確を置いて米国株をロングする」という
+    <b>枠組みそのもの</b>であって、押し目や反転を見極める部分ではありません。それはエッジ（優位性）ではなく市場ベータです。</p>
+    <p class="note">同じ診断は別の角度からも出ました。利確幅（RR）を広げるほど年率換算が改善し続け、
+    グリッド上限のRR=6.0でも頭打ちになりません。これは「利確しないほど成績が良い」＝実質ストップ付きのバイ&ホールドである、という兆候です。</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">計測 · 摩擦</div>
+  <div class="col stack">
+    <h2>エッジの6割が執行コストで消える</h2>
+    <p>なぜここまで伸びないのか。原因の大半は執行コストです。
+    現実的な摩擦（流動性階層別の寄り付き成行スリッページ＋決済種別別のコスト）を入れると、次のようになります。</p>
+  </div>
+  <figure style="margin-top:24px">
+    <div class="tbl-scroll">
+    <table>
+      <caption>1トレードあたりの損益率と、フル投資時の年率換算（保有12日・年21回転の前提）</caption>
+      <thead><tr><th>前提</th><th class="n">平均R</th><th class="n">1トレード損益率</th><th class="n">年率換算</th></tr></thead>
+      <tbody>
+        <tr><td>摩擦ゼロ（グロス）</td><td class="n">+0.188</td><td class="n">+0.76%</td><td class="n">16.0%</td></tr>
+        <tr class="hi"><td><b>現実的な摩擦（実効往復37.8bp）</b></td><td class="n">+0.071</td><td class="n dn">+0.29%</td><td class="n dn">6.2%</td></tr>
+        <tr><td>年率+50%に必要な水準</td><td class="n">—</td><td class="n">+2.38%</td><td class="n">50.0%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <figcaption>往復摩擦0.42%に対しグロスのエッジが0.76%しかないため、正味は0.29%。
+    +50%には正味2.38%が必要で、現在の8倍です。回転を速くするほど摩擦の比重が増えるので、頻度を上げて届く構造にもなっていません。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="eyebrow">計測 · 年別</div>
+  <figure>
+    <div class="panel">
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--strat)"></i>本戦略</span>
+        <span><i class="swatch" style="background:var(--bench)"></i>SPY</span>
+        <span>薄い棒 = マイナスの年</span>
+      </div>
+      <div class="chart-scroll"><div class="years"><div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:17.1%" title="戦略 +9.6%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:25.4%" title="SPY +14.2%"></span></div></div><div class="yr-lab">12</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:96.2%" title="戦略 +53.9%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:57.7%" title="SPY +32.3%"></span></div></div><div class="yr-lab">13</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:21.4%" title="戦略 +12.0%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:24.1%" title="SPY +13.5%"></span></div></div><div class="yr-lab">14</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat neg" style="height:4.6%" title="戦略 -2.6%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:2.1%" title="SPY +1.2%"></span></div></div><div class="yr-lab">15</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat neg" style="height:0.5%" title="戦略 -0.3%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:21.4%" title="SPY +12.0%"></span></div></div><div class="yr-lab">16</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:50.2%" title="戦略 +28.1%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:38.8%" title="SPY +21.7%"></span></div></div><div class="yr-lab">17</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat neg" style="height:20.5%" title="戦略 -11.5%"></span></div><div class="yr-col"><span class="yr-bar bench neg" style="height:8.2%" title="SPY -4.6%"></span></div></div><div class="yr-lab">18</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:50.5%" title="戦略 +28.3%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:55.7%" title="SPY +31.2%"></span></div></div><div class="yr-lab">19</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat neg" style="height:5.0%" title="戦略 -2.8%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:32.7%" title="SPY +18.3%"></span></div></div><div class="yr-lab">20</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:40.2%" title="戦略 +22.5%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:51.2%" title="SPY +28.7%"></span></div></div><div class="yr-lab">21</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:0.0%" title="戦略 -0.0%"></span></div><div class="yr-col"><span class="yr-bar bench neg" style="height:32.5%" title="SPY -18.2%"></span></div></div><div class="yr-lab">22</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:1.4%" title="戦略 +0.8%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:46.8%" title="SPY +26.2%"></span></div></div><div class="yr-lab">23</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:44.6%" title="戦略 +25.0%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:44.5%" title="SPY +24.9%"></span></div></div><div class="yr-lab">24</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:4.6%" title="戦略 +2.6%"></span></div><div class="yr-col"><span class="yr-bar bench " style="height:31.6%" title="SPY +17.7%"></span></div></div><div class="yr-lab">25</div></div>
+<div class="yr"><div class="yr-pair"><div class="yr-col"><span class="yr-bar strat " style="height:3.2%" title="戦略 +1.8%"></span></div><div class="yr-col"><span class="yr-bar bench neg" style="height:12.7%" title="SPY -7.1%"></span></div></div><div class="yr-lab">26</div></div></div></div>
+    </div>
+    <figcaption>本戦略は15年中5回マイナス（2015・2016・2018・2020・2022）。SPYは3回。
+    最悪年は本戦略 −11.5%、SPY −18.2% で下振れは浅いものの、「地合いが悪くても年間プラス」というご要望は満たせていません。
+    2026年は3月末までの部分年です。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="eyebrow">検証 · 品質</div>
+  <div class="col stack">
+    <h2>レビューで見つかり、修正した欠陥</h2>
+    <p>テクニカルアナリスト3体（バイアス監査／執行現実性／統計的頑健性）にエンジンを独立レビューさせ、
+    指摘を反映しました。修正前の数値は一貫して楽観方向に歪んでいました。</p>
+  </div>
+  <figure style="margin-top:24px">
+    <div class="tbl-scroll">
+    <table>
+      <thead><tr><th>見つかった欠陥</th><th>影響</th></tr></thead>
+      <tbody>
+        <tr><td>コストが往復20bp想定。ギャップ益は満額計上する一方、ギャップ損には滑りを課していなかった</td><td class="dn">平均R +0.188 → +0.071（62%減）</td></tr>
+        <tr><td>エントリー当日に決済したトレードが決済処理をすり抜け、ポジション枠を永久占有していた</td><td class="dn">42,983シグナル中603件しか執行されず</td></tr>
+        <tr><td>利確指値が高値タッチだけで満額約定していた</td><td>期待値の2〜8%</td></tr>
+        <tr><td>損切りがSL価格ちょうどで約定する仮定（実測はSLの中央値85bp下、p90で326bp下）</td><td>決済種別別に18〜55bpを計上</td></tr>
+        <tr><td>資金解放が決済当日（実際はT+1）。建玉サイズに寄り付きクロスの容量制約なし</td><td class="dn">CAGR −32bp・DD +2.9pt／口座上限は実質 $286k〜$1.14M</td></tr>
+        <tr><td>最大DDを単一経路の実現値で判定していた</td><td class="dn">真のDD44%が3.4%の確率で「30%以内」に見える</td></tr>
+        <tr><td>RSI(2)がNaNのとき、最も強い上昇日が全ルールから静かに除外されていた</td><td>シグナル母集団の欠落</td></tr>
+        <tr><td>ホールドアウトを全1,575セルで算出・保存しており、選択時点で消費済みだった</td><td>既定で算出しないよう変更</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <figcaption>あわせて、トレードが独立でないことによる有効サンプルの縮小も定量化しました。
+    名目73,309トレードに対し、エントリー月をクラスタとした有効サンプルは <b>1,002件</b>（デザイン効果73.1倍）です。
+    見かけの統計的確度は実際の約1/8.5しかありません。</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="eyebrow">提案</div>
+  <div class="col stack-lg">
+    <h2>目標に近づけるには、制約のどれかを外す必要があります</h2>
+    <p>日足OHLCV＋純TP/SL＋ロングのみ＋DD30%以内という組み合わせの中には、年率+50%を支えるエッジは見つかりませんでした。
+    ここから先は、探索を続けるより制約を選び直す判断になります。効果の大きい順に挙げます。</p>
+    <ol class="steps">
+      <li>
+        <div>
+          <h3>データを増やす（最も効果が大きい）</h3>
+          <p>今回の探索は日足の価格と出来高だけを使っています。決算日・決算サプライズ・ニュースのポイントインタイムデータを加えると、
+          価格だけでは見えない「イベント後のドリフト」を狙えます。ここは学術的にも実務的にも優位性が確認されている領域です。
+          必要なのはパラメータ追加ではなく<b>新しい情報源</b>です。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>上場廃止銘柄を含むデータに差し替える</h3>
+          <p>現在のユニバースは<b>100%が今も上場している銘柄</b>です。2011年から履歴があるのは60%にすぎず、
+          消えた銘柄＝「押し目が押し目で終わらなかった銘柄」が構造的に欠けています。
+          方向は一貫して楽観側で、CAGRを1〜3%pt過大・最大DDを3〜8pt過小に見せています。
+          今回の数字は、この補正を掛ける前の値です。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>ショートを解禁する</h3>
+          <p>「地合いが悪くても年間プラス」を本気で狙うなら、下落局面で収益を出す手段が要ります。
+          ロングのみ＋現金待機では、2015・2016・2018・2020・2022のようなマイナス年は構造的に避けられません。</p>
+        </div>
+      </li>
+      <li>
+        <div>
+          <h3>最大DDの上限を引き上げる（ただし+50%には届きません）</h3>
+          <p>DD許容を50%に緩めれば約2倍のレバレッジが乗り、CAGRは20%前後まで届きます。
+          しかし+50%には5倍相当が必要で、その水準ではDDが100%を超えて口座が消えます。
+          <b>DD制約を緩めるだけでは+50%には到達しません</b>。エッジ自体を強くする1と2が先です。</p>
+        </div>
+      </li>
+    </ol>
+    <p class="note">なお、いま実運用に載せる価値があるかで言えば、この最安定設定（CAGR 10.0% / DD −26.5%）は
+    SPYを買って持つ（13.88% / −33.7%）に対してリターンで負けており、MAR比でもほぼ差がありません。
+    73,309トレードの執行手間とシステム保守を負う見返りが立っていません。現時点では<b>実運用への移行を推奨しません</b>。</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">限界</div>
+  <div class="col stack">
+    <h2>この検証で言えないこと</h2>
+    <ul class="plain">
+      <li><b>検証期間はすべて米国株の長期強気相場（2012–2026）です。</b>2008年やドットコム崩壊は含まれていません。3分割していますが、独立した検証は実質1回と考えるべきです。</li>
+      <li><b>生存者バイアスは残っています。</b>上記のとおり楽観方向で、CAGR 1〜3%pt・DD 3〜8pt の補正余地があります。</li>
+      <li><b>調整済み価格を使っているため、最低株価フィルタは実際の取引価格を反映していません。</b>後に分割した銘柄（＝上昇した銘柄）を過去から除外する方向なので、これも保守側の歪みです。</li>
+      <li><b>1,575設定を探索した事実そのものが、選ばれた候補の成績を上振れさせます。</b>今回はエントリー寄与がこの上振れ幅の中に収まることまで確認しました。</li>
+      <li><b>レバレッジは検証から外しています。</b>Reg-Tの追証・強制決済をモデル化していないため、DD制約下で最も重要な局面を再現できないからです。</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  検証コード: <span class="mono">research/bracket_engine.py</span> ·
+  <span class="mono">research/strategy_search.py</span> ·
+  <span class="mono">research/portfolio_search.py</span> ·
+  <span class="mono">research/validate_stats.py</span> ·
+  <span class="mono">research/select_candidate.py</span><br>
+  出口セマンティクスの回帰テスト22件: <span class="mono">tests/test_bracket_engine.py</span>
+</footer>
+</div>

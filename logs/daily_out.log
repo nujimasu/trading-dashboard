@@ -57,3 +57,1140 @@
   WRB    | $66.25 | RR=1.50 | WAIT
 [Daily] Done. 54 tickers updated.
 [Daily] OK: Daily picks updated (3.3s)
+[Daily] Running daily adjustment — 07:02
+[Daily] Running daily adjustment — 07:15
+[Daily] Running daily adjustment — 07:05
+[Daily] Running daily adjustment — 07:02
+[Daily] Running daily adjustment — 07:04
+[DB] PostgreSQL tables initialized (Supabase)
+[Daily] Running daily adjustment — 07:12
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 233 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 99
+[Stage2] Batch 2/3 (100 tickers)... saved 64
+[Stage2] Batch 3/3 (33 tickers)... empty
+[Stage2] Incremental done. 163/233 tickers updated.
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 232 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 99
+[Stage2] Batch 2/3 (100 tickers)... saved 59
+[Stage2] Batch 3/3 (32 tickers)... empty
+[Stage2] Incremental done. 158/232 tickers updated.
+[Daily] Running daily adjustment — 07:07
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 232 tickers...
+[Stage2] Batch 1/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 2/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 3/3 (32 tickers)... empty
+[Stage2] Incremental done. 0/232 tickers updated.
+[Daily] Running daily adjustment — 07:07
+[Daily] Running daily adjustment — 07:15
+[Daily] Running daily adjustment — 07:07
+[Daily] Running daily adjustment — 07:13
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 264 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 99
+[Stage2] Batch 2/3 (100 tickers)... saved 42
+[Stage2] Batch 3/3 (64 tickers)... saved 14
+[Stage2] Incremental done. 155/264 tickers updated.
+[DailyPrice] WARN: price_data updated 155/264 tickers (128.5s)
+[Daily] Adjusting picks for 2026-06-27...
+  PLTR   | 2026-06-26 | $112.93 | RR=0.00 | PASSED
+  APP    | 2026-06-26 | $477.08 | RR=0.00 | PASSED
+  META   | 2026-06-26 | $550.25 | RR=0.00 | PASSED
+  MU     | 2026-06-26 | $1132.33 | RR=0.00 | PASSED
+  LLY    | 2026-06-26 | $1208.12 | RR=0.69 | PASSED
+  NEM    | 2026-06-26 | $96.13 | RR=9.66 | WAIT
+  WDC    | 2026-06-26 | $586.45 | RR=0.00 | PASSED
+  GOOG   | 2026-06-26 | $334.69 | RR=0.00 | PASSED
+  LVS    | 2026-06-26 | $47.12 | RR=0.00 | PASSED
+  GOOGL  | 2026-06-26 | $337.39 | RR=0.00 | PASSED
+  AVGO   | 2026-06-26 | $365.02 | RR=0.00 | PASSED
+  NVDA   | 2026-06-26 | $192.53 | RR=0.00 | PASSED
+  INCY   | 2026-06-26 | $113.75 | RR=0.17 | PASSED
+  PODD   | 2026-06-26 | $158.25 | RR=0.00 | PASSED
+  RSI    | 2026-06-26 | $31.56 | RR=0.00 | PASSED
+  CELH   | 2026-06-26 | $29.85 | RR=0.00 | PASSED
+  ANET   | 2026-06-26 | $157.60 | RR=0.00 | PASSED
+  FSLR   | 2026-06-26 | $239.07 | RR=0.00 | PASSED
+  LRCX   | 2026-06-26 | $379.09 | RR=0.00 | PASSED
+  SOFI   | 2026-06-26 | $17.88 | RR=0.00 | PASSED
+  STX    | 2026-06-26 | $899.90 | RR=0.00 | PASSED
+  CIEN   | 2026-06-26 | $479.50 | RR=0.00 | PASSED
+  AFL    | 2026-06-26 | $120.15 | RR=1.10 | PASSED
+  AMZN   | 2026-06-26 | $232.69 | RR=0.00 | PASSED
+  EQT    | 2026-06-26 | $52.70 | RR=0.00 | PASSED
+  GEV    | 2026-06-26 | $1045.17 | RR=0.00 | PASSED
+  ZM     | 2026-06-26 | $86.48 | RR=0.00 | PASSED
+  AAPL   | 2026-06-26 | $283.78 | RR=0.00 | PASSED
+  COF    | 2026-06-26 | $204.00 | RR=0.00 | PASSED
+  HSY    | 2026-06-26 | $179.11 | RR=0.00 | PASSED
+  ADI    | 2026-06-26 | $386.91 | RR=0.00 | PASSED
+  BLK    | 2026-06-26 | $964.71 | RR=0.00 | PASSED
+  DXCM   | 2026-06-26 | $70.14 | RR=0.00 | PASSED
+  GLW    | 2026-06-26 | $221.05 | RR=0.00 | PASSED
+  NFLX   | 2026-06-26 | $73.81 | RR=0.00 | PASSED
+  RRC    | 2026-06-26 | $37.57 | RR=0.00 | PASSED
+  TOST   | 2026-06-26 | $27.08 | RR=0.00 | PASSED
+  ALL    | 2026-06-26 | $239.61 | RR=1.05 | PASSED
+  CEG    | 2026-06-26 | $264.02 | RR=0.00 | PASSED
+  THC    | 2026-06-26 | $189.00 | RR=0.00 | PASSED
+  ZION   | 2026-06-26 | $69.14 | RR=1.63 | WATCH
+  AMAT   | 2026-06-26 | $626.84 | RR=0.00 | PASSED
+  FTNT   | 2026-06-26 | $151.35 | RR=0.00 | PASSED
+  TXN    | 2026-06-26 | $285.42 | RR=0.00 | PASSED
+  OHI    | 2026-06-26 | $48.06 | RR=0.19 | PASSED
+  EA     | 2026-06-26 | $205.25 | RR=0.52 | PASSED
+  FCX    | 2026-06-26 | $62.45 | RR=0.00 | PASSED
+  NXPI   | 2026-06-26 | $277.02 | RR=0.00 | PASSED
+  TEL    | 2026-06-26 | $197.74 | RR=105.05 | WAIT
+  ICE    | 2026-06-26 | $123.86 | RR=0.00 | PASSED
+  TRV    | 2026-06-26 | $327.37 | RR=1.09 | PASSED
+  VRTX   | 2026-06-26 | $491.34 | RR=0.00 | PASSED
+  CCJ    | 2026-06-26 | $104.49 | RR=3.71 | WAIT
+  AMP    | 2026-06-26 | $452.81 | RR=0.00 | PASSED
+  GILD   | 2026-06-26 | $127.88 | RR=0.00 | PASSED
+  MSFT   | 2026-06-26 | $372.97 | RR=0.00 | PASSED
+  NOC    | 2026-06-26 | $500.03 | RR=0.00 | PASSED
+  VICI   | 2026-06-26 | $27.21 | RR=0.00 | PASSED
+  C      | 2026-06-26 | $141.76 | RR=0.00 | PASSED
+[Daily] Failed tickers: BK
+[Daily] Done. 59/60 tickers updated. dates=2026-06-26
+[Daily] WARN: daily_picks updated 59/60, failed=1, dates=2026-06-26 (16.3s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 8件処理
+[TechDaily] OK: Tech daily picks updated (3.3s)
+[Daily] Running daily adjustment — 07:09
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 263 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 99
+[Stage2] Batch 2/3 (100 tickers)... saved 64
+[Stage2] Batch 3/3 (63 tickers)... saved 2
+[Stage2] Incremental done. 165/263 tickers updated.
+[DailyPrice] WARN: price_data updated 165/263 tickers (144.6s)
+[Daily] Adjusting picks for 2026-06-28...
+  PLTR   | 2026-06-26 | $112.93 | RR=0.00 | PASSED
+  APP    | 2026-06-26 | $477.08 | RR=0.00 | PASSED
+  META   | 2026-06-26 | $550.25 | RR=0.00 | PASSED
+  MU     | 2026-06-26 | $1132.33 | RR=0.00 | PASSED
+  LLY    | 2026-06-26 | $1208.12 | RR=0.69 | PASSED
+  NEM    | 2026-06-26 | $96.13 | RR=9.66 | WAIT
+  WDC    | 2026-06-26 | $586.45 | RR=0.00 | PASSED
+  GOOG   | 2026-06-26 | $334.69 | RR=0.00 | PASSED
+  LVS    | 2026-06-26 | $47.12 | RR=0.00 | PASSED
+  GOOGL  | 2026-06-26 | $337.39 | RR=0.00 | PASSED
+  AVGO   | 2026-06-26 | $365.02 | RR=0.00 | PASSED
+  NVDA   | 2026-06-26 | $192.53 | RR=0.00 | PASSED
+  INCY   | 2026-06-26 | $113.75 | RR=0.17 | PASSED
+  PODD   | 2026-06-26 | $158.25 | RR=0.00 | PASSED
+  RSI    | 2026-06-26 | $31.56 | RR=0.00 | PASSED
+  CELH   | 2026-06-26 | $29.85 | RR=0.00 | PASSED
+  ANET   | 2026-06-26 | $157.60 | RR=0.00 | PASSED
+  FSLR   | 2026-06-26 | $239.07 | RR=0.00 | PASSED
+  LRCX   | 2026-06-26 | $379.09 | RR=0.00 | PASSED
+  SOFI   | 2026-06-26 | $17.88 | RR=0.00 | PASSED
+  STX    | 2026-06-26 | $899.90 | RR=0.00 | PASSED
+  CIEN   | 2026-06-26 | $479.50 | RR=0.00 | PASSED
+  AFL    | 2026-06-26 | $120.15 | RR=1.10 | PASSED
+  AMZN   | 2026-06-26 | $232.69 | RR=0.00 | PASSED
+  EQT    | 2026-06-26 | $52.70 | RR=0.00 | PASSED
+  GEV    | 2026-06-26 | $1045.17 | RR=0.00 | PASSED
+  ZM     | 2026-06-26 | $86.48 | RR=0.00 | PASSED
+  AAPL   | 2026-06-26 | $283.78 | RR=0.00 | PASSED
+  COF    | 2026-06-26 | $204.00 | RR=0.00 | PASSED
+  HSY    | 2026-06-26 | $179.11 | RR=0.00 | PASSED
+  ADI    | 2026-06-26 | $386.91 | RR=0.00 | PASSED
+  BLK    | 2026-06-26 | $964.71 | RR=0.00 | PASSED
+  DXCM   | 2026-06-26 | $70.14 | RR=0.00 | PASSED
+  GLW    | 2026-06-26 | $221.05 | RR=0.00 | PASSED
+  NFLX   | 2026-06-26 | $73.81 | RR=0.00 | PASSED
+  RRC    | 2026-06-26 | $37.57 | RR=0.00 | PASSED
+  TOST   | 2026-06-26 | $27.08 | RR=0.00 | PASSED
+  ALL    | 2026-06-26 | $239.61 | RR=1.05 | PASSED
+  CEG    | 2026-06-26 | $264.02 | RR=0.00 | PASSED
+  THC    | 2026-06-26 | $189.00 | RR=0.00 | PASSED
+  ZION   | 2026-06-26 | $69.14 | RR=1.63 | WATCH
+  AMAT   | 2026-06-26 | $626.84 | RR=0.00 | PASSED
+  FTNT   | 2026-06-26 | $151.35 | RR=0.00 | PASSED
+  TXN    | 2026-06-26 | $285.43 | RR=0.00 | PASSED
+  OHI    | 2026-06-26 | $48.06 | RR=0.19 | PASSED
+  EA     | 2026-06-26 | $205.25 | RR=0.52 | PASSED
+  FCX    | 2026-06-26 | $62.45 | RR=0.00 | PASSED
+  NXPI   | 2026-06-26 | $277.02 | RR=0.00 | PASSED
+  TEL    | 2026-06-26 | $197.74 | RR=105.05 | WAIT
+  ICE    | 2026-06-26 | $123.86 | RR=0.00 | PASSED
+  TRV    | 2026-06-26 | $327.37 | RR=1.09 | PASSED
+  VRTX   | 2026-06-26 | $491.34 | RR=0.00 | PASSED
+  CCJ    | 2026-06-26 | $104.49 | RR=3.71 | WAIT
+  BK     | 2026-06-26 | $143.56 | RR=3.03 | WAIT
+  AMP    | 2026-06-26 | $452.81 | RR=0.00 | PASSED
+  GILD   | 2026-06-26 | $127.88 | RR=0.00 | PASSED
+  MSFT   | 2026-06-26 | $372.97 | RR=0.00 | PASSED
+  NOC    | 2026-06-26 | $500.03 | RR=0.00 | PASSED
+  VICI   | 2026-06-26 | $27.21 | RR=0.00 | PASSED
+  C      | 2026-06-26 | $141.76 | RR=0.00 | PASSED
+[Daily] Done. 60/60 tickers updated. dates=2026-06-26
+[Daily] OK: daily_picks updated 60/60, failed=0, dates=2026-06-26 (21.5s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 8件処理
+[TechDaily] OK: Tech daily picks updated (13.4s)
+[Daily] Running daily adjustment — 07:10
+[Daily] Running daily adjustment — 07:01
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 297 tickers...
+[Stage2] Batch 1/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 2/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 3/3 (97 tickers)... error: connection already closed
+[Stage2] Incremental done. 0/297 tickers updated.
+[DailyPrice] WARN: price_data updated 0/297 tickers (2639.6s)
+[Daily] Adjusting picks for 2026-06-30...
+  INCY   | 2026-06-29 | $114.66 | RR=0.00 | PASSED
+  RSI    | 2026-06-29 | $31.32 | RR=0.00 | PASSED
+  PLTR   | 2026-06-29 | $115.70 | RR=0.00 | PASSED
+  META   | 2026-06-29 | $562.60 | RR=0.00 | PASSED
+  MU     | 2026-06-29 | $1145.28 | RR=0.00 | PASSED
+  LLY    | 2026-06-29 | $1229.93 | RR=0.00 | PASSED
+  WDC    | 2026-06-29 | $651.88 | RR=0.00 | PASSED
+  GOOG   | 2026-06-29 | $351.28 | RR=0.00 | PASSED
+  LVS    | 2026-06-29 | $46.37 | RR=0.00 | PASSED
+  GOOGL  | 2026-06-29 | $353.65 | RR=0.00 | PASSED
+  AVGO   | 2026-06-29 | $372.45 | RR=0.00 | PASSED
+  LRCX   | 2026-06-29 | $410.91 | RR=0.00 | PASSED
+  CIEN   | 2026-06-29 | $478.93 | RR=3.03 | WAIT
+  AFL    | 2026-06-29 | $120.08 | RR=3.03 | WAIT
+  AMZN   | 2026-06-29 | $240.14 | RR=0.00 | PASSED
+  GEV    | 2026-06-29 | $1102.51 | RR=2.09 | WATCH
+  COF    | 2026-06-29 | $202.28 | RR=0.00 | PASSED
+  NFLX   | 2026-06-29 | $73.78 | RR=0.00 | PASSED
+  RRC    | 2026-06-29 | $36.35 | RR=0.00 | PASSED
+  TOST   | 2026-06-29 | $28.16 | RR=0.00 | PASSED
+  ALL    | 2026-06-29 | $241.38 | RR=0.00 | PASSED
+  CEG    | 2026-06-29 | $259.32 | RR=0.00 | PASSED
+  THC    | 2026-06-29 | $187.17 | RR=0.00 | PASSED
+  ZION   | 2026-06-29 | $69.52 | RR=0.00 | PASSED
+  AMAT   | 2026-06-29 | $694.64 | RR=0.00 | PASSED
+  OHI    | 2026-06-29 | $48.11 | RR=0.00 | PASSED
+  NXPI   | 2026-06-29 | $278.37 | RR=0.00 | PASSED
+  TEL    | 2026-06-29 | $198.30 | RR=0.00 | PASSED
+  ICE    | 2026-06-29 | $122.91 | RR=0.00 | PASSED
+  TRV    | 2026-06-29 | $331.88 | RR=0.00 | PASSED
+  VRTX   | 2026-06-29 | $499.65 | RR=0.00 | PASSED
+  CCJ    | 2026-06-29 | $103.47 | RR=3.40 | WAIT
+  BK     | 2026-06-26 | $143.56 | RR=3.00 | WAIT
+  AMP    | 2026-06-29 | $446.79 | RR=0.00 | PASSED
+  MSFT   | 2026-06-29 | $368.57 | RR=0.00 | PASSED
+  C      | 2026-06-29 | $142.49 | RR=2.85 | WATCH
+[Daily] Failed tickers: PODD, APP, NEM, NVDA, CELH, ANET, FSLR, SOFI, STX, EQT, ZM, AAPL, HSY, ADI, BLK, DXCM, GLW, FTNT, TXN, EA, FCX, GILD, NOC, VICI
+[Daily] Done. 36/60 tickers updated. dates=2026-06-26,2026-06-29
+[Daily] WARN: daily_picks updated 36/60, failed=24, dates=2026-06-26,2026-06-29 (15.6s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 19件処理
+[TechDaily] OK: Tech daily picks updated (6.9s)
+[Daily] Running daily adjustment — 07:08
+[Daily] Running daily adjustment — 07:15
+[Daily] Running daily adjustment — 07:03
+[Daily] Running daily adjustment — 07:08
+[Daily] Running daily adjustment — 07:16
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 290 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 99
+[Stage2] Batch 2/3 (100 tickers)... saved 55
+[Stage2] Batch 3/3 (90 tickers)... error: connection already closed
+[Stage2] Incremental done. 154/290 tickers updated.
+[DailyPrice] WARN: price_data updated 154/290 tickers (529.1s)
+[Daily] Adjusting picks for 2026-07-05...
+[Daily] ERROR: could not receive data from server: Operation timed out
+SSL SYSCALL error: Operation timed out
+ (27.0s)
+[ERROR] Daily adjustment failed: could not receive data from server: Operation timed out
+SSL SYSCALL error: Operation timed out
+
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 19件処理
+[TechDaily] OK: Tech daily picks updated (5.6s)
+[Daily] Running daily adjustment — 07:04
+[Daily] Running daily adjustment — 07:08
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 295 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 99
+[Stage2] Batch 2/3 (100 tickers)... error: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+[Stage2] Batch 3/3 (95 tickers)... saved 1
+[Stage2] Incremental done. 100/295 tickers updated.
+[DailyPrice] WARN: price_data updated 100/295 tickers (101.6s)
+[Daily] Adjusting picks for 2026-07-07...
+  PLTR   | 2026-07-06 | $132.54 | RR=0.00 | PASSED
+  APP    | 2026-07-06 | $543.79 | RR=0.00 | PASSED
+  META   | 2026-07-06 | $600.29 | RR=0.00 | PASSED
+  LLY    | 2026-07-06 | $1200.06 | RR=0.00 | PASSED
+  NEM    | 2026-07-06 | $98.20 | RR=0.00 | PASSED
+  WDC    | 2026-07-06 | $577.46 | RR=1.50 | PASSED
+  GOOG   | 2026-07-06 | $364.90 | RR=1.92 | WATCH
+  MU     | 2026-07-06 | $984.75 | RR=0.00 | PASSED
+  LVS    | 2026-07-06 | $46.58 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-06 | $366.46 | RR=2.30 | WATCH
+  NVDA   | 2026-07-06 | $195.55 | RR=0.00 | PASSED
+  INCY   | 2026-07-06 | $115.62 | RR=0.00 | PASSED
+  RSI    | 2026-07-06 | $32.22 | RR=0.00 | PASSED
+  ANET   | 2026-07-06 | $173.28 | RR=1.16 | PASSED
+  FSLR   | 2026-07-06 | $233.06 | RR=0.00 | PASSED
+  LRCX   | 2026-07-06 | $350.20 | RR=0.00 | PASSED
+  SOFI   | 2026-07-06 | $18.61 | RR=0.00 | PASSED
+  STX    | 2026-07-06 | $868.26 | RR=0.61 | PASSED
+  AFL    | 2026-07-06 | $120.47 | RR=3.26 | WAIT
+  AMZN   | 2026-07-06 | $244.16 | RR=2.69 | WATCH
+  EQT    | 2026-07-06 | $51.71 | RR=0.00 | PASSED
+  GEV    | 2026-07-06 | $1152.04 | RR=0.00 | PASSED
+  NFLX   | 2026-07-06 | $76.02 | RR=0.00 | PASSED
+  AAPL   | 2026-07-06 | $312.66 | RR=0.00 | PASSED
+  COF    | 2026-07-06 | $206.50 | RR=0.00 | PASSED
+  HSY    | 2026-07-06 | $177.51 | RR=0.00 | PASSED
+  ADI    | 2026-07-06 | $388.83 | RR=0.00 | PASSED
+  GLW    | 2026-07-06 | $194.80 | RR=0.00 | PASSED
+  CEG    | 2026-07-06 | $245.87 | RR=0.00 | PASSED
+  ZION   | 2026-07-06 | $70.60 | RR=0.00 | PASSED
+  FTNT   | 2026-07-06 | $162.35 | RR=0.00 | PASSED
+  OHI    | 2026-07-06 | $49.02 | RR=0.00 | PASSED
+  EA     | 2026-07-06 | $205.21 | RR=3.00 | WAIT
+  FCX    | 2026-07-06 | $61.00 | RR=0.00 | PASSED
+  NXPI   | 2026-07-06 | $280.51 | RR=0.00 | PASSED
+  TEL    | 2026-07-06 | $200.15 | RR=0.00 | PASSED
+  ICE    | 2026-07-06 | $134.91 | RR=0.00 | PASSED
+  VRTX   | 2026-07-06 | $529.59 | RR=0.00 | PASSED
+  CCJ    | 2026-07-06 | $97.50 | RR=0.00 | PASSED
+  BK     | 2026-07-02 | $146.62 | RR=3.00 | WAIT
+  AMP    | 2026-07-06 | $507.50 | RR=0.00 | PASSED
+  GILD   | 2026-07-06 | $129.61 | RR=3.78 | WAIT
+  MSFT   | 2026-07-06 | $386.74 | RR=0.00 | PASSED
+  NOC    | 2026-07-06 | $547.75 | RR=0.00 | PASSED
+  VICI   | 2026-07-06 | $26.70 | RR=0.00 | PASSED
+  C      | 2026-07-06 | $143.86 | RR=1.83 | WATCH
+[Daily] Failed tickers: AVGO, PODD, CELH, CIEN, ZM, BLK, DXCM, RRC, TOST, ALL, THC, AMAT, TXN, TRV
+[Daily] Done. 46/60 tickers updated. dates=2026-07-02,2026-07-06
+[Daily] WARN: daily_picks updated 46/60, failed=14, dates=2026-07-02,2026-07-06 (15.4s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 15件処理
+[TechDaily] OK: Tech daily picks updated (4.8s)
+[Daily] Running daily adjustment — 07:10
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 310 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 99
+[Stage2] Batch 2/4 (100 tickers)... saved 66
+[Stage2] Batch 3/4 (100 tickers)... saved 32
+[Stage2] Batch 4/4 (10 tickers)... saved 10
+[Stage2] Incremental done. 207/310 tickers updated.
+[DailyPrice] WARN: price_data updated 207/310 tickers (174.5s)
+[Daily] Adjusting picks for 2026-07-09...
+  PLTR   | 2026-07-08 | $132.22 | RR=0.00 | PASSED
+  APP    | 2026-07-08 | $522.18 | RR=0.00 | PASSED
+  META   | 2026-07-08 | $603.12 | RR=0.00 | PASSED
+  LLY    | 2026-07-08 | $1215.83 | RR=0.00 | PASSED
+  NEM    | 2026-07-08 | $93.20 | RR=0.00 | PASSED
+  WDC    | 2026-07-08 | $550.30 | RR=2.03 | WATCH
+  GOOG   | 2026-07-08 | $358.71 | RR=3.75 | WAIT
+  MU     | 2026-07-08 | $948.80 | RR=0.00 | PASSED
+  LVS    | 2026-07-08 | $46.19 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-08 | $361.92 | RR=3.62 | WAIT
+  NVDA   | 2026-07-08 | $204.12 | RR=1.08 | PASSED
+  INCY   | 2026-07-08 | $117.26 | RR=0.00 | PASSED
+  PODD   | 2026-07-08 | $157.46 | RR=0.00 | PASSED
+  RSI    | 2026-07-08 | $32.74 | RR=0.00 | PASSED
+  CELH   | 2026-07-08 | $30.60 | RR=0.00 | PASSED
+  ANET   | 2026-07-08 | $181.05 | RR=1.41 | PASSED
+  FSLR   | 2026-07-08 | $224.30 | RR=0.00 | PASSED
+  LRCX   | 2026-07-08 | $333.15 | RR=2.06 | WATCH
+  STX    | 2026-07-08 | $860.02 | RR=1.42 | PASSED
+  CIEN   | 2026-07-08 | $440.97 | RR=0.00 | PASSED
+  AFL    | 2026-07-08 | $121.44 | RR=3.03 | WAIT
+  AMZN   | 2026-07-08 | $243.62 | RR=3.50 | WAIT
+  EQT    | 2026-07-08 | $51.16 | RR=0.00 | PASSED
+  GEV    | 2026-07-08 | $1070.99 | RR=3.11 | WAIT
+  NFLX   | 2026-07-08 | $75.59 | RR=0.00 | PASSED
+  ZM     | 2026-07-08 | $87.40 | RR=0.00 | PASSED
+  AAPL   | 2026-07-08 | $313.39 | RR=0.00 | PASSED
+  HSY    | 2026-07-08 | $174.41 | RR=0.00 | PASSED
+  ADI    | 2026-07-08 | $385.40 | RR=0.00 | PASSED
+  BLK    | 2026-07-08 | $990.34 | RR=0.00 | PASSED
+  DXCM   | 2026-07-08 | $74.06 | RR=0.00 | PASSED
+  GLW    | 2026-07-08 | $184.03 | RR=3.27 | WAIT
+  RRC    | 2026-07-08 | $37.24 | RR=0.00 | PASSED
+  TOST   | 2026-07-08 | $28.57 | RR=0.00 | PASSED
+  ALL    | 2026-07-08 | $251.17 | RR=0.00 | PASSED
+  CEG    | 2026-07-08 | $244.52 | RR=0.00 | PASSED
+  THC    | 2026-07-08 | $206.26 | RR=0.00 | PASSED
+  ZION   | 2026-07-08 | $68.64 | RR=0.00 | PASSED
+  AMAT   | 2026-07-08 | $570.50 | RR=0.00 | PASSED
+  OHI    | 2026-07-08 | $49.36 | RR=0.00 | PASSED
+  EA     | 2026-07-08 | $204.89 | RR=3.69 | WAIT
+  FCX    | 2026-07-08 | $57.50 | RR=0.00 | PASSED
+  NXPI   | 2026-07-08 | $283.81 | RR=0.00 | PASSED
+  ICE    | 2026-07-08 | $137.17 | RR=0.00 | PASSED
+  VRTX   | 2026-07-08 | $498.43 | RR=0.00 | PASSED
+  CCJ    | 2026-07-08 | $94.73 | RR=0.00 | PASSED
+  AMP    | 2026-07-08 | $490.58 | RR=0.00 | PASSED
+  GILD   | 2026-07-08 | $135.82 | RR=0.00 | PASSED
+  NOC    | 2026-07-08 | $545.11 | RR=0.00 | PASSED
+  VICI   | 2026-07-08 | $26.09 | RR=0.00 | PASSED
+  C      | 2026-07-08 | $137.39 | RR=5.32 | WAIT
+[Daily] Failed tickers: AVGO, SOFI, COF, FTNT, TXN, TEL, TRV, BK, MSFT
+[Daily] Done. 51/60 tickers updated. dates=2026-07-08
+[Daily] WARN: daily_picks updated 51/60, failed=9, dates=2026-07-08 (15.9s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (4.5s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 305 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 99
+[Stage2] Batch 2/4 (100 tickers)... saved 69
+[Stage2] Batch 3/4 (100 tickers)... saved 21
+[Stage2] Batch 4/4 (5 tickers)... saved 5
+[Stage2] Incremental done. 194/305 tickers updated.
+[DailyPrice] WARN: price_data updated 194/305 tickers (165.8s)
+[Daily] Adjusting picks for 2026-07-10...
+  PLTR   | 2026-07-09 | $129.04 | RR=0.00 | PASSED
+  APP    | 2026-07-09 | $520.43 | RR=0.00 | PASSED
+  META   | 2026-07-09 | $631.48 | RR=0.00 | PASSED
+  LLY    | 2026-07-09 | $1216.95 | RR=0.00 | PASSED
+  NEM    | 2026-07-09 | $94.81 | RR=0.00 | PASSED
+  WDC    | 2026-07-09 | $578.05 | RR=1.21 | PASSED
+  GOOG   | 2026-07-09 | $356.24 | RR=4.25 | WAIT
+  MU     | 2026-07-09 | $991.64 | RR=0.00 | PASSED
+  LVS    | 2026-07-09 | $46.45 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-09 | $358.89 | RR=4.09 | WAIT
+  NVDA   | 2026-07-09 | $202.78 | RR=1.29 | PASSED
+  INCY   | 2026-07-09 | $118.52 | RR=0.00 | PASSED
+  PODD   | 2026-07-09 | $158.29 | RR=0.00 | PASSED
+  RSI    | 2026-07-09 | $32.63 | RR=0.00 | PASSED
+  CELH   | 2026-07-09 | $30.52 | RR=0.00 | PASSED
+  ANET   | 2026-07-09 | $184.69 | RR=1.19 | PASSED
+  FSLR   | 2026-07-09 | $228.50 | RR=0.00 | PASSED
+  LRCX   | 2026-07-09 | $353.17 | RR=0.84 | PASSED
+  SOFI   | 2026-07-09 | $18.62 | RR=0.00 | PASSED
+  CIEN   | 2026-07-09 | $462.34 | RR=0.00 | PASSED
+  AFL    | 2026-07-09 | $121.99 | RR=2.75 | WAIT
+  AMZN   | 2026-07-09 | $247.04 | RR=2.81 | WAIT
+  EQT    | 2026-07-09 | $50.15 | RR=0.00 | PASSED
+  NFLX   | 2026-07-09 | $75.47 | RR=0.00 | PASSED
+  AAPL   | 2026-07-09 | $316.22 | RR=0.00 | PASSED
+  COF    | 2026-07-09 | $200.10 | RR=0.00 | PASSED
+  HSY    | 2026-07-09 | $171.65 | RR=0.00 | PASSED
+  BLK    | 2026-07-09 | $1019.68 | RR=0.00 | PASSED
+  DXCM   | 2026-07-09 | $73.02 | RR=0.00 | PASSED
+  GLW    | 2026-07-09 | $192.38 | RR=2.01 | WATCH
+  RRC    | 2026-07-09 | $36.73 | RR=0.00 | PASSED
+  TOST   | 2026-07-09 | $28.85 | RR=0.00 | PASSED
+  ALL    | 2026-07-09 | $248.64 | RR=0.00 | PASSED
+  CEG    | 2026-07-09 | $250.74 | RR=0.00 | PASSED
+  THC    | 2026-07-09 | $206.77 | RR=0.00 | PASSED
+  ZION   | 2026-07-09 | $70.02 | RR=0.00 | PASSED
+  AMAT   | 2026-07-09 | $588.66 | RR=0.00 | PASSED
+  FTNT   | 2026-07-09 | $163.73 | RR=0.00 | PASSED
+  TXN    | 2026-07-09 | $308.53 | RR=1.32 | PASSED
+  OHI    | 2026-07-09 | $48.83 | RR=0.00 | PASSED
+  EA     | 2026-07-09 | $206.56 | RR=2.08 | WATCH
+  FCX    | 2026-07-09 | $60.53 | RR=0.00 | PASSED
+  NXPI   | 2026-07-09 | $290.54 | RR=0.00 | PASSED
+  TEL    | 2026-07-09 | $198.91 | RR=0.00 | PASSED
+  ICE    | 2026-07-09 | $135.11 | RR=0.00 | PASSED
+  TRV    | 2026-07-09 | $337.48 | RR=0.00 | PASSED
+  VRTX   | 2026-07-09 | $496.50 | RR=0.00 | PASSED
+  CCJ    | 2026-07-09 | $95.74 | RR=0.00 | PASSED
+  BK     | 2026-07-02 | $146.62 | RR=3.00 | WAIT
+  AMP    | 2026-07-09 | $500.16 | RR=0.00 | PASSED
+  GILD   | 2026-07-09 | $134.84 | RR=0.00 | PASSED
+  MSFT   | 2026-07-09 | $384.36 | RR=0.00 | PASSED
+  NOC    | 2026-07-09 | $532.23 | RR=0.00 | PASSED
+  C      | 2026-07-09 | $139.57 | RR=3.60 | WAIT
+[Daily] Failed tickers: AVGO, STX, GEV, ZM, ADI, VICI
+[Daily] Done. 54/60 tickers updated. dates=2026-07-02,2026-07-09
+[Daily] WARN: daily_picks updated 54/60, failed=6, dates=2026-07-02,2026-07-09 (16.3s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (4.3s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 304 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 98
+[Stage2] Batch 2/4 (100 tickers)... saved 65
+[Stage2] Batch 3/4 (100 tickers)... saved 32
+[Stage2] Batch 4/4 (4 tickers)... saved 4
+[Stage2] Incremental done. 199/304 tickers updated.
+[DailyPrice] WARN: price_data updated 199/304 tickers (167.7s)
+[Daily] Adjusting picks for 2026-07-11...
+  PLTR   | 2026-07-10 | $126.79 | RR=0.00 | PASSED
+  APP    | 2026-07-10 | $506.98 | RR=0.00 | PASSED
+  META   | 2026-07-10 | $669.21 | RR=0.00 | PASSED
+  NEM    | 2026-07-10 | $95.29 | RR=0.00 | PASSED
+  GOOG   | 2026-07-10 | $355.03 | RR=4.53 | WAIT
+  LVS    | 2026-07-10 | $46.69 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-10 | $357.18 | RR=4.40 | WAIT
+  NVDA   | 2026-07-10 | $210.96 | RR=0.43 | PASSED
+  INCY   | 2026-07-10 | $116.71 | RR=0.00 | PASSED
+  PODD   | 2026-07-10 | $161.28 | RR=0.00 | PASSED
+  RSI    | 2026-07-10 | $33.40 | RR=0.00 | PASSED
+  CELH   | 2026-07-10 | $30.60 | RR=0.00 | PASSED
+  LRCX   | 2026-07-10 | $350.33 | RR=0.95 | PASSED
+  SOFI   | 2026-07-10 | $18.78 | RR=0.00 | PASSED
+  STX    | 2026-07-10 | $910.34 | RR=0.50 | PASSED
+  CIEN   | 2026-07-10 | $460.72 | RR=0.00 | PASSED
+  AFL    | 2026-07-10 | $121.91 | RR=2.78 | WAIT
+  AMZN   | 2026-07-10 | $245.34 | RR=3.12 | WAIT
+  EQT    | 2026-07-10 | $48.85 | RR=0.00 | PASSED
+  GEV    | 2026-07-10 | $1091.57 | RR=2.76 | WATCH
+  NFLX   | 2026-07-10 | $73.37 | RR=0.00 | PASSED
+  ZM     | 2026-07-10 | $89.76 | RR=0.00 | PASSED
+  AAPL   | 2026-07-10 | $315.32 | RR=0.00 | PASSED
+  COF    | 2026-07-10 | $201.52 | RR=0.00 | PASSED
+  HSY    | 2026-07-10 | $173.66 | RR=0.00 | PASSED
+  ADI    | 2026-07-10 | $395.65 | RR=0.00 | PASSED
+  BLK    | 2026-07-10 | $1036.11 | RR=0.00 | PASSED
+  GLW    | 2026-07-10 | $190.89 | RR=2.18 | WATCH
+  RRC    | 2026-07-10 | $35.49 | RR=0.00 | PASSED
+  TOST   | 2026-07-10 | $29.32 | RR=0.00 | PASSED
+  ALL    | 2026-07-10 | $251.61 | RR=0.00 | PASSED
+  CEG    | 2026-07-10 | $251.38 | RR=0.00 | PASSED
+  THC    | 2026-07-10 | $204.25 | RR=0.00 | PASSED
+  ZION   | 2026-07-10 | $70.66 | RR=0.00 | PASSED
+  FTNT   | 2026-07-10 | $157.51 | RR=0.00 | PASSED
+  TXN    | 2026-07-10 | $311.46 | RR=1.14 | PASSED
+  OHI    | 2026-07-10 | $48.30 | RR=0.00 | PASSED
+  EA     | 2026-07-10 | $206.41 | RR=2.17 | WAIT
+  FCX    | 2026-07-10 | $61.52 | RR=0.00 | PASSED
+  NXPI   | 2026-07-10 | $292.26 | RR=0.00 | PASSED
+  TEL    | 2026-07-10 | $200.36 | RR=0.00 | PASSED
+  ICE    | 2026-07-10 | $135.26 | RR=0.00 | PASSED
+  TRV    | 2026-07-10 | $338.92 | RR=0.00 | PASSED
+  CCJ    | 2026-07-10 | $95.99 | RR=0.00 | PASSED
+  AMP    | 2026-07-10 | $506.76 | RR=0.00 | PASSED
+  GILD   | 2026-07-10 | $129.83 | RR=0.00 | PASSED
+  MSFT   | 2026-07-10 | $385.10 | RR=0.00 | PASSED
+  VICI   | 2026-07-10 | $26.01 | RR=0.00 | PASSED
+[Daily] Failed tickers: LLY, WDC, MU, AVGO, ANET, FSLR, DXCM, AMAT, VRTX, BK, NOC, C
+[Daily] Done. 48/60 tickers updated. dates=2026-07-10
+[Daily] WARN: daily_picks updated 48/60, failed=12, dates=2026-07-10 (15.7s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (4.2s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 304 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 99
+[Stage2] Batch 2/4 (100 tickers)... saved 73
+[Stage2] Batch 3/4 (100 tickers)... saved 52
+[Stage2] Batch 4/4 (4 tickers)... saved 4
+[Stage2] Incremental done. 228/304 tickers updated.
+[DailyPrice] WARN: price_data updated 228/304 tickers (193.8s)
+[Daily] Adjusting picks for 2026-07-12...
+  PLTR   | 2026-07-10 | $126.79 | RR=0.00 | PASSED
+  APP    | 2026-07-10 | $506.98 | RR=0.00 | PASSED
+  META   | 2026-07-10 | $669.21 | RR=0.00 | PASSED
+  LLY    | 2026-07-10 | $1188.58 | RR=0.00 | PASSED
+  NEM    | 2026-07-10 | $95.29 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-10 | $357.18 | RR=4.40 | WAIT
+  AVGO   | 2026-07-10 | $399.97 | RR=0.00 | PASSED
+  PODD   | 2026-07-10 | $161.28 | RR=0.00 | PASSED
+  CELH   | 2026-07-10 | $30.60 | RR=0.00 | PASSED
+  FSLR   | 2026-07-10 | $227.83 | RR=0.00 | PASSED
+  CIEN   | 2026-07-10 | $460.72 | RR=0.00 | PASSED
+  AMZN   | 2026-07-10 | $245.34 | RR=3.12 | WAIT
+  EQT    | 2026-07-10 | $48.85 | RR=0.00 | PASSED
+  ZM     | 2026-07-10 | $89.76 | RR=0.00 | PASSED
+  COF    | 2026-07-10 | $201.52 | RR=0.00 | PASSED
+  HSY    | 2026-07-10 | $173.66 | RR=0.00 | PASSED
+  ADI    | 2026-07-10 | $395.65 | RR=0.00 | PASSED
+  DXCM   | 2026-07-10 | $74.96 | RR=0.00 | PASSED
+  TOST   | 2026-07-10 | $29.32 | RR=0.00 | PASSED
+  THC    | 2026-07-10 | $204.25 | RR=0.00 | PASSED
+  AMAT   | 2026-07-10 | $602.50 | RR=0.00 | PASSED
+  TXN    | 2026-07-10 | $311.46 | RR=1.14 | PASSED
+  OHI    | 2026-07-10 | $48.30 | RR=0.00 | PASSED
+  EA     | 2026-07-10 | $206.41 | RR=2.17 | WAIT
+  FCX    | 2026-07-10 | $61.52 | RR=0.00 | PASSED
+  NXPI   | 2026-07-10 | $292.26 | RR=0.00 | PASSED
+  TEL    | 2026-07-10 | $200.36 | RR=0.00 | PASSED
+  TRV    | 2026-07-10 | $338.92 | RR=0.00 | PASSED
+  CCJ    | 2026-07-10 | $95.99 | RR=0.00 | PASSED
+  MSFT   | 2026-07-10 | $385.10 | RR=0.00 | PASSED
+  NOC    | 2026-07-10 | $539.63 | RR=0.00 | PASSED
+  VICI   | 2026-07-10 | $26.01 | RR=0.00 | PASSED
+  C      | 2026-07-10 | $140.79 | RR=2.99 | WAIT
+[Daily] Failed tickers: WDC, GOOG, MU, LVS, NVDA, INCY, RSI, ANET, LRCX, SOFI, STX, AFL, GEV, NFLX, AAPL, BLK, GLW, RRC, ALL, CEG, ZION, FTNT, ICE, VRTX, BK, AMP, GILD
+[Daily] Done. 33/60 tickers updated. dates=2026-07-10
+[Daily] WARN: daily_picks updated 33/60, failed=27, dates=2026-07-10 (14.6s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (6.4s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 304 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 99
+[Stage2] Batch 2/4 (100 tickers)... saved 65
+[Stage2] Batch 3/4 (100 tickers)... saved 46
+[Stage2] Batch 4/4 (4 tickers)... saved 4
+[Stage2] Incremental done. 214/304 tickers updated.
+[DailyPrice] WARN: price_data updated 214/304 tickers (185.1s)
+[Daily] Adjusting picks for 2026-07-13...
+  APP    | 2026-07-10 | $506.98 | RR=0.00 | PASSED
+  LLY    | 2026-07-10 | $1188.58 | RR=0.00 | PASSED
+  NEM    | 2026-07-10 | $95.29 | RR=0.00 | PASSED
+  GOOG   | 2026-07-10 | $355.03 | RR=4.53 | WAIT
+  LVS    | 2026-07-10 | $46.69 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-10 | $357.18 | RR=4.40 | WAIT
+  AVGO   | 2026-07-10 | $399.97 | RR=0.00 | PASSED
+  NVDA   | 2026-07-10 | $210.96 | RR=0.43 | PASSED
+  CELH   | 2026-07-10 | $30.60 | RR=0.00 | PASSED
+  SOFI   | 2026-07-10 | $18.78 | RR=0.00 | PASSED
+  STX    | 2026-07-10 | $910.34 | RR=0.50 | PASSED
+  EQT    | 2026-07-10 | $48.85 | RR=0.00 | PASSED
+  GEV    | 2026-07-10 | $1091.57 | RR=2.76 | WATCH
+  NFLX   | 2026-07-10 | $73.37 | RR=0.00 | PASSED
+  AAPL   | 2026-07-10 | $315.32 | RR=0.00 | PASSED
+  HSY    | 2026-07-10 | $173.66 | RR=0.00 | PASSED
+  RRC    | 2026-07-10 | $35.49 | RR=0.00 | PASSED
+  TOST   | 2026-07-10 | $29.32 | RR=0.00 | PASSED
+  ZION   | 2026-07-10 | $70.66 | RR=0.00 | PASSED
+  AMAT   | 2026-07-10 | $602.50 | RR=0.00 | PASSED
+  FTNT   | 2026-07-10 | $157.51 | RR=0.00 | PASSED
+  EA     | 2026-07-10 | $206.41 | RR=2.17 | WAIT
+  FCX    | 2026-07-10 | $61.52 | RR=0.00 | PASSED
+  NXPI   | 2026-07-10 | $292.26 | RR=0.00 | PASSED
+  TEL    | 2026-07-10 | $200.36 | RR=0.00 | PASSED
+  NOC    | 2026-07-10 | $539.63 | RR=0.00 | PASSED
+  C      | 2026-07-10 | $140.79 | RR=2.99 | WAIT
+[Daily] Failed tickers: PLTR, META, WDC, MU, INCY, PODD, RSI, ANET, FSLR, LRCX, CIEN, AFL, AMZN, ZM, COF, ADI, BLK, DXCM, GLW, ALL, CEG, THC, TXN, OHI, ICE, TRV, VRTX, CCJ, BK, AMP, GILD, MSFT, VICI
+[Daily] Done. 27/60 tickers updated. dates=2026-07-10
+[Daily] WARN: daily_picks updated 27/60, failed=33, dates=2026-07-10 (14.9s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (4.5s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 305 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 98
+[Stage2] Batch 2/4 (100 tickers)... saved 62
+[Stage2] Batch 3/4 (100 tickers)... saved 35
+[Stage2] Batch 4/4 (5 tickers)... saved 5
+[Stage2] Incremental done. 200/305 tickers updated.
+[DailyPrice] WARN: price_data updated 200/305 tickers (169.9s)
+[Daily] Adjusting picks for 2026-07-15...
+  APP    | 2026-07-14 | $448.98 | RR=0.00 | PASSED
+  LLY    | 2026-07-14 | $1152.54 | RR=0.00 | PASSED
+  NEM    | 2026-07-14 | $94.75 | RR=0.00 | PASSED
+  WDC    | 2026-07-14 | $563.32 | RR=1.58 | WATCH
+  MU     | 2026-07-14 | $983.12 | RR=0.00 | PASSED
+  INCY   | 2026-07-14 | $114.88 | RR=0.00 | PASSED
+  RSI    | 2026-07-14 | $33.51 | RR=0.00 | PASSED
+  CELH   | 2026-07-14 | $30.14 | RR=0.00 | PASSED
+  AFL    | 2026-07-14 | $122.05 | RR=2.72 | WAIT
+  GEV    | 2026-07-14 | $1066.01 | RR=3.20 | WAIT
+  NFLX   | 2026-07-14 | $73.53 | RR=0.00 | PASSED
+  ZM     | 2026-07-14 | $91.15 | RR=0.00 | PASSED
+  COF    | 2026-07-14 | $205.29 | RR=0.00 | PASSED
+  HSY    | 2026-07-14 | $171.46 | RR=0.00 | PASSED
+  ADI    | 2026-07-14 | $392.75 | RR=0.00 | PASSED
+  DXCM   | 2026-07-14 | $74.12 | RR=0.00 | PASSED
+  GLW    | 2026-07-14 | $187.64 | RR=2.62 | WATCH
+  RRC    | 2026-07-14 | $36.46 | RR=0.00 | PASSED
+  ALL    | 2026-07-14 | $250.35 | RR=0.00 | PASSED
+  THC    | 2026-07-14 | $183.69 | RR=0.00 | PASSED
+  ZION   | 2026-07-14 | $70.42 | RR=0.00 | PASSED
+  AMAT   | 2026-07-14 | $595.70 | RR=0.00 | PASSED
+  FTNT   | 2026-07-14 | $166.83 | RR=0.00 | PASSED
+  OHI    | 2026-07-14 | $48.29 | RR=0.00 | PASSED
+  EA     | 2026-07-14 | $206.65 | RR=2.02 | WATCH
+  NXPI   | 2026-07-14 | $283.87 | RR=0.00 | PASSED
+  TEL    | 2026-07-14 | $200.98 | RR=0.00 | PASSED
+  TRV    | 2026-07-14 | $336.83 | RR=0.00 | PASSED
+  VRTX   | 2026-07-14 | $476.31 | RR=0.00 | PASSED
+  CCJ    | 2026-07-14 | $91.57 | RR=0.00 | PASSED
+  GILD   | 2026-07-14 | $130.04 | RR=0.00 | PASSED
+  MSFT   | 2026-07-14 | $384.93 | RR=0.00 | PASSED
+  NOC    | 2026-07-14 | $528.67 | RR=0.00 | PASSED
+  VICI   | 2026-07-14 | $26.28 | RR=0.00 | PASSED
+[Daily] Failed tickers: PLTR, META, GOOG, LVS, GOOGL, AVGO, NVDA, PODD, ANET, FSLR, LRCX, SOFI, STX, CIEN, AMZN, EQT, AAPL, BLK, TOST, CEG, TXN, FCX, ICE, BK, AMP, C
+[Daily] Done. 34/60 tickers updated. dates=2026-07-14
+[Daily] WARN: daily_picks updated 34/60, failed=26, dates=2026-07-14 (14.3s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (4.8s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 302 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 98
+[Stage2] Batch 2/4 (100 tickers)... saved 68
+[Stage2] Batch 3/4 (100 tickers)... saved 62
+[Stage2] Batch 4/4 (2 tickers)... saved 2
+[Stage2] Incremental done. 230/302 tickers updated.
+[DailyPrice] WARN: price_data updated 230/302 tickers (186.1s)
+[Daily] Adjusting picks for 2026-07-16...
+  PLTR   | 2026-07-15 | $133.76 | RR=0.00 | PASSED
+  APP    | 2026-07-15 | $452.73 | RR=0.00 | PASSED
+  META   | 2026-07-15 | $681.31 | RR=0.00 | PASSED
+  LLY    | 2026-07-15 | $1156.63 | RR=0.00 | PASSED
+  GOOG   | 2026-07-15 | $370.21 | RR=2.30 | WATCH
+  MU     | 2026-07-15 | $904.28 | RR=0.00 | PASSED
+  LVS    | 2026-07-15 | $44.79 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-15 | $370.92 | RR=2.63 | WATCH
+  INCY   | 2026-07-15 | $115.09 | RR=0.00 | PASSED
+  RSI    | 2026-07-15 | $32.93 | RR=0.00 | PASSED
+  ANET   | 2026-07-15 | $171.92 | RR=2.21 | WATCH
+  FSLR   | 2026-07-15 | $223.82 | RR=0.00 | PASSED
+  SOFI   | 2026-07-15 | $17.87 | RR=0.00 | PASSED
+  STX    | 2026-07-15 | $828.30 | RR=2.95 | WAIT
+  AFL    | 2026-07-15 | $121.01 | RR=3.28 | WAIT
+  AMZN   | 2026-07-15 | $254.96 | RR=1.81 | WATCH
+  EQT    | 2026-07-15 | $49.25 | RR=0.00 | PASSED
+  GEV    | 2026-07-15 | $1055.28 | RR=3.42 | WAIT
+  NFLX   | 2026-07-15 | $73.68 | RR=0.00 | PASSED
+  ZM     | 2026-07-15 | $92.60 | RR=0.00 | PASSED
+  AAPL   | 2026-07-15 | $327.50 | RR=0.00 | PASSED
+  HSY    | 2026-07-15 | $170.27 | RR=0.00 | PASSED
+  ADI    | 2026-07-15 | $390.96 | RR=0.00 | PASSED
+  DXCM   | 2026-07-15 | $72.73 | RR=0.00 | PASSED
+  RRC    | 2026-07-15 | $36.05 | RR=0.00 | PASSED
+  TOST   | 2026-07-15 | $30.39 | RR=0.00 | PASSED
+  ALL    | 2026-07-15 | $239.48 | RR=0.00 | PASSED
+  CEG    | 2026-07-15 | $258.11 | RR=0.00 | PASSED
+  THC    | 2026-07-15 | $192.34 | RR=0.00 | PASSED
+  FTNT   | 2026-07-15 | $164.51 | RR=0.00 | PASSED
+  EA     | 2026-07-15 | $207.27 | RR=1.68 | WATCH
+  FCX    | 2026-07-15 | $60.97 | RR=0.00 | PASSED
+  NXPI   | 2026-07-15 | $279.01 | RR=0.00 | PASSED
+  TEL    | 2026-07-15 | $201.34 | RR=0.00 | PASSED
+  ICE    | 2026-07-15 | $139.84 | RR=0.00 | PASSED
+  TRV    | 2026-07-15 | $329.19 | RR=0.00 | PASSED
+  VRTX   | 2026-07-15 | $477.08 | RR=0.00 | PASSED
+  CCJ    | 2026-07-15 | $90.98 | RR=0.00 | PASSED
+  AMP    | 2026-07-15 | $527.28 | RR=0.00 | PASSED
+  MSFT   | 2026-07-15 | $395.63 | RR=0.00 | PASSED
+  NOC    | 2026-07-15 | $525.22 | RR=0.00 | PASSED
+  VICI   | 2026-07-15 | $26.31 | RR=0.00 | PASSED
+  C      | 2026-07-15 | $134.89 | RR=10.06 | WAIT
+[Daily] Failed tickers: NEM, WDC, AVGO, NVDA, PODD, CELH, LRCX, CIEN, COF, BLK, GLW, ZION, AMAT, TXN, OHI, BK, GILD
+[Daily] Done. 43/60 tickers updated. dates=2026-07-15
+[Daily] WARN: daily_picks updated 43/60, failed=17, dates=2026-07-15 (15.0s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 13件処理
+[TechDaily] OK: Tech daily picks updated (4.3s)
+[Daily] Running daily adjustment — 07:01
+[Daily] Running daily adjustment — 07:09
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 296 tickers...
+[Stage2] Batch 1/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 2/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 3/3 (96 tickers)... error: connection already closed
+[Stage2] Incremental done. 0/296 tickers updated.
+[DailyPrice] WARN: price_data updated 0/296 tickers (2972.8s)
+[Daily] Adjusting picks for 2026-07-19...
+[Daily] ERROR: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+ (928.0s)
+[ERROR] Daily adjustment failed: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] SLB エラー: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[TechDaily] ERROR: connection already closed (1038.8s)
+[WARN] Tech daily adjustment failed: connection already closed
+[Daily] Running daily adjustment — 07:07
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 308 tickers...
+[Stage2] Batch 1/4 (100 tickers)... error: connection already closed
+[Stage2] Batch 2/4 (100 tickers)... error: connection already closed
+[Stage2] Batch 3/4 (100 tickers)... error: connection already closed
+[Stage2] Batch 4/4 (8 tickers)... saved 8
+[Stage2] Incremental done. 8/308 tickers updated.
+[DailyPrice] WARN: price_data updated 8/308 tickers (3628.2s)
+[Daily] Adjusting picks for 2026-07-21...
+  NEM    | 2026-07-20 | $89.20 | RR=0.00 | PASSED
+  RSI    | 2026-07-20 | $34.52 | RR=1.82 | WATCH
+  SOFI   | 2026-07-20 | $17.01 | RR=0.00 | PASSED
+  ADI    | 2026-07-20 | $372.46 | RR=0.00 | PASSED
+  GLW    | 2026-07-20 | $153.10 | RR=0.00 | PASSED
+  RRC    | 2026-07-20 | $36.67 | RR=0.00 | PASSED
+  ZION   | 2026-07-20 | $71.89 | RR=0.00 | PASSED
+  TXN    | 2026-07-20 | $284.07 | RR=2.98 | WAIT
+  TEL    | 2026-07-20 | $203.14 | RR=0.00 | PASSED
+  VRTX   | 2026-07-20 | $480.50 | RR=3.65 | WAIT
+  C      | 2026-07-20 | $128.72 | RR=0.00 | PASSED
+[Daily] Failed tickers: PLTR, APP, META, LLY, WDC, GOOG, MU, LVS, GOOGL, AVGO, NVDA, INCY, PODD, GS, CELH, ANET, FSLR, LRCX, STX, CIEN, AFL, AMZN, EQT, GEV, ZM, AAPL, COF, HSY, DXCM, TOST, ALL, CEG, THC, AMAT, FTNT, OHI, EA, FCX, JPM, MKTX, MS, NXPI, ICE, CCJ, BK, AMP, GILD, MSFT, NOC
+[Daily] Done. 11/60 tickers updated. dates=2026-07-20
+[Daily] WARN: daily_picks updated 11/60, failed=49, dates=2026-07-20 (14.0s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 7件処理
+[TechDaily] OK: Tech daily picks updated (4.2s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 307 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 99
+[Stage2] Batch 2/4 (100 tickers)... saved 66
+[Stage2] Batch 3/4 (100 tickers)... saved 39
+[Stage2] Batch 4/4 (7 tickers)... saved 7
+[Stage2] Incremental done. 211/307 tickers updated.
+[DailyPrice] WARN: price_data updated 211/307 tickers (184.9s)
+[Daily] Adjusting picks for 2026-07-22...
+  LLY    | 2026-07-21 | $1175.41 | RR=3.15 | WAIT
+  NEM    | 2026-07-21 | $92.49 | RR=0.00 | PASSED
+  WDC    | 2026-07-21 | $548.39 | RR=0.00 | PASSED
+  MU     | 2026-07-21 | $970.82 | RR=0.00 | PASSED
+  NVDA   | 2026-07-21 | $207.29 | RR=2.02 | WATCH
+  INCY   | 2026-07-21 | $117.39 | RR=0.00 | PASSED
+  PODD   | 2026-07-21 | $163.72 | RR=0.00 | PASSED
+  GS     | 2026-07-21 | $1085.56 | RR=2.06 | WATCH
+  RSI    | 2026-07-21 | $33.65 | RR=2.23 | WATCH
+  CELH   | 2026-07-21 | $28.02 | RR=0.00 | PASSED
+  SOFI   | 2026-07-21 | $17.64 | RR=0.00 | PASSED
+  STX    | 2026-07-21 | $891.83 | RR=0.00 | PASSED
+  CIEN   | 2026-07-21 | $408.73 | RR=0.00 | PASSED
+  AMZN   | 2026-07-21 | $247.55 | RR=2.94 | WAIT
+  EQT    | 2026-07-21 | $49.80 | RR=0.00 | PASSED
+  GEV    | 2026-07-21 | $1078.81 | RR=2.18 | WATCH
+  AAPL   | 2026-07-21 | $327.74 | RR=0.00 | PASSED
+  HSY    | 2026-07-21 | $170.63 | RR=0.00 | PASSED
+  ADI    | 2026-07-21 | $382.81 | RR=0.00 | PASSED
+  ALL    | 2026-07-21 | $251.74 | RR=0.00 | PASSED
+  CEG    | 2026-07-21 | $262.22 | RR=0.00 | PASSED
+  ZION   | 2026-07-21 | $69.05 | RR=0.00 | PASSED
+  AMAT   | 2026-07-21 | $564.55 | RR=0.50 | PASSED
+  TXN    | 2026-07-21 | $291.30 | RR=1.28 | PASSED
+  EA     | 2026-07-21 | $209.04 | RR=2.92 | WAIT
+  FCX    | 2026-07-21 | $62.56 | RR=0.00 | PASSED
+  MKTX   | 2026-07-21 | $112.27 | RR=0.00 | PASSED
+  MS     | 2026-07-21 | $216.40 | RR=2.65 | WAIT
+  TEL    | 2026-07-21 | $209.01 | RR=0.00 | PASSED
+  BK     | 2026-07-17 | $157.13 | RR=0.00 | PASSED
+  AMP    | 2026-07-21 | $528.37 | RR=0.00 | PASSED
+  GILD   | 2026-07-21 | $130.28 | RR=4.94 | WAIT
+  MSFT   | 2026-07-21 | $397.75 | RR=0.00 | PASSED
+  NOC    | 2026-07-21 | $512.29 | RR=0.00 | PASSED
+[Daily] Failed tickers: PLTR, APP, META, GOOG, LVS, GOOGL, AVGO, ANET, FSLR, LRCX, AFL, ZM, COF, DXCM, GLW, RRC, TOST, THC, FTNT, OHI, JPM, NXPI, ICE, VRTX, CCJ, C
+[Daily] Done. 34/60 tickers updated. dates=2026-07-17,2026-07-21
+[Daily] WARN: daily_picks updated 34/60, failed=26, dates=2026-07-17,2026-07-21 (14.9s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 7件処理
+[TechDaily] OK: Tech daily picks updated (3.3s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 303 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 99
+[Stage2] Batch 2/4 (100 tickers)... saved 65
+[Stage2] Batch 3/4 (100 tickers)... saved 42
+[Stage2] Batch 4/4 (3 tickers)... saved 3
+[Stage2] Incremental done. 209/303 tickers updated.
+[DailyPrice] WARN: price_data updated 209/303 tickers (177.0s)
+[Daily] Adjusting picks for 2026-07-23...
+  PLTR   | 2026-07-22 | $124.57 | RR=0.00 | PASSED
+  APP    | 2026-07-22 | $412.48 | RR=0.00 | PASSED
+  META   | 2026-07-22 | $627.17 | RR=0.00 | PASSED
+  LLY    | 2026-07-22 | $1163.01 | RR=3.74 | WAIT
+  NEM    | 2026-07-22 | $95.75 | RR=0.00 | PASSED
+  GOOG   | 2026-07-22 | $341.91 | RR=4.80 | WAIT
+  MU     | 2026-07-22 | $959.48 | RR=0.00 | PASSED
+  NVDA   | 2026-07-22 | $212.06 | RR=1.39 | PASSED
+  INCY   | 2026-07-22 | $115.79 | RR=0.00 | PASSED
+  GS     | 2026-07-22 | $1098.20 | RR=1.67 | WATCH
+  RSI    | 2026-07-22 | $31.21 | RR=4.46 | WAIT
+  CELH   | 2026-07-22 | $28.47 | RR=0.00 | PASSED
+  FSLR   | 2026-07-22 | $208.86 | RR=0.00 | PASSED
+  LRCX   | 2026-07-22 | $319.29 | RR=0.00 | PASSED
+  STX    | 2026-07-22 | $908.10 | RR=0.00 | PASSED
+  CIEN   | 2026-07-22 | $397.16 | RR=0.00 | PASSED
+  AFL    | 2026-07-22 | $123.58 | RR=0.00 | PASSED
+  ZM     | 2026-07-22 | $85.81 | RR=8.47 | WAIT
+  AAPL   | 2026-07-22 | $325.89 | RR=0.00 | PASSED
+  COF    | 2026-07-22 | $201.36 | RR=0.00 | PASSED
+  HSY    | 2026-07-22 | $172.33 | RR=0.00 | PASSED
+  ADI    | 2026-07-22 | $386.73 | RR=0.00 | PASSED
+  RRC    | 2026-07-22 | $38.75 | RR=0.00 | PASSED
+  TOST   | 2026-07-22 | $29.21 | RR=0.00 | PASSED
+  ALL    | 2026-07-22 | $251.83 | RR=0.00 | PASSED
+  THC    | 2026-07-22 | $195.35 | RR=2.93 | WAIT
+  ZION   | 2026-07-22 | $70.07 | RR=0.00 | PASSED
+  EA     | 2026-07-22 | $208.95 | RR=2.97 | WAIT
+  JPM    | 2026-07-22 | $348.21 | RR=1.86 | WATCH
+  MKTX   | 2026-07-22 | $112.95 | RR=0.00 | PASSED
+  MS     | 2026-07-22 | $218.50 | RR=2.04 | WATCH
+  NXPI   | 2026-07-22 | $278.80 | RR=0.00 | PASSED
+  ICE    | 2026-07-22 | $142.53 | RR=0.00 | PASSED
+  AMP    | 2026-07-22 | $526.82 | RR=0.00 | PASSED
+  MSFT   | 2026-07-22 | $390.34 | RR=0.00 | PASSED
+  NOC    | 2026-07-22 | $525.28 | RR=0.00 | PASSED
+[Daily] Failed tickers: WDC, LVS, GOOGL, AVGO, PODD, ANET, SOFI, AMZN, EQT, GEV, DXCM, GLW, CEG, AMAT, FTNT, TXN, OHI, FCX, TEL, VRTX, CCJ, BK, C, GILD
+[Daily] Done. 36/60 tickers updated. dates=2026-07-22
+[Daily] WARN: daily_picks updated 36/60, failed=24, dates=2026-07-22 (15.4s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 7件処理
+[TechDaily] OK: Tech daily picks updated (3.5s)
+[Daily] Running daily adjustment — 07:01
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 302 tickers...
+[Stage2] Batch 1/4 (100 tickers)... saved 98
+[Stage2] Batch 2/4 (100 tickers)... saved 68
+[Stage2] Batch 3/4 (100 tickers)... saved 59
+[Stage2] Batch 4/4 (2 tickers)... saved 2
+[Stage2] Incremental done. 227/302 tickers updated.
+[DailyPrice] WARN: price_data updated 227/302 tickers (203.3s)
+[Daily] Adjusting picks for 2026-07-25...
+  PLTR   | 2026-07-24 | $122.92 | RR=0.00 | PASSED
+  WDC    | 2026-07-24 | $519.80 | RR=0.00 | PASSED
+  GOOG   | 2026-07-24 | $319.09 | RR=0.00 | PASSED
+  MU     | 2026-07-24 | $920.95 | RR=0.00 | PASSED
+  LVS    | 2026-07-24 | $46.08 | RR=0.00 | PASSED
+  NVDA   | 2026-07-24 | $206.84 | RR=2.09 | WATCH
+  GS     | 2026-07-24 | $1061.23 | RR=3.26 | WAIT
+  RSI    | 2026-07-24 | $31.43 | RR=4.14 | WAIT
+  STX    | 2026-07-24 | $851.69 | RR=0.00 | PASSED
+  AMZN   | 2026-07-24 | $232.11 | RR=11.26 | WAIT
+  GEV    | 2026-07-24 | $1014.75 | RR=7.45 | WAIT
+  ZM     | 2026-07-24 | $87.99 | RR=5.07 | WAIT
+  HSY    | 2026-07-24 | $174.30 | RR=0.00 | PASSED
+  GLW    | 2026-07-24 | $146.65 | RR=0.00 | PASSED
+  RRC    | 2026-07-24 | $38.97 | RR=0.00 | PASSED
+  TOST   | 2026-07-24 | $29.04 | RR=0.00 | PASSED
+  CEG    | 2026-07-24 | $274.35 | RR=0.00 | PASSED
+  THC    | 2026-07-24 | $233.20 | RR=0.55 | PASSED
+  FTNT   | 2026-07-24 | $152.37 | RR=0.00 | PASSED
+  OHI    | 2026-07-24 | $51.72 | RR=0.00 | PASSED
+  MKTX   | 2026-07-24 | $116.69 | RR=0.00 | PASSED
+  NXPI   | 2026-07-24 | $269.24 | RR=0.00 | PASSED
+  VRTX   | 2026-07-24 | $477.36 | RR=4.17 | WAIT
+  CCJ    | 2026-07-24 | $87.86 | RR=0.00 | PASSED
+  C      | 2026-07-24 | $132.19 | RR=0.00 | PASSED
+  AMP    | 2026-07-24 | $528.90 | RR=0.00 | PASSED
+[Daily] Failed tickers: APP, META, LLY, NEM, GOOGL, AVGO, INCY, PODD, CELH, ANET, FSLR, LRCX, SOFI, CIEN, AFL, EQT, AAPL, COF, ADI, DXCM, ALL, ZION, AMAT, TXN, EA, FCX, JPM, MS, TEL, ICE, BK, GILD, MSFT, NOC
+[Daily] Done. 26/60 tickers updated. dates=2026-07-24
+[Daily] WARN: daily_picks updated 26/60, failed=34, dates=2026-07-24 (13.9s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 7件処理
+[TechDaily] OK: Tech daily picks updated (3.4s)
+[Daily] Running daily adjustment — 07:14
+[Daily] Running daily adjustment — 07:05
+[Daily] Running daily adjustment — 07:03
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 288 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 98
+[Stage2] Batch 2/3 (100 tickers)... saved 59
+[Stage2] Batch 3/3 (88 tickers)... saved 37
+[Stage2] Incremental done. 194/288 tickers updated.
+[DailyPrice] WARN: price_data updated 194/288 tickers (176.5s)
+[Daily] Adjusting picks for 2026-07-28...
+  META   | 2026-07-27 | $593.87 | RR=0.00 | PASSED
+  LLY    | 2026-07-27 | $1197.53 | RR=2.92 | WAIT
+  NEM    | 2026-07-27 | $93.47 | RR=0.00 | PASSED
+  WDC    | 2026-07-27 | $497.92 | RR=4.21 | WAIT
+  MU     | 2026-07-27 | $900.20 | RR=3.80 | WAIT
+  GOOGL  | 2026-07-27 | $326.56 | RR=0.00 | PASSED
+  AVGO   | 2026-07-27 | $383.22 | RR=2.82 | WAIT
+  NVDA   | 2026-07-27 | $196.51 | RR=8.55 | WAIT
+  INCY   | 2026-07-27 | $118.87 | RR=2.51 | ENTRY_NOW
+  GS     | 2026-07-27 | $1048.23 | RR=4.07 | WAIT
+  CELH   | 2026-07-27 | $28.79 | RR=0.00 | PASSED
+  ANET   | 2026-07-27 | $170.76 | RR=3.76 | WAIT
+  FSLR   | 2026-07-27 | $205.83 | RR=0.00 | PASSED
+  SOFI   | 2026-07-27 | $16.88 | RR=0.00 | PASSED
+  STX    | 2026-07-27 | $816.99 | RR=4.12 | WAIT
+  CIEN   | 2026-07-27 | $377.27 | RR=0.00 | PASSED
+  AFL    | 2026-07-27 | $126.56 | RR=2.60 | WATCH
+  AMZN   | 2026-07-27 | $231.39 | RR=0.00 | PASSED
+  EQT    | 2026-07-27 | $52.00 | RR=0.00 | PASSED
+  GEV    | 2026-07-27 | $996.57 | RR=5.95 | WAIT
+  COF    | 2026-07-27 | $207.05 | RR=0.00 | PASSED
+  ADI    | 2026-07-27 | $371.89 | RR=0.00 | PASSED
+  DXCM   | 2026-07-27 | $73.37 | RR=1.85 | WATCH
+  GLW    | 2026-07-27 | $143.36 | RR=0.00 | PASSED
+  RRC    | 2026-07-27 | $37.88 | RR=0.00 | PASSED
+  TOST   | 2026-07-27 | $30.84 | RR=0.00 | PASSED
+  ALL    | 2026-07-27 | $261.27 | RR=0.00 | PASSED
+  CEG    | 2026-07-27 | $270.00 | RR=0.00 | PASSED
+  ZION   | 2026-07-27 | $68.52 | RR=6.32 | WAIT
+  AMAT   | 2026-07-27 | $516.89 | RR=12.95 | WAIT
+  TXN    | 2026-07-27 | $279.41 | RR=0.00 | PASSED
+  OHI    | 2026-07-27 | $51.40 | RR=0.00 | PASSED
+  EA     | 2026-07-27 | $209.07 | RR=2.99 | WAIT
+  MKTX   | 2026-07-27 | $117.97 | RR=0.00 | PASSED
+  MS     | 2026-07-27 | $214.56 | RR=2.96 | WAIT
+  NXPI   | 2026-07-27 | $267.67 | RR=0.00 | PASSED
+  TEL    | 2026-07-27 | $207.58 | RR=0.00 | PASSED
+  ICE    | 2026-07-27 | $148.73 | RR=0.00 | PASSED
+  VRTX   | 2026-07-27 | $479.00 | RR=2.57 | WAIT
+  C      | 2026-07-27 | $133.10 | RR=2.43 | WATCH
+  AMP    | 2026-07-27 | $538.01 | RR=0.00 | PASSED
+  GILD   | 2026-07-27 | $130.52 | RR=2.28 | WATCH
+  MSFT   | 2026-07-27 | $389.10 | RR=0.00 | PASSED
+  NOC    | 2026-07-27 | $547.58 | RR=0.00 | PASSED
+[Daily] Failed tickers: PLTR, APP, GOOG, LVS, PODD, RSI, LRCX, ZM, AAPL, HSY, THC, FTNT, FCX, JPM, CCJ, BK
+[Daily] Done. 44/60 tickers updated. dates=2026-07-27
+[Daily] WARN: daily_picks updated 44/60, failed=16, dates=2026-07-27 (16.0s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 17件処理
+[TechDaily] OK: Tech daily picks updated (5.4s)
+[Daily] Running daily adjustment — 07:06
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 284 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 98
+[Stage2] Batch 2/3 (100 tickers)... saved 56
+[Stage2] Batch 3/3 (84 tickers)... saved 25
+[Stage2] Incremental done. 179/284 tickers updated.
+[DailyPrice] WARN: price_data updated 179/284 tickers (159.2s)
+[Daily] Adjusting picks for 2026-07-30...
+  PLTR   | 2026-07-29 | $123.00 | RR=0.00 | PASSED
+  APP    | 2026-07-29 | $399.46 | RR=0.00 | PASSED
+  META   | 2026-07-29 | $585.61 | RR=0.00 | PASSED
+  LLY    | 2026-07-29 | $1210.02 | RR=2.35 | WATCH
+  NEM    | 2026-07-29 | $91.34 | RR=0.00 | PASSED
+  WDC    | 2026-07-29 | $462.04 | RR=9.32 | WAIT
+  GOOG   | 2026-07-29 | $335.76 | RR=0.00 | PASSED
+  MU     | 2026-07-29 | $739.00 | RR=0.00 | PASSED
+  LVS    | 2026-07-29 | $48.55 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-29 | $336.71 | RR=0.00 | PASSED
+  AVGO   | 2026-07-29 | $370.32 | RR=5.99 | WAIT
+  NVDA   | 2026-07-29 | $190.01 | RR=74.61 | WAIT
+  INCY   | 2026-07-29 | $127.10 | RR=0.90 | PASSED
+  PODD   | 2026-07-29 | $170.62 | RR=0.00 | PASSED
+  GS     | 2026-07-29 | $980.75 | RR=0.00 | PASSED
+  RSI    | 2026-07-29 | $30.77 | RR=4.64 | WAIT
+  CELH   | 2026-07-29 | $28.88 | RR=0.00 | PASSED
+  ANET   | 2026-07-29 | $157.97 | RR=18.41 | WAIT
+  FSLR   | 2026-07-29 | $199.24 | RR=0.00 | PASSED
+  LRCX   | 2026-07-29 | $252.35 | RR=0.00 | PASSED
+  SOFI   | 2026-07-29 | $15.25 | RR=0.00 | PASSED
+  STX    | 2026-07-29 | $764.43 | RR=7.88 | WAIT
+  CIEN   | 2026-07-29 | $330.37 | RR=0.00 | PASSED
+  AFL    | 2026-07-29 | $128.67 | RR=1.95 | WATCH
+  AMZN   | 2026-07-29 | $226.65 | RR=0.00 | PASSED
+  EQT    | 2026-07-29 | $52.57 | RR=0.00 | PASSED
+  GEV    | 2026-07-29 | $900.28 | RR=0.00 | PASSED
+  ZM     | 2026-07-29 | $92.41 | RR=1.19 | PASSED
+  AAPL   | 2026-07-29 | $338.19 | RR=0.00 | PASSED
+  COF    | 2026-07-29 | $208.71 | RR=0.00 | PASSED
+  HSY    | 2026-07-29 | $183.91 | RR=0.00 | PASSED
+  ADI    | 2026-07-29 | $353.37 | RR=0.00 | PASSED
+  DXCM   | 2026-07-29 | $75.14 | RR=1.22 | PASSED
+  GLW    | 2026-07-29 | $124.05 | RR=0.00 | PASSED
+  RRC    | 2026-07-29 | $39.91 | RR=0.00 | PASSED
+  TOST   | 2026-07-29 | $32.60 | RR=0.00 | PASSED
+  ALL    | 2026-07-29 | $274.39 | RR=0.00 | PASSED
+  CEG    | 2026-07-29 | $257.95 | RR=0.00 | PASSED
+  THC    | 2026-07-29 | $257.62 | RR=0.00 | PASSED
+  ZION   | 2026-07-29 | $68.92 | RR=4.12 | WAIT
+  AMAT   | 2026-07-29 | $436.45 | RR=0.00 | PASSED
+  FTNT   | 2026-07-29 | $153.22 | RR=2.46 | ENTRY_NOW
+  TXN    | 2026-07-29 | $271.30 | RR=0.00 | PASSED
+  OHI    | 2026-07-29 | $51.37 | RR=0.00 | PASSED
+  EA     | 2026-07-29 | $208.91 | RR=3.14 | WAIT
+  FCX    | 2026-07-29 | $59.99 | RR=5.45 | WAIT
+  JPM    | 2026-07-29 | $344.71 | RR=0.00 | PASSED
+  MKTX   | 2026-07-29 | $125.73 | RR=0.00 | PASSED
+  MS     | 2026-07-29 | $203.13 | RR=0.00 | PASSED
+  NXPI   | 2026-07-29 | $240.98 | RR=0.00 | PASSED
+  TEL    | 2026-07-29 | $206.95 | RR=0.00 | PASSED
+  ICE    | 2026-07-29 | $154.28 | RR=0.00 | PASSED
+  VRTX   | 2026-07-29 | $483.33 | RR=1.79 | WATCH
+  CCJ    | 2026-07-29 | $84.57 | RR=0.00 | PASSED
+  C      | 2026-07-29 | $127.13 | RR=52.37 | WAIT
+  AMP    | 2026-07-29 | $540.29 | RR=0.00 | PASSED
+  GILD   | 2026-07-29 | $132.73 | RR=1.47 | PASSED
+  MSFT   | 2026-07-29 | $390.54 | RR=0.00 | PASSED
+  NOC    | 2026-07-29 | $535.05 | RR=0.00 | PASSED
+[Daily] Failed tickers: BK
+[Daily] Done. 59/60 tickers updated. dates=2026-07-29
+[Daily] WARN: daily_picks updated 59/60, failed=1, dates=2026-07-29 (17.9s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 17件処理
+[TechDaily] OK: Tech daily picks updated (5.8s)
+[Daily] Running daily adjustment — 07:00
+[DB] PostgreSQL tables initialized (Supabase)
+[Stage2] Incremental download (10d) for 268 tickers...
+[Stage2] Batch 1/3 (100 tickers)... saved 98
+[Stage2] Batch 2/3 (100 tickers)... error: connection already closed
+[Stage2] Batch 3/3 (68 tickers)... saved 1
+[Stage2] Incremental done. 99/268 tickers updated.
+[DailyPrice] WARN: price_data updated 99/268 tickers (1010.0s)
+[Daily] Adjusting picks for 2026-07-31...
+  PLTR   | 2026-07-30 | $122.26 | RR=0.00 | PASSED
+  APP    | 2026-07-30 | $403.87 | RR=0.00 | PASSED
+  META   | 2026-07-30 | $539.03 | RR=0.00 | PASSED
+  LLY    | 2026-07-30 | $1154.97 | RR=8.36 | WAIT
+  NEM    | 2026-07-30 | $95.76 | RR=0.00 | PASSED
+  WDC    | 2026-07-30 | $533.04 | RR=2.51 | WATCH
+  GOOG   | 2026-07-30 | $333.68 | RR=0.00 | PASSED
+  MU     | 2026-07-30 | $874.66 | RR=5.35 | WAIT
+  LVS    | 2026-07-30 | $49.87 | RR=0.00 | PASSED
+  GOOGL  | 2026-07-30 | $333.66 | RR=0.00 | PASSED
+  AVGO   | 2026-07-30 | $387.84 | RR=2.28 | WATCH
+  NVDA   | 2026-07-30 | $195.04 | RR=10.90 | WAIT
+  INCY   | 2026-07-30 | $122.99 | RR=1.46 | PASSED
+  PODD   | 2026-07-30 | $165.68 | RR=0.00 | PASSED
+  GS     | 2026-07-30 | $1024.86 | RR=8.72 | WAIT
+  RSI    | 2026-07-30 | $26.76 | RR=0.00 | PASSED
+  CELH   | 2026-07-30 | $29.35 | RR=0.00 | PASSED
+  ANET   | 2026-07-30 | $171.02 | RR=3.69 | WAIT
+  FSLR   | 2026-07-30 | $206.01 | RR=0.00 | PASSED
+  LRCX   | 2026-07-30 | $297.72 | RR=0.00 | PASSED
+  SOFI   | 2026-07-30 | $16.47 | RR=0.00 | PASSED
+  STX    | 2026-07-30 | $851.68 | RR=3.00 | WAIT
+  CIEN   | 2026-07-30 | $372.07 | RR=0.00 | PASSED
+  AFL    | 2026-07-30 | $127.36 | RR=2.32 | WATCH
+  AMZN   | 2026-07-30 | $235.50 | RR=0.00 | PASSED
+  EQT    | 2026-07-30 | $52.71 | RR=0.00 | PASSED
+  GEV    | 2026-07-30 | $981.98 | RR=16.02 | WAIT
+  ZM     | 2026-07-30 | $92.32 | RR=1.21 | PASSED
+  AAPL   | 2026-07-30 | $333.43 | RR=0.00 | PASSED
+  COF    | 2026-07-30 | $210.14 | RR=0.00 | PASSED
+  HSY    | 2026-07-30 | $177.23 | RR=0.00 | PASSED
+  ADI    | 2026-07-30 | $366.67 | RR=0.00 | PASSED
+  DXCM   | 2026-07-30 | $74.54 | RR=1.40 | PASSED
+  GLW    | 2026-07-30 | $135.22 | RR=0.00 | PASSED
+  RRC    | 2026-07-30 | $39.55 | RR=0.00 | PASSED
+  TOST   | 2026-07-30 | $32.85 | RR=0.00 | PASSED
+  ALL    | 2026-07-30 | $265.38 | RR=0.00 | PASSED
+  CEG    | 2026-07-30 | $263.56 | RR=0.00 | PASSED
+  THC    | 2026-07-30 | $252.73 | RR=0.00 | PASSED
+  ZION   | 2026-07-30 | $69.46 | RR=2.64 | WAIT
+  AMAT   | 2026-07-30 | $501.77 | RR=0.00 | PASSED
+  FTNT   | 2026-07-30 | $154.25 | RR=1.97 | WATCH
+  TXN    | 2026-07-30 | $278.76 | RR=0.00 | PASSED
+  OHI    | 2026-07-30 | $50.40 | RR=0.00 | PASSED
+  EA     | 2026-07-30 | $209.59 | RR=2.56 | WAIT
+  FCX    | 2026-07-30 | $63.44 | RR=2.57 | WATCH
+  JPM    | 2026-07-30 | $350.85 | RR=0.00 | PASSED
+  MKTX   | 2026-07-30 | $162.76 | RR=0.00 | PASSED
+  MS     | 2026-07-30 | $210.06 | RR=7.41 | WAIT
+  NXPI   | 2026-07-30 | $245.16 | RR=0.00 | PASSED
+  TEL    | 2026-07-30 | $206.58 | RR=0.00 | PASSED
+  ICE    | 2026-07-30 | $156.27 | RR=0.00 | PASSED
+  VRTX   | 2026-07-30 | $481.70 | RR=2.04 | WATCH
+  CCJ    | 2026-07-30 | $88.23 | RR=0.00 | PASSED
+  C      | 2026-07-30 | $132.32 | RR=2.91 | WAIT
+  AMP    | 2026-07-30 | $544.46 | RR=0.00 | PASSED
+  GILD   | 2026-07-30 | $131.28 | RR=1.95 | WATCH
+  MSFT   | 2026-07-30 | $451.10 | RR=0.00 | PASSED
+  NOC    | 2026-07-30 | $534.85 | RR=0.00 | PASSED
+[Daily] Failed tickers: BK
+[Daily] Done. 59/60 tickers updated. dates=2026-07-30
+[Daily] WARN: daily_picks updated 59/60, failed=1, dates=2026-07-30 (18.4s)
+[TechDaily] 日次テクニカル調整開始...
+[TechDaily] 完了 — 17件処理
+[TechDaily] OK: Tech daily picks updated (8.9s)

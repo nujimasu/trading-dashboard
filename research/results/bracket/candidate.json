@@ -1,0 +1,24 @@
+{
+  "rule": {
+    "family": "meanrev",
+    "min_ddv": 10000000.0,
+    "min_price": 5.0,
+    "regime": "spy200",
+    "trend": true,
+    "mom_min": 0.15,
+    "rsi2_max": 100.0,
+    "rsi14_max": 100.0,
+    "ret21_max": 1.0,
+    "dist_ema20_max": 0.0,
+    "dist_ema50_min": -1.0,
+    "dist_hh60_min": -0.1,
+    "atr_ratio_max": 10.0,
+    "vol_ratio_min": 0.0,
+    "up_close": true,
+    "strong_close": false
+  },
+  "sl_atr": 3.0,
+  "rr": 2.0,
+  "n_configs": 1575,
+  "plateau": 0.1159423144683424
+}

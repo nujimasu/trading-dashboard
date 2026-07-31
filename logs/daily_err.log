@@ -1,0 +1,1000 @@
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 517, in init_db
+    cur.execute(m)
+    ~~~~~~~~~~~^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 519, in init_db
+    conn.rollback()
+    ~~~~~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 105, in rollback
+    self._conn.rollback()
+    ~~~~~~~~~~~~~~~~~~~^^
+psycopg2.InterfaceError: connection already closed
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 134, in db_cursor
+    conn.commit()
+    ~~~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 102, in commit
+    self._conn.commit()
+    ~~~~~~~~~~~~~~~~~^^
+psycopg2.InterfaceError: connection already closed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 215, in run_daily
+    tickers = _collect_daily_price_tickers()
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 42, in _collect_daily_price_tickers
+    with db_cursor() as cur:
+         ~~~~~~~~~^^
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 148, in __exit__
+    next(self.gen)
+    ~~~~^^^^^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 136, in db_cursor
+    conn.rollback()
+    ~~~~~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 105, in rollback
+    self._conn.rollback()
+    ~~~~~~~~~~~~~~~~~~~^^
+psycopg2.InterfaceError: connection already closed
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+36 Failed downloads:
+['PSTG']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['PVH', 'KROS', 'IVZ', 'NDAQ', 'KEYS', 'POWI', 'MDB', 'LIN', 'HOLX']: TypeError("'NoneType' object is not subscriptable")
+['SEE', 'PM', 'OKE', 'LYV', 'NET', 'MTB', 'SBUX', 'NVDA', 'NNN', 'IWM', 'PKG', 'PNW', 'GEV', 'RF', 'NEM', 'JCI', 'SOFI', 'GOOG', 'MO', 'LNT', 'RUN', 'SITM', 'PNC', 'PSX', 'REG', 'JNJ']: OperationalError('unable to open database file')
+
+33 Failed downloads:
+['VICI', 'VRTX', 'TXN', 'TFC', 'TSLA', 'V', 'UDR', 'VFC', 'UPS', 'TRGP', 'STX', 'TOST', 'VRSN', 'TEL', 'UNH', 'TT', 'TROW', 'USB', 'XPO', 'TSLL', 'SWKS', 'TRV', 'WDC', 'SYF', 'WELL', 'SPY', 'WPC', 'ZION', 'UBRL', 'ZM']: OperationalError('unable to open database file')
+['VLO', 'UNP', 'THC']: TypeError("'NoneType' object is not subscriptable")
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 223, in run_daily
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 23, in log_stage
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 130, in db_cursor
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 119, in get_connection
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/psycopg2/__init__.py", line 122, in connect
+psycopg2.OperationalError: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 230, in run_daily
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 23, in log_stage
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 130, in db_cursor
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 119, in get_connection
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/psycopg2/__init__.py", line 122, in connect
+psycopg2.OperationalError: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+41 Failed downloads:
+['HOLX', 'SEE', 'PSTG']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['ILMN', 'ICE', 'LLY', 'GOOG', 'JBLU', 'SBUX', 'MTSI', 'NET', 'NNN']: TypeError("'NoneType' object is not subscriptable")
+['PNC', 'MCHP', 'HPQ', 'LYV', 'PVH', 'GOOGL', 'ROST', 'RSI', 'RKLB', 'IVZ', 'POWI', 'PODD', 'LVS', 'HLT', 'MS', 'OKE', 'LRCX', 'IMVT', 'REG', 'IRM', 'IONQ', 'GM', 'NI', 'MTCH', 'OHI', 'NOC', 'NFLX', 'NEM', 'PPG']: OperationalError('unable to open database file')
+
+32 Failed downloads:
+['TRV', 'TSLL', 'ZION', 'WDC', 'VRSN', 'TEL']: TypeError("'NoneType' object is not subscriptable")
+['SYF', 'STX', 'UPS', 'THC', 'WELL', 'VLO', 'USB', 'VICI', 'TSLA', 'VRTX', 'TROW', 'ZM', 'UNP', 'UDR', 'TOST', 'TT', 'XPO', 'VFC', 'UNH', 'TXN', 'TFC', 'SWKS', 'UBRL', 'WPC', 'V', 'TRGP']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 223, in run_daily
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 23, in log_stage
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 130, in db_cursor
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 119, in get_connection
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/psycopg2/__init__.py", line 122, in connect
+psycopg2.OperationalError: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 230, in run_daily
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 23, in log_stage
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 130, in db_cursor
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 119, in get_connection
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/psycopg2/__init__.py", line 122, in connect
+psycopg2.OperationalError: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+42 Failed downloads:
+['PSTG', 'SEE', 'HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['GILD', 'MGA', 'HAL', 'IVZ', 'KO', 'NTRS', 'HLT', 'JCI', 'PODD', 'HSY']: TypeError("'NoneType' object is not subscriptable")
+['RF', 'PKG', 'MTCH', 'PM', 'INCY', 'PLD', 'NVCR', 'JBLU', 'NNN', 'NET', 'GLW', 'MTB', 'MDLZ', 'LRCX', 'NXPI', 'PNC', 'IWM', 'QCOM', 'RDW', 'JPM', 'MO', 'OKE', 'MPC', 'LITE', 'SPY', 'PVH', 'MTSI', 'META', 'QQQ']: OperationalError('unable to open database file')
+
+32 Failed downloads:
+['V', 'VRTX', 'TT', 'USB', 'TSLL', 'ZM', 'TRGP', 'WDC', 'UDR', 'TEL', 'SWKS', 'THC', 'XPO', 'WPC', 'TRV', 'VRSN', 'TROW', 'TFC', 'UNH', 'ZION', 'UNP', 'TSLA', 'VFC', 'SYF', 'WELL', 'TXN', 'TOST', 'STX']: OperationalError('unable to open database file')
+['VLO', 'UPS', 'VICI', 'UBRL']: TypeError("'NoneType' object is not subscriptable")
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 223, in run_daily
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 23, in log_stage
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 130, in db_cursor
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 119, in get_connection
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/psycopg2/__init__.py", line 122, in connect
+psycopg2.OperationalError: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 230, in run_daily
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 23, in log_stage
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/contextlib.py", line 141, in __enter__
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 130, in db_cursor
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 119, in get_connection
+  File "/Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/psycopg2/__init__.py", line 122, in connect
+psycopg2.OperationalError: could not translate host name "aws-1-ap-southeast-1.pooler.supabase.com" to address: nodename nor servname provided, or not known
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 490, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+58 Failed downloads:
+['PSTG']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['PPG', 'NTRS', 'HSIC', 'GLW', 'JNJ', 'PLD', 'JBHT', 'NOC', 'HPQ', 'IONQ']: TypeError("'NoneType' object is not subscriptable")
+['PODD', 'PSA', 'ICE', 'ITW', 'ILMN', 'OKTA', 'MSFT', 'POWI', 'NET', 'FLYW', 'LLY', 'PKG', 'NFXL', 'MS', 'NSC', 'GILD', 'HON', 'PUBM', 'ON', 'HOLX', 'OGE', 'NNN', 'KIM', 'NUE', 'LITE', 'LYV', 'MGA', 'NSA', 'GD', 'PNC', 'MCHP', 'KEYS', 'MNST', 'MTSI', 'MO', 'PLTR', 'HLT', 'PSX', 'HBAN', 'IWM', 'GOOG', 'LIN', 'JBLU', 'PVH', 'NI', 'NTAP', 'GM']: OperationalError('unable to open database file')
+
+50 Failed downloads:
+['SJM', 'ZION', 'TRV', 'RDW', 'UNH', 'SNOW', 'RGTI', 'RIVN', 'RKLB']: TypeError("'NoneType' object is not subscriptable")
+['STT', 'VLO', 'RF', 'REG', 'SYF', 'WDC', 'USFD', 'TSLL', 'VFC', 'QQQ', 'TXN', 'UNP', 'ZM', 'TGT', 'SKT', 'STE', 'SWKS', 'WELL', 'VRTX', 'SEE', 'ROST', 'RSI', 'VOYA', 'UBRL', 'VICI', 'URBN', 'TROW', 'TSLA', 'SPY', 'RRC', 'SOFI', 'TT', 'UDR', 'UNM', 'UPS', 'WH', 'WPC', 'XPO', 'SBUX', 'QCOM', 'TEL']: OperationalError('unable to open database file')
+$BK: possibly delisted; no price data found  (period=5d)
+
+1 Failed download:
+['BK']: possibly delisted; no price data found  (period=5d)
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+36 Failed downloads:
+['PSTG']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['HSY', 'LIN', 'LRCX', 'KO']: TypeError("'NoneType' object is not subscriptable")
+['NI', 'NFXL', 'MRK', 'FLYW', 'GOOGL', 'MO', 'MSFT', 'GILD', 'LVS', 'NSA', 'HBAN', 'IWM', 'FITB', 'PLTR', 'HPE', 'IVZ', 'ON', 'FTV', 'MMM', 'NOC', 'PNC', 'MTB', 'HR', 'NEM', 'GD', 'MTCH', 'HOLX', 'PODD', 'FTNT', 'PPG', 'MU']: OperationalError('unable to open database file')
+
+61 Failed downloads:
+['XPO', 'VOYA', 'RF', 'TSLL', 'TSLA', 'SEDG', 'RGTI', 'SPG', 'ZION', 'SPY', 'VICI', 'SYF', 'SWKS', 'TFC', 'STE', 'UBRL', 'UNM', 'SEE', 'STLD', 'WPC', 'REG', 'ROBN', 'TT', 'SOFI', 'RDW', 'VFC', 'TGT', 'VLO', 'SKT', 'QQQ', 'SMTC', 'THC', 'STX', 'UPS', 'UDR', 'URBN', 'WDC', 'RIVN', 'SNOW', 'TEL', 'RKLB', 'TJX', 'WELL', 'TROW', 'USB', 'VRTX', 'WH', 'SBUX', 'ROST', 'USFD', 'TRV', 'TOST', 'STT', 'SJM', 'QCOM', 'TXN', 'RSI', 'QRVO']: OperationalError('unable to open database file')
+['RRC', 'TRGP', 'ZM']: TypeError("'NoneType' object is not subscriptable")
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+37 Failed downloads:
+['JBHT', 'KEY', 'NOC', 'NTRS', 'NSA', 'GLW', 'GD', 'NTR', 'MMM']: TypeError("'NoneType' object is not subscriptable")
+['MDB', 'MO', 'IP', 'HPQ', 'IONQ', 'HPE', 'GM', 'META', 'MSFT', 'FITB', 'LYV', 'MS', 'LITE', 'H', 'JPM', 'GNRC', 'ET', 'IVZ', 'MAR', 'NTAP', 'HSY', 'HBAN', 'HSIC', 'HUBB', 'IRM', 'MET', 'EXPD']: OperationalError('unable to open database file')
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+53 Failed downloads:
+['UNH', 'VOYA', 'UBRL', 'THC', 'POWI']: TypeError("'NoneType' object is not subscriptable")
+['NXPI', 'QCOM', 'VRTX', 'RF', 'RRC', 'OHI', 'WH', 'ROBN', 'SOFI', 'NUE', 'WELL', 'WEC', 'SYF', 'NVDA', 'XPO', 'PVH', 'USB', 'SO', 'OGE', 'VICI', 'TFC', 'NVAX', 'PSA', 'ROST', 'USFD', 'TRNO', 'TEL', 'PKG', 'OLN', 'SPG', 'PLTR', 'RSI', 'TJX', 'ZION', 'TROW', 'TT', 'RDW', 'SPGI', 'RGTI', 'SJM', 'REG', 'STX', 'PODD', 'VFC', 'XEL', 'SBUX']: OperationalError('unable to open database file')
+['PSTG', 'SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+24 Failed downloads:
+['STX', 'BLK', 'EQT', 'PODD', 'ZM', 'FTNT', 'AAPL', 'TXN', 'DXCM', 'NVDA', 'FSLR', 'HSY', 'APP', 'ADI', 'VICI', 'CELH']: TypeError("'NoneType' object is not subscriptable")
+['FCX', 'GILD', 'SOFI', 'EA', 'GLW', 'NEM', 'NOC', 'ANET']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 517, in init_db
+    cur.execute(m)
+    ~~~~~~~~~~~^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 519, in init_db
+    conn.rollback()
+    ~~~~~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 105, in rollback
+    self._conn.rollback()
+    ~~~~~~~~~~~~~~~~~~~^^
+psycopg2.InterfaceError: connection already closed
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 495, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+
+45 Failed downloads:
+['KEY', 'JCI', 'NVDA', 'FCX', 'EVRG']: TypeError("'NoneType' object is not subscriptable")
+['GOOGL', 'MAR', 'IONQ', 'MTB', 'MRK', 'NSA', 'NUE', 'MSFT', 'NFXL', 'ILMN', 'HR', 'HLT', 'GOOG', 'KIM', 'MS', 'GM', 'HOLX', 'LVS', 'FATE', 'F', 'META', 'FTV', 'LUV', 'MRVL', 'MDLZ', 'GLW', 'NOC', 'LRCX', 'GNRC', 'JNJ', 'JPM', 'MTSI', 'HSY', 'NEM', 'GILD', 'MMM', 'FORM', 'MDB', 'HBAN', 'MCHP']: OperationalError('unable to open database file')
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+39 Failed downloads:
+['TEL', 'URBN', 'PPG', 'UNH', 'NXPI', 'TGT']: TypeError("'NoneType' object is not subscriptable")
+['PSTG', 'VICI', 'SNOW', 'RGTI', 'ZM', 'O', 'STX', 'QCOM', 'SKT', 'WEC', 'OGE', 'USFD', 'PNC', 'SJM', 'TOST', 'POR', 'PSA', 'VLO', 'UNM', 'SOFI', 'RRC', 'PCG', 'SMTC', 'QRVO', 'VFC', 'TXN', 'SAIC', 'YUM', 'XEL', 'UBRL', 'TRGP', 'WPC']: OperationalError('unable to open database file')
+['SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 517, in init_db
+    cur.execute(m)
+    ~~~~~~~~~~~^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 519, in init_db
+    conn.rollback()
+    ~~~~~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 105, in rollback
+    self._conn.rollback()
+    ~~~~~~~~~~~~~~~~~~~^^
+psycopg2.InterfaceError: connection already closed
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+48 Failed downloads:
+['LIN', 'LUV', 'HSIC', 'MAS', 'FAST', 'MSFT', 'FANG', 'LYV', 'FATE', 'ICE', 'FTNT', 'EVRG', 'IONQ']: TypeError("'NoneType' object is not subscriptable")
+['MO', 'O', 'MGA', 'GEV', 'MRK', 'ODFL', 'FCX', 'JPM', 'LNT', 'NI', 'HIG', 'FTV', 'EXPE', 'MDB', 'NOC', 'MTB', 'GILD', 'MRVL', 'NXPI', 'NVCR', 'NNN', 'KO', 'NEM', 'EXPD', 'MET', 'MS', 'GLW', 'HLT', 'NFXL', 'MTCH', 'NTRS', 'MNST', 'HON', 'IVZ']: OperationalError('unable to open database file')
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+94 Failed downloads:
+['SAIC', 'UPS', 'PKG', 'OHI', 'VICI', 'SMTC', 'SLB', 'WMB', 'XEL', 'STZ', 'ROBN', 'TLN', 'OGE', 'TEL', 'TROW', 'PSTG', 'THC', 'SEDG', 'PRU', 'WDC', 'WFC', 'TRGP', 'TSLL', 'TRNO', 'TRV', 'WSM', 'SPY', 'OLN', 'WH', 'VMC', 'PODD', 'TOST', 'ZION', 'PPG', 'ZM', 'VFC', 'SKT', 'UBRL', 'WELL', 'RSI', 'POWI', 'PSA', 'URBN', 'WPC', 'ZBH', 'RRC', 'UNP', 'VRTX', 'PCG', 'REG', 'TFC', 'UDR', 'USFD', 'SEE', 'OXY', 'RGTI', 'RIVN', 'UNM', 'PNC', 'PNW', 'TSLA', 'SOFI', 'PVH', 'QQQ', 'OMC', 'TT', 'WEC', 'SO', 'SBUX', 'XPO', 'TGT', 'STX']: OperationalError('unable to open database file')
+['TOL', 'SNOW', 'SPG', 'RCL', 'PSX', 'OKE', 'YUM', 'VLO', 'PM', 'UNH', 'RF', 'RKLB', 'VOYA', 'PHM', 'USB', 'SYF', 'SJM', 'PLTR', 'ONTO', 'POR', 'TXN', 'STT']: TypeError("'NoneType' object is not subscriptable")
+
+14 Failed downloads:
+['DXCM', 'CELH', 'AVGO', 'BLK', 'THC', 'PODD', 'TXN', 'ALL', 'ZM', 'TRV']: TypeError("'NoneType' object is not subscriptable")
+['AMAT', 'TOST', 'CIEN', 'RRC']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 517, in init_db
+    cur.execute(m)
+    ~~~~~~~~~~~^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 500, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 211, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 519, in init_db
+    conn.rollback()
+    ~~~~~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 105, in rollback
+    self._conn.rollback()
+    ~~~~~~~~~~~~~~~~~~~^^
+psycopg2.InterfaceError: connection already closed
+$CTRA: possibly delisted; no price data found  (period=10d)
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d)
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+34 Failed downloads:
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['MRVL', 'MAA', 'EXPE', 'EQR', 'FSLR', 'ET', 'GLW', 'MET', 'HR']: TypeError("'NoneType' object is not subscriptable")
+['KSS', 'JPM', 'KEY', 'LYV', 'LNT', 'JBHT', 'GEV', 'MNST', 'INCY', 'MU', 'HON', 'FAST', 'NFXL', 'NI', 'HLT', 'FAF', 'IVZ', 'MAR', 'MPC', 'NET', 'FCX', 'HSIC', 'LLY', 'GILD']: OperationalError('unable to open database file')
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+68 Failed downloads:
+['NUE', 'UNH', 'OGE', 'ODFL', 'TXRH', 'RKLB', 'SPG', 'VMC', 'VICI', 'UNP', 'TROW', 'USFD', 'THC', 'RGTI', 'TRGP', 'PSA', 'RRC', 'USB', 'STX', 'PENN', 'OHI', 'UAL', 'TOST', 'UDR', 'TRNO', 'OKE', 'TSLA', 'SLB', 'TSLL', 'VFC', 'RCL', 'NXPI', 'TGT', 'PM', 'NVCR', 'OMC', 'NVAX', 'STLD', 'STT', 'RSI', 'PHM', 'PVH', 'POWI', 'SJM', 'PPG', 'V', 'REG', 'RIVN', 'ORLY', 'WELL', 'SYY', 'UNM', 'PRU', 'PNW', 'TLN', 'SPY', 'POR', 'SAIC', 'PNC', 'WEC', 'PCG', 'O']: OperationalError('unable to open database file')
+['QQQ', 'NVDA', 'STZ', 'VRTX']: TypeError("'NoneType' object is not subscriptable")
+['SEE', 'PSTG']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+9 Failed downloads:
+['FTNT', 'TRV', 'AVGO', 'MSFT', 'BK', 'TEL']: TypeError("'NoneType' object is not subscriptable")
+['TXN', 'SOFI', 'COF']: OperationalError('unable to open database file')
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+31 Failed downloads:
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['HIG', 'FAF', 'MS', 'MKSI', 'ITW', 'JNJ', 'GD']: TypeError("'NoneType' object is not subscriptable")
+['MO', 'GEV', 'FCX', 'EVRG', 'KEY', 'MRVL', 'MAS', 'MGM', 'HSIC', 'GLW', 'GS', 'HLT', 'LUV', 'MTH', 'M', 'MPLX', 'JBLU', 'FTV', 'H', 'KO', 'HBAN', 'EW', 'MMM']: OperationalError('unable to open database file')
+
+79 Failed downloads:
+['TXRH', 'PH', 'STT', 'RGTI', 'NVST']: TypeError("'NoneType' object is not subscriptable")
+['ROBN', 'PSTG', 'SNOW', 'UNP', 'TEL', 'PKG', 'UPS', 'WPC', 'TT', 'PVH', 'UDR', 'TRGP', 'THC', 'TRNO', 'UNH', 'OHI', 'SYY', 'TOL', 'VOYA', 'PRU', 'WMB', 'VRTX', 'TSLA', 'SOFI', 'WEC', 'PENN', 'RRC', 'O', 'SEE', 'NVDA', 'PLTR', 'VMC', 'PLD', 'ODFL', 'RSI', 'REG', 'TOST', 'SBUX', 'SEDG', 'USB', 'UAL', 'TXN', 'WH', 'TRV', 'TLN', 'TFC', 'TROW', 'RCL', 'SKT', 'UBRL', 'WFC', 'POR', 'ORLY', 'PPG', 'SPY', 'SPG', 'SJM', 'OLN', 'WDC', 'RF', 'OGE', 'PSA', 'RKLB', 'PM', 'POWI', 'VFC', 'RIVN', 'STX', 'USFD', 'NXPI', 'OMC', 'PNC', 'OXY', 'WELL']: OperationalError('unable to open database file')
+
+6 Failed downloads:
+['ADI', 'AVGO', 'STX', 'VICI', 'ZM', 'GEV']: TypeError("'NoneType' object is not subscriptable")
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$BK: possibly delisted; no price data found  (period=10d)
+
+2 Failed downloads:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['BK']: possibly delisted; no price data found  (period=10d)
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+35 Failed downloads:
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['NVAX', 'EW', 'KSS', 'MO', 'FSLR', 'MDB', 'NVCR', 'GOOGL', 'HSIC', 'NTAP', 'HR']: TypeError("'NoneType' object is not subscriptable")
+['LLY', 'LUV', 'HPQ', 'NFLX', 'JPM', 'MTH', 'GILD', 'JBLU', 'NFXL', 'MPLX', 'NET', 'NUE', 'NEM', 'FLYW', 'MS', 'MGA', 'GEV', 'MET', 'MAS', 'ET', 'MMM', 'KO', 'H']: OperationalError('unable to open database file')
+
+68 Failed downloads:
+['OLN', 'RRC', 'PM', 'PSA', 'TEL', 'RSI', 'PNW', 'QQQ', 'WELL', 'TFC', 'PH', 'STX', 'UAL', 'O', 'PNC', 'NVDA', 'RGTI', 'SKT', 'UDR', 'TT', 'TSLL', 'TOL', 'ODFL', 'UNP', 'TSLA', 'PPG', 'THC', 'TOST', 'ORLY', 'SLB', 'RKLB', 'USB', 'TXRH', 'UNM', 'TRV', 'WH', 'STT', 'UPS', 'SEE', 'WEC', 'OMC', 'NXPI', 'PENN', 'PVH', 'SJM', 'SYY', 'WDC', 'TRNO', 'TRGP', 'PHM', 'POWI', 'TLN', 'TXN', 'SYF', 'PSTG', 'OHI', 'SOFI', 'POR', 'TROW', 'SBUX', 'TGT', 'VOYA', 'WSM', 'OKE']: OperationalError('unable to open database file')
+['PODD', 'SNOW', 'USFD', 'PKG']: TypeError("'NoneType' object is not subscriptable")
+$BK: possibly delisted; no price data found  (period=5d)
+
+12 Failed downloads:
+['C', 'MU', 'VRTX', 'WDC', 'LLY', 'FSLR']: TypeError("'NoneType' object is not subscriptable")
+['ANET', 'AMAT', 'DXCM', 'NOC', 'AVGO']: OperationalError('unable to open database file')
+['BK']: possibly delisted; no price data found  (period=5d)
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+27 Failed downloads:
+['GE', 'MAA', 'KO', 'NUE', 'MGNI', 'FLYW', 'ITW', 'MMM']: TypeError("'NoneType' object is not subscriptable")
+['MSFT', 'EQT', 'NVAX', 'HR', 'HOLX', 'KEY', 'NVCR', 'MGM', 'EXR', 'INCY', 'MKSI', 'EXPD', 'KIM', 'HPE', 'MNST', 'HSY', 'LUV', 'HIG', 'JCI']: OperationalError('unable to open database file')
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+48 Failed downloads:
+['OGE', 'USB', 'ODFL', 'TT']: TypeError("'NoneType' object is not subscriptable")
+['PCG', 'USFD', 'POR', 'VLO', 'PHM', 'PH', 'VOYA', 'TOST', 'OKE', 'O', 'TOL', 'RKLB', 'PLD', 'WH', 'UDR', 'TXN', 'TSLA', 'UAL', 'WDC', 'UNH', 'ORLY', 'UNM', 'UBRL', 'PPG', 'SYF', 'RIVN', 'SJM', 'THC', 'TLN', 'WEC', 'SEE', 'QQQ', 'WMB', 'VMC', 'SLB', 'PNW', 'UNP', 'SYY', 'WFC', 'ONTO', 'NVST', 'NXPI', 'OHI']: OperationalError('unable to open database file')
+['PSTG']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+27 Failed downloads:
+['BK', 'AFL', 'GILD', 'SOFI', 'RSI', 'LRCX', 'WDC', 'FTNT', 'ZION', 'GOOG', 'STX']: TypeError("'NoneType' object is not subscriptable")
+['LVS', 'CEG', 'BLK', 'ICE', 'INCY', 'VRTX', 'RRC', 'ANET', 'AMP', 'AAPL', 'GLW', 'NFLX', 'ALL', 'MU', 'NVDA', 'GEV']: OperationalError('unable to open database file')
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+35 Failed downloads:
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['KO', 'GEV', 'MNST', 'F']: TypeError("'NoneType' object is not subscriptable")
+['ITW', 'NET', 'NEM', 'GOOGL', 'EQT', 'GS', 'LYV', 'MAR', 'MTCH', 'MDB', 'HR', 'MTH', 'INCY', 'NFXL', 'GM', 'HLT', 'NI', 'MAA', 'MO', 'HON', 'MSFT', 'FTV', 'JBLU', 'NOC', 'NSC', 'GD', 'MAS', 'GOOG', 'IWM', 'LLY']: OperationalError('unable to open database file')
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+54 Failed downloads:
+['TEL', 'OLN', 'QQQ', 'ORLY', 'TT', 'UAL', 'TRGP', 'WH', 'ODFL', 'PSX']: TypeError("'NoneType' object is not subscriptable")
+['UPS', 'NVST', 'PM', 'PCG', 'SNOW', 'RKLB', 'OXY', 'RSI', 'WSM', 'THC', 'WEC', 'PLD', 'ROBN', 'SOFI', 'ONTO', 'UNH', 'UNP', 'RRC', 'STLD', 'VOYA', 'SO', 'USB', 'PLTR', 'O', 'OMC', 'VICI', 'PVH', 'POWI', 'SEDG', 'UNM', 'OHI', 'WELL', 'RF', 'RIVN', 'VFC', 'VMC', 'UDR', 'VRTX', 'SKT', 'PRU', 'VLO', 'PNC']: OperationalError('unable to open database file')
+['PSTG', 'SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+33 Failed downloads:
+['BLK', 'LRCX', 'VICI', 'PLTR', 'CIEN', 'FSLR', 'COF', 'AMZN', 'META', 'WDC', 'MU', 'AMP']: TypeError("'NoneType' object is not subscriptable")
+['ICE', 'INCY', 'CEG', 'OHI', 'AFL', 'ADI', 'PODD', 'CCJ', 'DXCM', 'BK', 'GILD', 'RSI', 'ZM', 'THC', 'TRV', 'ANET', 'ALL', 'VRTX', 'TXN', 'GLW', 'MSFT']: OperationalError('unable to open database file')
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$BK: possibly delisted; no price data found  (period=10d)
+
+2 Failed downloads:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['BK']: possibly delisted; no price data found  (period=10d)
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+38 Failed downloads:
+['GS', 'NUE', 'JNJ', 'HR', 'GOOGL', 'EVRG', 'GE', 'FCX', 'LVS', 'HLT', 'MMM']: TypeError("'NoneType' object is not subscriptable")
+['EXPE', 'NNN', 'MGNI', 'NI', 'FLYW', 'HSY', 'M', 'MU', 'LLY', 'NET', 'HSIC', 'MDB', 'MAS', 'FSLR', 'IVZ', 'HPQ', 'KO', 'MGM', 'MPC', 'H', 'MDLZ', 'KEY', 'ET', 'MS', 'ILMN', 'JBHT']: OperationalError('unable to open database file')
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+65 Failed downloads:
+['RSI', 'THC', 'WPC', 'ONTO', 'TRNO', 'SYY', 'SPY', 'PODD', 'UNH', 'TSLL', 'TFC', 'PKG', 'TOST']: TypeError("'NoneType' object is not subscriptable")
+['SNOW', 'NVDA', 'TRGP', 'STX', 'VOYA', 'SJM', 'TSLA', 'REG', 'ORLY', 'SBUX', 'WH', 'PNW', 'NVCR', 'PLD', 'PSTG', 'TGT', 'TLN', 'NVST', 'UBRL', 'ROBN', 'USFD', 'RKLB', 'TOL', 'ODFL', 'TXN', 'WELL', 'WFC', 'SEE', 'RIVN', 'PPG', 'POR', 'POWI', 'PLTR', 'V', 'QQQ', 'SOFI', 'STZ', 'UNP', 'NXPI', 'PSA', 'OHI', 'WMB', 'VMC', 'UPS', 'TT', 'OMC', 'OKE', 'O', 'WSM', 'TROW', 'SEDG', 'USB']: OperationalError('unable to open database file')
+$BK: possibly delisted; no price data found  (period=5d)
+
+26 Failed downloads:
+['BK']: possibly delisted; no price data found  (period=5d)
+['CEG', 'AVGO', 'TXN', 'NVDA', 'AMZN', 'CIEN', 'PODD', 'BLK', 'AAPL', 'GOOG', 'LRCX', 'STX']: TypeError("'NoneType' object is not subscriptable")
+['FSLR', 'META', 'TOST', 'ICE', 'ANET', 'GOOGL', 'C', 'AMP', 'LVS', 'PLTR', 'FCX', 'EQT', 'SOFI']: OperationalError('unable to open database file')
+$BK: possibly delisted; no price data found  (period=10d)
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+2 Failed downloads:
+['BK']: possibly delisted; no price data found  (period=10d)
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+32 Failed downloads:
+['MGNI', 'JBHT', 'MS', 'EQT', 'JNJ', 'NFXL']: TypeError("'NoneType' object is not subscriptable")
+['INCY', 'EXR', 'NI', 'MU', 'NTAP', 'NSC', 'GE', 'IWM', 'MRK', 'MET', 'NEM', 'JCI', 'ET', 'HOLX', 'MNST', 'MKSI', 'MTCH', 'H', 'GEV', 'ITW', 'KEY', 'LYV', 'M', 'LNT', 'MAS', 'NFLX']: OperationalError('unable to open database file')
+
+38 Failed downloads:
+['STZ', 'POR', 'SLB', 'SEE']: TypeError("'NoneType' object is not subscriptable")
+['PH', 'OXY', 'PNC', 'WMB', 'NVDA', 'PSTG', 'TXN', 'SEDG', 'OMC', 'THC', 'XPO', 'TROW', 'XEL', 'VMC', 'TRV', 'WEC', 'UNM', 'RSI', 'TOST', 'ONTO', 'SJM', 'REG', 'PM', 'PKG', 'TFC', 'SPY', 'TXRH', 'PCG', 'VOYA', 'STX', 'TOL', 'SBUX', 'OGE', 'ORLY']: OperationalError('unable to open database file')
+
+17 Failed downloads:
+['ZION', 'LRCX', 'GILD', 'NVDA', 'BK', 'AVGO', 'PODD', 'WDC', 'GLW']: TypeError("'NoneType' object is not subscriptable")
+['CIEN', 'TXN', 'NEM', 'COF', 'AMAT', 'OHI', 'CELH', 'BLK']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+32 Failed downloads:
+['LLY', 'M', 'FLYW', 'FTV', 'MMM', 'EXPD', 'EVRG', 'H', 'GD', 'MNST', 'MRVL']: TypeError("'NoneType' object is not subscriptable")
+['INCY', 'KO', 'JBHT', 'JBLU', 'ODFL', 'MPLX', 'HSY', 'MET', 'NVAX', 'JCI', 'NTRS', 'HPQ', 'HON', 'GILD', 'NTAP', 'NFXL', 'NVCR', 'GM', 'GS', 'LUV']: OperationalError('unable to open database file')
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+58 Failed downloads:
+['ONTO', 'SYF']: TypeError("'NoneType' object is not subscriptable")
+['WEC', 'TRGP', 'PVH', 'TROW', 'PENN', 'ZM', 'SNOW', 'PSTG', 'USFD', 'PPG', 'TXRH', 'SYY', 'TRV', 'TOL', 'STLD', 'OLN', 'UNM', 'YUM', 'WSM', 'POR', 'SBUX', 'PSA', 'ZION', 'VOYA', 'PCG', 'TRNO', 'UPS', 'USB', 'TOST', 'ORLY', 'PNW', 'WH', 'WMB', 'UDR', 'SO', 'OGE', 'VFC', 'ROBN', 'POWI', 'UBRL', 'QQQ', 'UAL', 'XPO', 'RCL', 'PRU', 'SEDG', 'STZ', 'SJM', 'PLD', 'RRC', 'OMC', 'TLN', 'WDC', 'PSX', 'OKE']: OperationalError('unable to open database file')
+['SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+11 Failed downloads:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['CAT', 'COF', 'DLTR', 'ECL', 'CSX', 'AEHR', 'CIEN', 'CL', 'DUK', 'ABBV']: TypeError("'NoneType' object is not subscriptable")
+
+49 Failed downloads:
+['KEY', 'GLW', 'HOOD', 'ES', 'GEV', 'GE', 'FTNT', 'IQV', 'GILD', 'HON', 'LIN', 'FANG']: TypeError("'NoneType' object is not subscriptable")
+['NET', 'HPQ', 'JPM', 'F', 'LVS', 'MTCH', 'ITW', 'MAS', 'MTB', 'FSLR', 'MOH', 'EPD', 'ILMN', 'HOLX', 'EXPD', 'MKTX', 'MS', 'HIG', 'ETN', 'NEM', 'ETR', 'MGA', 'LUV', 'EOG', 'ICE', 'FITB', 'IWM', 'EXR', 'KO', 'MET', 'HPE', 'IRM', 'ET', 'HSY', 'HBAN', 'MRNA', 'META']: OperationalError('unable to open database file')
+
+64 Failed downloads:
+['PNC', 'PLTR', 'TSLL', 'TTWO', 'WDC', 'RIVN', 'TRGP', 'POR', 'PSA', 'NXPI', 'VOYA', 'VRTX', 'PNW', 'PCG', 'RSI', 'RRC', 'NVDA', 'PSTG', 'PHM', 'SYY', 'UDR', 'SEE', 'TROW', 'WEC', 'USFD', 'WH', 'NUE', 'RCL', 'TGT', 'WELL', 'SBUX', 'RARE', 'NI', 'QRVO', 'NVCR', 'UPS', 'NNN', 'PODD', 'UNM', 'ODFL', 'SOFI', 'VKTX', 'OHI', 'OKE', 'PLD', 'NSA', 'PSX', 'UAL', 'NTRS', 'NOC', 'VFC']: OperationalError('unable to open database file')
+['VMC', 'THC', 'PPG', 'TLN', 'UNH', 'OMC', 'OSCR', 'NSC', 'TRNO', 'SEDG', 'PRU', 'REG', 'SNOW']: TypeError("'NoneType' object is not subscriptable")
+
+49 Failed downloads:
+['ALL', 'NVDA', 'MU', 'ANET', 'COF', 'JPM', 'NOC', 'TOST', 'GEV', 'FTNT', 'OHI']: TypeError("'NoneType' object is not subscriptable")
+['PODD', 'APP', 'AFL', 'EQT', 'ICE', 'LLY', 'GILD', 'AVGO', 'LVS', 'FCX', 'GOOG', 'BK', 'CEG', 'INCY', 'CCJ', 'LRCX', 'CELH', 'EA', 'GS', 'AMAT', 'PLTR', 'FSLR', 'GOOGL', 'DXCM', 'THC', 'AMP', 'MSFT', 'STX', 'AAPL', 'AMZN', 'HSY', 'WDC', 'NXPI', 'CIEN', 'ZM', 'META', 'MKTX', 'MS']: OperationalError('unable to open database file')
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+34 Failed downloads:
+['M', 'FLYW', 'HSIC', 'F', 'LLY', 'IQV', 'MGNI']: TypeError("'NoneType' object is not subscriptable")
+['HOLX', 'FCX', 'LEU', 'LIN', 'GM', 'NEM', 'EQT', 'HBAN', 'HON', 'HOOD', 'GEV', 'EQIX', 'FITB', 'ILMN', 'KEY', 'MS', 'FATE', 'LUV', 'LRCX', 'ICE', 'MRK', 'META', 'MET', 'JNJ', 'MOH', 'KSS', 'EXR']: OperationalError('unable to open database file')
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+61 Failed downloads:
+['OSCR', 'USB', 'PPG', 'PSX', 'QQQ', 'TSLA']: TypeError("'NoneType' object is not subscriptable")
+['URBN', 'NTAP', 'UNH', 'TXN', 'SPY', 'VMC', 'VOYA', 'SEDG', 'TLN', 'RCL', 'PNW', 'SPG', 'WELL', 'NNN', 'NSA', 'PSTG', 'SJM', 'WMB', 'USFD', 'ODFL', 'NVDA', 'RSI', 'UAL', 'PNC', 'ONTO', 'VRTX', 'NXPI', 'OHI', 'TGT', 'NUE', 'TROW', 'THC', 'TTWO', 'TXRH', 'VFC', 'ROST', 'PM', 'V', 'NTRS', 'STX', 'WEC', 'SBUX', 'TRGP', 'TEL', 'RF', 'WDC', 'STT', 'POWI', 'RARE', 'PODD', 'SKT', 'TOST', 'WH', 'UPS']: OperationalError('unable to open database file')
+['SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+26 Failed downloads:
+['VRTX', 'GOOG', 'AFL', 'LRCX', 'PLTR', 'ICE', 'OHI', 'COF', 'META', 'RRC', 'ANET', 'FTNT', 'C']: TypeError("'NoneType' object is not subscriptable")
+['GOOGL', 'CCJ', 'TOST', 'APP', 'GLW', 'LVS', 'ZM', 'THC', 'AVGO', 'FSLR', 'NXPI', 'DXCM', 'JPM']: OperationalError('unable to open database file')
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+35 Failed downloads:
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['GILD', 'HLT', 'FSLR', 'MMM', 'LYV', 'FTNT', 'EXR']: TypeError("'NoneType' object is not subscriptable")
+['GOOG', 'ETR', 'FTV', 'MRK', 'LIN', 'FAST', 'EW', 'MDB', 'GS', 'META', 'NFXL', 'MU', 'EVRG', 'KSS', 'JCI', 'KEY', 'HOOD', 'IWM', 'MOH', 'EQT', 'MKSI', 'GE', 'LVS', 'HUM', 'HPE', 'MTH', 'M']: OperationalError('unable to open database file')
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+58 Failed downloads:
+['RSI', 'NOC', 'TRGP', 'PLTR', 'UNP', 'TSLA']: TypeError("'NoneType' object is not subscriptable")
+['SEDG', 'USFD', 'PSA', 'VKTX', 'NSA', 'NVCR', 'UDR', 'O', 'TXN', 'PSTG', 'NUE', 'OMC', 'UNH', 'PNC', 'XEL', 'TXRH', 'WH', 'QQQ', 'UBRL', 'TOST', 'TEL', 'TGT', 'PNW', 'SBUX', 'QRVO', 'RCL', 'POR', 'PHM', 'TLN', 'SPY', 'RARE', 'WMB', 'USB', 'VOYA', 'WFC', 'PCG', 'ODFL', 'SNOW', 'ONTO', 'STX', 'ROST', 'RRC', 'PVH', 'SO', 'TFC', 'WEC', 'PRU', 'SYY', 'REG', 'TT', 'WSM']: OperationalError('unable to open database file')
+['SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+24 Failed downloads:
+['GOOGL', 'AMZN', 'AMAT', 'CCJ', 'C', 'GLW', 'SOFI', 'PODD', 'AVGO', 'GEV', 'VRTX', 'BK']: TypeError("'NoneType' object is not subscriptable")
+['DXCM', 'TEL', 'WDC', 'LVS', 'EQT', 'TXN', 'OHI', 'CEG', 'FCX', 'ANET', 'FTNT', 'GILD']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$BK: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+2 Failed downloads:
+['CTRA', 'BK']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+32 Failed downloads:
+['HOLX', 'ITW', 'IRM', 'IWM', 'EXPE', 'EW', 'ET']: TypeError("'NoneType' object is not subscriptable")
+['LRCX', 'GEV', 'MPC', 'GS', 'MGA', 'ES', 'MAS', 'KEY', 'ESS', 'MGM', 'LNT', 'IVZ', 'MAR', 'MGNI', 'EXR', 'FITB', 'H', 'GD', 'MNST', 'LYV', 'ETN', 'LEU', 'KSS', 'EQT', 'JCI']: OperationalError('unable to open database file')
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+41 Failed downloads:
+['TSLL', 'TT', 'PCG', 'TXN', 'SOFI', 'TLN', 'TOL', 'UBRL', 'TSLA', 'SNOW', 'WPC', 'UDR', 'ODFL', 'UAL', 'PHM', 'TRNO', 'PM', 'RCL', 'TFC', 'RRC', 'WMB', 'PNW', 'TGT', 'OKE', 'UNP', 'VFC', 'WELL', 'WEC', 'SYY', 'PSTG', 'WDC', 'USFD', 'PENN', 'UPS', 'QRVO']: OperationalError('unable to open database file')
+['POWI', 'PVH', 'PLTR', 'NSC', 'TXRH']: TypeError("'NoneType' object is not subscriptable")
+['SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+34 Failed downloads:
+['TXN', 'MSFT', 'GOOGL', 'SOFI', 'AFL', 'CELH', 'ALL', 'NEM', 'AMAT', 'DXCM', 'GILD', 'LLY', 'NOC', 'AVGO', 'FSLR', 'ANET', 'EA', 'JPM', 'INCY', 'MS', 'BK', 'APP', 'COF', 'ZION', 'LRCX']: TypeError("'NoneType' object is not subscriptable")
+['FCX', 'CIEN', 'ADI', 'AAPL', 'ICE', 'TEL', 'META', 'PODD', 'EQT']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$BK: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+2 Failed downloads:
+['BK', 'CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+41 Failed downloads:
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+['HPQ', 'MPLX', 'MMM', 'HSY', 'ODFL', 'JPM', 'IRM', 'LYV', 'NTAP', 'LVS', 'ILMN']: TypeError("'NoneType' object is not subscriptable")
+['KSS', 'MSFT', 'MDLZ', 'IVZ', 'MRK', 'HSIC', 'MGNI', 'MAR', 'NOC', 'EXR', 'GD', 'HPE', 'HBAN', 'IWM', 'NXPI', 'NFXL', 'IMVT', 'HR', 'HIG', 'KEY', 'FATE', 'GM', 'MOH', 'FLYW', 'LUV', 'LRCX', 'MDB', 'NSC', 'FITB']: OperationalError('unable to open database file')
+$PSTG: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+51 Failed downloads:
+['TXN', 'RF', 'TSLL', 'UAA', 'VFC', 'RRC', 'TROW', 'PHM', 'SO', 'OSCR', 'PODD', 'PANW', 'OKTA', 'UNM', 'SHW', 'RJF', 'RCL', 'SJM', 'USB', 'PSA', 'RIVN', 'TGT', 'PENN', 'WFC', 'PNC', 'PPG', 'WDC', 'VMC', 'QQQ', 'UPS', 'TEL', 'SLAB', 'WSM', 'XEL', 'STT', 'SKT', 'TOL', 'POWI', 'TLN', 'TRGP', 'SOFI', 'SPY', 'UAL', 'PNW', 'VLO']: OperationalError('unable to open database file')
+['VRTX', 'TT', 'TTWO', 'YUM']: TypeError("'NoneType' object is not subscriptable")
+['PSTG', 'SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+16 Failed downloads:
+['FTNT', 'PODD', 'RSI', 'CCJ', 'GOOG', 'FCX', 'THC', 'JPM', 'LRCX']: TypeError("'NoneType' object is not subscriptable")
+['LVS', 'ZM', 'HSY', 'AAPL', 'PLTR', 'APP', 'BK']: OperationalError('unable to open database file')
+Traceback (most recent call last):
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 521, in <module>
+    run_daily()
+    ~~~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/pipeline/run_pipeline.py", line 221, in run_daily
+    init_db()
+    ~~~~~~~^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 557, in init_db
+    cur.execute(stmt)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/junusami/Documents/Claudeプライベート/trading-dashboard/backend/db_postgres.py", line 61, in execute
+    self._cur.execute(sql, _sanitize_params(params))
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+$BK: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+2 Failed downloads:
+['BK', 'CTRA']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$HOLX: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+44 Failed downloads:
+['IMVT', 'ILMN', 'JBLU', 'LVS', 'HIG', 'FANG', 'GOOG', 'KSS', 'GM']: TypeError("'NoneType' object is not subscriptable")
+['HR', 'H', 'NOC', 'KO', 'MKTX', 'OHI', 'FTNT', 'MPC', 'HBAN', 'IRM', 'MAR', 'MU', 'KIM', 'GE', 'NTRS', 'LUV', 'MPLX', 'NNN', 'LYV', 'KEY', 'KMI', 'FCX', 'MKSI', 'NSC', 'META', 'LNT', 'FITB', 'GD', 'MAS', 'MS', 'ODFL', 'MTB', 'GOOGL', 'MGM']: OperationalError('unable to open database file')
+['HOLX']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$SEE: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+59 Failed downloads:
+['TSLL', 'PCG', 'UNH', 'UAA', 'SKT', 'STT', 'SNOW']: TypeError("'NoneType' object is not subscriptable")
+['WELL', 'RSI', 'UPS', 'SPG', 'ROBN', 'OSCR', 'ONTO', 'ROST', 'PODD', 'WEC', 'SCHW', 'TFC', 'WFC', 'PRU', 'WDC', 'UNM', 'SPY', 'UAL', 'WMB', 'TLN', 'SHW', 'VOYA', 'PHM', 'TGT', 'SOFI', 'TT', 'WSM', 'USB', 'VMC', 'RIVN', 'UBRL', 'TXN', 'TRNO', 'SO', 'STLD', 'THC', 'ZION', 'QQQ', 'SYY', 'REG', 'VFC', 'PPG', 'ZM', 'PSTG', 'TRGP', 'STX', 'RCL', 'POR', 'TTWO', 'WPC', 'PNW']: OperationalError('unable to open database file')
+['SEE']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$BK: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['BK']: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")
+$CTRA: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+$BK: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+2 Failed downloads:
+['CTRA', 'BK']: possibly delisted; no price data found  (period=10d) (Yahoo error = "No data found, symbol may be delisted")
+
+31 Failed downloads:
+['FTV', 'PANW', 'PNC', 'M']: TypeError("'NoneType' object is not subscriptable")
+['MSFT', 'PM', 'NTAP', 'MS', 'OKTA', 'MGA', 'GS', 'HOLX', 'LIN', 'NTRS', 'KSS', 'IVZ', 'NOC', 'JPM', 'LVS', 'MOH', 'JBHT', 'ILMN', 'PNW', 'NDAQ', 'MGNI', 'MMM', 'OHI', 'MTB', 'MTCH', 'IMVT', 'MGM']: OperationalError('unable to open database file')
+
+67 Failed downloads:
+['USFD', 'STX', 'PPG', 'RJF', 'UDR', 'SLAB', 'SO']: TypeError("'NoneType' object is not subscriptable")
+['STT', 'TEL', 'TTWO', 'SPG', 'SBUX', 'SNOW', 'YUM', 'THC', 'RSI', 'QQQ', 'WDC', 'RIVN', 'VRTX', 'SKT', 'UNH', 'WPC', 'STLD', 'SPY', 'UNM', 'PSA', 'ROBN', 'WEC', 'RRC', 'SCHW', 'ROST', 'TGT', 'VLO', 'ZION', 'VMC', 'RF', 'XPO', 'PRU', 'REG', 'TT', 'TRGP', 'SEE', 'RCL', 'SOFI', 'TOL', 'WSM', 'SHW', 'USB', 'PSTG', 'TFC', 'TOST', 'UAL', 'SYY', 'ZM', 'TRNO', 'XEL', 'UBRL', 'VFC', 'TROW', 'VOYA', 'TXN', 'UAA', 'SJM', 'WFC', 'TSLL', 'WELL']: OperationalError('unable to open database file')
+$BK: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")
+
+1 Failed download:
+['BK']: possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")

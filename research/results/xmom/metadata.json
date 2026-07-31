@@ -1,0 +1,6 @@
+{
+  "split": "2025-01-01",
+  "cost_bps": 10,
+  "max_positions": 10,
+  "risk": 0.005
+}

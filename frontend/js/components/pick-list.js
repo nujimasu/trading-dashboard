@@ -11,7 +11,7 @@ import {
 import {
   _buildDetailPanel as buildTechDetailPanel,
   _buildDetailPanelLogic4,
-} from "./tech-picks-table.js?v=8";
+} from "./tech-picks-table.js?v=9";
 import { renderCandlestick } from "../utils/charts.js?v=3";
 import { apiFetch } from "../utils/api.js";
 import {
@@ -232,7 +232,7 @@ function _buildDetail(p, idx, mode) {
     return buildFundaDetailPanel(p, idx, mode);
   }
   if (mode === "logic2" || mode === "logic4" || mode === "logic5") {
-    return _buildDetailPanelLogic4(p, idx);
+    return _buildDetailPanelLogic4(p, idx, mode === "logic5");
   }
   return buildTechDetailPanel(p, idx);
 }
@@ -260,7 +260,7 @@ function _hydrateDetail(container, idx, p, mode) {
           entry:  p.entry_price,
           stop:   p.stop_price,
           tp1:    p.tp1_price,
-          target: p.target_price,
+          target: mode === "logic5" ? null : p.target_price,
         }, patternData);
         break;
       }

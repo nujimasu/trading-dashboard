@@ -20,7 +20,8 @@ const STAGE_LABEL = {
 };
 
 export function renderTechPicksTable(container, picks, title, mode = "weekly") {
-  const isLogic4 = mode === "logic4" || mode === "logic2";
+  const isLogic5 = mode === "logic5";
+  const isLogic4 = mode === "logic4" || mode === "logic2" || isLogic5;
   const isDailyMode = mode === "daily" || isLogic4;
 
   if (!picks.length) {
@@ -76,7 +77,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
         ${isLogic4 ? `<td>${p.sector || "—"}</td>` : ""}
       </tr>
       <tr class="detail-row" id="tdetail-${i}" style="display:none">
-        <td colspan="100">${isLogic4 ? _buildDetailPanelLogic4(p, i) : _buildDetailPanel(p, i)}</td>
+        <td colspan="100">${isLogic4 ? _buildDetailPanelLogic4(p, i, isLogic5) : _buildDetailPanel(p, i)}</td>
       </tr>`;
   }).join("");
 
@@ -127,7 +128,7 @@ export function renderTechPicksTable(container, picks, title, mode = "weekly") {
               entry:  p.entry_price,
               stop:   p.stop_price,
               tp1:    p.tp1_price,
-              target: p.target_price,
+              target: isLogic5 ? null : p.target_price,
             }, patternData);
           }
         }).catch(() => {});
@@ -353,7 +354,7 @@ export function _buildDetailPanelBreakout(p, idx) {
   </div>`;
 }
 
-export function _buildDetailPanelLogic4(p, idx) {
+export function _buildDetailPanelLogic4(p, idx, isLogic5 = false) {
   const isShort = p.direction === "SHORT";
   const rr1 = p.entry_price && p.stop_price && p.tp1_price
     ? Math.abs((p.tp1_price - p.entry_price) / (p.entry_price - p.stop_price)).toFixed(2)
@@ -388,6 +389,12 @@ export function _buildDetailPanelLogic4(p, idx) {
       <div class="tp-sub">ATR×2.0</div>
     </div>
     <div class="tp-arrow">→</div>
+    ${isLogic5 ? `
+    <div class="tp-box tp-tp1">
+      <div class="tp-label">利確（全量）</div>
+      <div class="tp-val tp-val-green">$${fmt(p.tp1_price)}</div>
+      <div class="tp-sub">60日レジスタンス手前 · RR ${rr1}R</div>
+    </div>` : `
     <div class="tp-box tp-tp1">
       <div class="tp-label">TP1（半決済）</div>
       <div class="tp-val tp-val-green">$${fmt(p.tp1_price)}</div>
@@ -398,7 +405,7 @@ export function _buildDetailPanelLogic4(p, idx) {
       <div class="tp-label">TP2（ランナー）</div>
       <div class="tp-val tp-val-green">$${fmt(p.target_price)}</div>
       <div class="tp-sub">RR ${fmt(p.risk_reward)}R</div>
-    </div>
+    </div>`}
     <div class="tp-sep"></div>
     <div class="tp-box" style="border-color:rgba(99,102,241,.3)">
       <div class="tp-label">ATRボラ</div>
