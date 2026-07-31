@@ -1,9 +1,8 @@
 name: Daily Pipeline (Light)
 
 # GH Actions 分数節約のため軽量化:
-# - 価格差分DL は「オープンポジ + オープンシグナル」銘柄のみに絞る
-# - Stage 3-6 (テクニカル/RR/ファンダ/スコアリング再計算) は weekly に任せる
-# - シグナル評価 (ペーパートレード戦績) は毎日継続 (MAE/MFE 精度維持)
+# - 価格差分DL、市場ヘルス、ニュースのみ更新
+# - swing_store を持たないためスイングスキャンは実行しない
 
 on:
   schedule:
@@ -14,7 +13,7 @@ on:
 jobs:
   run-daily-light:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Polygon grouped(約10分)+シグナル評価の余裕を確保(20→30)
+    timeout-minutes: 30  # Polygon grouped とニュース取得の余裕を確保
 
     steps:
       - name: Checkout
@@ -35,10 +34,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run daily-light (open positions/signals price update + signal evaluation)
+      - name: Run daily-light pipeline
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FMP_API_KEY:  ${{ secrets.FMP_API_KEY }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
-        run: python -u pipeline/run_pipeline.py --daily-light  # -u: ログを即時出力(進捗可視化)
+        run: python -u pipeline/run_pipeline.py --daily-light  # -u: ログを即時出力

@@ -142,9 +142,6 @@ def get_pipeline_status():
     """)
     logs = [dict(r) for r in cur.fetchall()]
 
-    cur.execute("SELECT COUNT(*) as cnt FROM weekly_picks")
-    picks_count = cur.fetchone()["cnt"]
-
     cur.execute("SELECT COUNT(DISTINCT ticker) as cnt FROM price_data")
     price_count = cur.fetchone()["cnt"]
 
@@ -154,7 +151,6 @@ def get_pipeline_status():
     conn.close()
 
     return {
-        "weekly_picks_count": picks_count,
         "price_data_tickers": price_count,
         "market_health":      dict(mh) if mh else None,
         "recent_logs":        logs,

@@ -1,84 +1,72 @@
-"""
-PostgreSQL互換レイヤー — Supabase接続
-既存のSQLite コード（? プレースホルダー・sqlite3.Row アクセス）を
-そのまま動かすためのラッパー。
-DATABASE_URL 環境変数が設定された場合のみ使用される。
-"""
+"""PostgreSQL compatibility layer for the dashboard's SQLite-style queries."""
+
 import os
 import re
-import json
 import time
 from contextlib import contextmanager
 from typing import Optional
+
 import psycopg2
-import psycopg2.extras
 
 
 DATABASE_URL = os.environ["DATABASE_URL"]
-
-# sslmode が未指定なら require を付加（Supabase pooler 必須）
 if "sslmode" not in DATABASE_URL:
     DATABASE_URL += "?sslmode=require" if "?" not in DATABASE_URL else "&sslmode=require"
 
 
 class CompatRow(dict):
-    """sqlite3.Row 互換の dict。row["col"] でも row.get("col") でもアクセス可能。"""
     pass
 
 
 def _sanitize_params(params):
-    """numpy スカラー型を Python ネイティブ型に変換（psycopg2 が np.float64 等を扱えないため）。"""
     if params is None:
         return None
     import numpy as np
-    def _fix(v):
-        if isinstance(v, (np.integer,)):  return int(v)
-        if isinstance(v, (np.floating,)): return float(v)
-        if isinstance(v, (np.bool_,)):    return bool(v)
-        return v
+
+    def fix(value):
+        if isinstance(value, np.integer):
+            return int(value)
+        if isinstance(value, np.floating):
+            return float(value)
+        if isinstance(value, np.bool_):
+            return bool(value)
+        return value
+
     if isinstance(params, dict):
-        return {k: _fix(v) for k, v in params.items()}
-    return tuple(_fix(v) for v in params)
+        return {key: fix(value) for key, value in params.items()}
+    return tuple(fix(value) for value in params)
 
 
 class CompatCursor:
-    """`?` を `%s`、`:name` を `%(name)s` に自動変換するカーソルラッパー。"""
-
     def __init__(self, cursor):
         self._cur = cursor
 
     def _convert(self, sql: str, params=None) -> str:
         if isinstance(params, dict):
-            # SQLite named params (:name) → psycopg2 named params (%(name)s)
-            sql = re.sub(r':(\w+)', r'%(\1)s', sql)
-        else:
-            # SQLite positional params (?) → psycopg2 positional params (%s)
-            sql = sql.replace("?", "%s")
-        return sql
+            return re.sub(r":(\w+)", r"%(\1)s", sql)
+        return sql.replace("?", "%s")
 
     def execute(self, sql: str, params=None):
-        sql = self._convert(sql, params)
-        self._cur.execute(sql, _sanitize_params(params))
+        self._cur.execute(self._convert(sql, params), _sanitize_params(params))
         return self
 
     def executemany(self, sql: str, seq):
-        sql = self._convert(sql)
-        self._cur.executemany(sql, [_sanitize_params(p) for p in seq])
+        self._cur.executemany(self._convert(sql), [_sanitize_params(item) for item in seq])
         return self
 
     def _make_row(self, raw_row) -> Optional[CompatRow]:
         if raw_row is None:
             return None
-        cols = [desc[0] for desc in self._cur.description]
-        return CompatRow(zip(cols, raw_row))
+        columns = [desc[0] for desc in self._cur.description]
+        return CompatRow(zip(columns, raw_row))
 
     def fetchone(self) -> Optional[CompatRow]:
         return self._make_row(self._cur.fetchone())
 
     def fetchall(self) -> list[CompatRow]:
         rows = self._cur.fetchall()
-        cols = [desc[0] for desc in self._cur.description] if self._cur.description else []
-        return [CompatRow(zip(cols, r)) for r in rows]
+        columns = [desc[0] for desc in self._cur.description] if self._cur.description else []
+        return [CompatRow(zip(columns, row)) for row in rows]
 
     @property
     def lastrowid(self):
@@ -90,8 +78,6 @@ class CompatCursor:
 
 
 class CompatConnection:
-    """psycopg2 コネクションを sqlite3 互換インターフェースでラップ。"""
-
     def __init__(self, conn):
         self._conn = conn
 
@@ -116,11 +102,10 @@ class CompatConnection:
 def get_connection(retries: int = 3) -> CompatConnection:
     for attempt in range(retries):
         try:
-            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
-            return CompatConnection(conn)
+            return CompatConnection(psycopg2.connect(DATABASE_URL, connect_timeout=10))
         except psycopg2.OperationalError:
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)  # 1s, 2s
+                time.sleep(2 ** attempt)
             else:
                 raise
 
@@ -140,468 +125,69 @@ def db_cursor():
 
 
 def init_db():
-    """PostgreSQL に全テーブルを作成（存在しない場合のみ）。"""
+    """Create the tables used by retained dashboard features."""
     conn = get_connection()
     cur = conn.cursor()
-
     statements = [
         """
         CREATE TABLE IF NOT EXISTS universe (
-            ticker      TEXT PRIMARY KEY,
-            name        TEXT,
-            sector      TEXT,
-            industry    TEXT,
-            market_cap  REAL,
-            exchange    TEXT,
-            updated_at  TEXT
+            ticker TEXT PRIMARY KEY, name TEXT, sector TEXT, industry TEXT,
+            market_cap REAL, exchange TEXT, updated_at TEXT
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS price_data (
-            ticker  TEXT,
-            date    TEXT,
-            open    REAL,
-            high    REAL,
-            low     REAL,
-            close   REAL,
-            volume  BIGINT,
-            PRIMARY KEY (ticker, date)
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS technical_screen (
-            ticker          TEXT PRIMARY KEY,
-            scan_date       TEXT,
-            price           REAL,
-            sma20           REAL,
-            sma50           REAL,
-            sma200          REAL,
-            ema10           REAL,
-            ema21           REAL,
-            rsi             REAL,
-            macd            REAL,
-            macd_signal     REAL,
-            volume_ratio    REAL,
-            high_52w        REAL,
-            low_52w         REAL,
-            pct_from_high   REAL,
-            atr             REAL,
-            stage2_uptrend  INTEGER,
-            vcp_tightening  INTEGER,
-            passed_filter   INTEGER
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS detailed_analysis (
-            ticker              TEXT PRIMARY KEY,
-            scan_date           TEXT,
-            vcp_score           REAL,
-            contraction_count   INTEGER,
-            pivot_price         REAL,
-            stop_price          REAL,
-            tp1_price           REAL,
-            target_price        REAL,
-            risk_reward         REAL,
-            tier                TEXT,
-            technical_score     REAL,
-            holding_days_est    INTEGER DEFAULT 20,
-            entry_reasons       TEXT,
-            risk_factors        TEXT,
-            direction           TEXT DEFAULT 'LONG'
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS fundamentals (
-            ticker                  TEXT PRIMARY KEY,
-            sector                  TEXT,
-            industry                TEXT,
-            market_cap              REAL,
-            pe_ratio                REAL,
-            eps_growth_yoy          REAL,
-            eps_growth_q            REAL,
-            revenue_growth_yoy      REAL,
-            earnings_surprise_pct   REAL,
-            roe                     REAL,
-            operating_margin        REAL,
-            profit_margin           REAL,
-            inst_own_pct            REAL,
-            debt_to_equity          REAL,
-            description             TEXT,
-            updated_at              TEXT
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS weekly_picks (
-            ticker                  TEXT PRIMARY KEY,
-            week_of                 TEXT,
-            composite_score         REAL,
-            tier                    TEXT,
-            sector                  TEXT,
-            themes                  TEXT,
-            entry_price             REAL,
-            stop_price              REAL,
-            tp1_price               REAL,
-            target_price            REAL,
-            risk_reward             REAL,
-            technical_summary       TEXT,
-            fundamental_summary     TEXT,
-            fundamental_verdict     TEXT DEFAULT 'データなし',
-            verdict                 TEXT,
-            direction               TEXT DEFAULT 'LONG',
-            holding_days_est        INTEGER DEFAULT 20
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS daily_picks (
-            ticker                  TEXT,
-            date                    TEXT,
-            current_price           REAL,
-            adjusted_rr             REAL,
-            breakout_triggered      INTEGER,
-            volume_confirmation     INTEGER,
-            daily_verdict           TEXT,
-            notes                   TEXT,
-            PRIMARY KEY (ticker, date)
+            ticker TEXT, date TEXT, open REAL, high REAL, low REAL, close REAL,
+            volume BIGINT, PRIMARY KEY (ticker, date)
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS market_health (
-            date            TEXT PRIMARY KEY,
-            overall_score   REAL,
-            overall_signal  TEXT,
-            sector_scores   TEXT,
-            theme_scores    TEXT,
-            total_screened  INTEGER,
-            stage2_count    INTEGER
+            date TEXT PRIMARY KEY, overall_score REAL, overall_signal TEXT,
+            sector_scores TEXT, theme_scores TEXT, total_screened INTEGER,
+            stage2_count INTEGER
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS news_events (
-            id                  BIGSERIAL PRIMARY KEY,
-            date                TEXT,
-            category            TEXT,
-            title               TEXT,
-            description         TEXT,
-            impact              TEXT,
-            affected_sectors    TEXT,
-            affected_tickers    TEXT,
-            source              TEXT,
-            url                 TEXT DEFAULT '',
-            next_release        TEXT DEFAULT ''
+            id BIGSERIAL PRIMARY KEY, date TEXT, category TEXT, title TEXT,
+            description TEXT, impact TEXT, affected_sectors TEXT,
+            affected_tickers TEXT, source TEXT, url TEXT DEFAULT '',
+            next_release TEXT DEFAULT ''
         )
         """,
         """
-        CREATE TABLE IF NOT EXISTS pipeline_log (
-            id          BIGSERIAL PRIMARY KEY,
-            run_at      TEXT,
-            stage       TEXT,
-            status      TEXT,
-            message     TEXT,
-            duration_s  REAL
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS swing_picks (
-            id              SERIAL PRIMARY KEY,
-            scan_date       DATE NOT NULL,
-            ticker          TEXT NOT NULL,
-            price           REAL,
-            state           TEXT,
-            touch_days_ago  INTEGER,
-            dow_trend       TEXT,
-            adx             REAL,
-            rs63            REAL,
-            rs126           REAL,
-            atr_pct         REAL,
-            dollar_vol      REAL,
-            ema20_dist      REAL,
-            po_weeks        INTEGER,
-            levels          TEXT,
-            created_at      TIMESTAMPTZ DEFAULT NOW(),
-            UNIQUE(scan_date, ticker)
+        CREATE TABLE IF NOT EXISTS fundamentals (
+            ticker TEXT PRIMARY KEY, sector TEXT, industry TEXT, market_cap REAL,
+            pe_ratio REAL, eps_growth_yoy REAL, eps_growth_q REAL,
+            revenue_growth_yoy REAL, earnings_surprise_pct REAL, roe REAL,
+            operating_margin REAL, profit_margin REAL, inst_own_pct REAL,
+            debt_to_equity REAL, description TEXT, updated_at TEXT
         )
         """,
         """
         CREATE TABLE IF NOT EXISTS api_usage (
-            date        TEXT PRIMARY KEY,
-            fmp_calls   INTEGER DEFAULT 0
+            date TEXT PRIMARY KEY, fmp_calls INTEGER DEFAULT 0
         )
         """,
         """
-        CREATE TABLE IF NOT EXISTS tech_weekly_picks (
-            ticker          TEXT PRIMARY KEY,
-            week_of         TEXT,
-            scan_date       TEXT,
-            direction       TEXT DEFAULT 'LONG',
-            stage           INTEGER DEFAULT 0,
-            confidence      REAL,
-            avg_win_rate    REAL,
-            risk_reward     REAL,
-            entry_price     REAL,
-            stop_price      REAL,
-            tp1_price       REAL,
-            target_price    REAL,
-            atr_pct         REAL,
-            rsi             REAL,
-            signals_json    TEXT DEFAULT '[]'
+        CREATE TABLE IF NOT EXISTS pipeline_log (
+            id BIGSERIAL PRIMARY KEY, run_at TEXT, stage TEXT, status TEXT,
+            message TEXT, duration_s REAL
         )
         """,
         """
-        CREATE TABLE IF NOT EXISTS tech_daily_picks (
-            ticker              TEXT,
-            date                TEXT,
-            current_price       REAL,
-            adjusted_rr         REAL,
-            daily_verdict       TEXT,
-            active_signals_json TEXT DEFAULT '[]',
-            PRIMARY KEY (ticker, date)
+        CREATE TABLE IF NOT EXISTS swing_picks (
+            id SERIAL PRIMARY KEY, scan_date DATE NOT NULL, ticker TEXT NOT NULL,
+            price REAL, state TEXT, touch_days_ago INTEGER, dow_trend TEXT,
+            adx REAL, rs63 REAL, rs126 REAL, atr_pct REAL, dollar_vol REAL,
+            ema20_dist REAL, po_weeks INTEGER, levels TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(scan_date, ticker)
         )
         """,
-        """
-        CREATE TABLE IF NOT EXISTS logic4_picks (
-            ticker               TEXT PRIMARY KEY,
-            scan_date            TEXT,
-            perfect_order        TEXT,
-            perf_3m              REAL,
-            perf_6m              REAL,
-            avg_vol_20d          REAL,
-            dow_trend            TEXT,
-            support_price        REAL,
-            confluence           INTEGER DEFAULT 0,
-            support_reasons      TEXT DEFAULT '[]',
-            reji_sapo            TEXT DEFAULT 'none',
-            risk_reward          REAL,
-            entry_price          REAL,
-            stop_price           REAL,
-            tp1_price            REAL,
-            target_price         REAL,
-            rsi                  REAL,
-            rsi_flag             INTEGER DEFAULT 0,
-            macd_div_flag        INTEGER DEFAULT 0,
-            fib_confluence       TEXT,
-            atr                  REAL,
-            verdict              TEXT,
-            confidence           REAL,
-            composite_score      REAL,
-            sector               TEXT,
-            current_price        REAL,
-            holding_days_est     INTEGER DEFAULT 14,
-            signals_json         TEXT DEFAULT '[]',
-            price_to_support_pct REAL,
-            h1_trigger           TEXT,
-            h4_structure         TEXT DEFAULT 'neutral'
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS logic2_picks (
-            ticker               TEXT PRIMARY KEY,
-            scan_date            TEXT,
-            perfect_order        TEXT,
-            perf_3m              REAL,
-            perf_6m              REAL,
-            avg_vol_20d          REAL,
-            dow_trend            TEXT,
-            support_price        REAL,
-            confluence           INTEGER DEFAULT 0,
-            support_reasons      TEXT DEFAULT '[]',
-            reji_sapo            TEXT DEFAULT 'none',
-            risk_reward          REAL,
-            entry_price          REAL,
-            stop_price           REAL,
-            tp1_price            REAL,
-            target_price         REAL,
-            rsi                  REAL,
-            rsi_flag             INTEGER DEFAULT 0,
-            macd_div_flag        INTEGER DEFAULT 0,
-            fib_confluence       TEXT,
-            atr                  REAL,
-            verdict              TEXT,
-            confidence           REAL,
-            composite_score      REAL,
-            sector               TEXT,
-            current_price        REAL,
-            holding_days_est     INTEGER DEFAULT 14,
-            signals_json         TEXT DEFAULT '[]',
-            price_to_support_pct REAL,
-            h4_trigger           TEXT,
-            h4_structure         TEXT DEFAULT 'neutral',
-            h4_triggers_all      TEXT DEFAULT '[]',
-            trigger_bonus        REAL DEFAULT 0
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS logic5_picks (
-            ticker           TEXT PRIMARY KEY,
-            scan_date        DATE,
-            sector           TEXT,
-            current_price    NUMERIC,
-            entry_price      NUMERIC,
-            stop_price       NUMERIC,
-            tp1_price        NUMERIC,
-            target_price     NUMERIC,
-            risk_reward      NUMERIC,
-            ema_label        TEXT,
-            ema_dist_pct     NUMERIC,
-            support_price    NUMERIC,
-            pa_count         INTEGER DEFAULT 0,
-            osc_count        INTEGER DEFAULT 0,
-            perf_3m          NUMERIC,
-            perf_6m          NUMERIC,
-            avg_vol_20d      NUMERIC,
-            rsi              NUMERIC,
-            atr              NUMERIC,
-            verdict          TEXT,
-            confidence       NUMERIC,
-            composite_score  NUMERIC,
-            holding_days_est INTEGER DEFAULT 10,
-            reasons_json     TEXT DEFAULT '[]',
-            rules_json       TEXT DEFAULT '[]'
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS signal_log (
-            id              SERIAL PRIMARY KEY,
-            logic_name      TEXT NOT NULL,
-            ticker          TEXT NOT NULL,
-            signal_date     DATE NOT NULL,
-            direction       TEXT NOT NULL DEFAULT 'LONG',
-            entry_price     NUMERIC,
-            stop_price      NUMERIC,
-            tp1_price       NUMERIC,
-            target_price    NUMERIC,
-            confidence      NUMERIC,
-            meta            JSONB,
-            status          TEXT DEFAULT 'open',
-            exit_date       DATE,
-            exit_price      NUMERIC,
-            realized_r      NUMERIC,
-            days_held       INTEGER,
-            mae_pct         NUMERIC,
-            mfe_pct         NUMERIC,
-            hit_tp1         BOOLEAN DEFAULT FALSE,
-            evaluated_at    TIMESTAMPTZ,
-            created_at      TIMESTAMPTZ DEFAULT NOW()
-        )
-        """,
-        "CREATE UNIQUE INDEX IF NOT EXISTS uniq_signal_log_logic_ticker_date ON signal_log(logic_name, ticker, signal_date)",
-        "CREATE INDEX IF NOT EXISTS idx_signal_log_status ON signal_log(status) WHERE status = 'open'",
-        "CREATE INDEX IF NOT EXISTS idx_signal_log_logic_signal_date ON signal_log(logic_name, signal_date DESC)",
-        """
-        CREATE TABLE IF NOT EXISTS signal_log_intraday (
-            id              SERIAL PRIMARY KEY,
-            signal_id       INTEGER NOT NULL,
-            logic_name      TEXT NOT NULL,
-            ticker          TEXT NOT NULL,
-            signal_date     DATE NOT NULL,
-            fill_mode       TEXT NOT NULL,
-            direction       TEXT NOT NULL DEFAULT 'LONG',
-            status          TEXT NOT NULL DEFAULT 'open',
-            entry_plan      NUMERIC,
-            fill_price      NUMERIC,
-            fill_at         TIMESTAMPTZ,
-            stop_price      NUMERIC,
-            tp1_price       NUMERIC,
-            target_price    NUMERIC,
-            exit_price      NUMERIC,
-            exit_at         TIMESTAMPTZ,
-            exit_reason     TEXT,
-            realized_r      NUMERIC,
-            mtm_r           NUMERIC,
-            hit_tp1         BOOLEAN DEFAULT FALSE,
-            bars_held       INTEGER,
-            days_held       INTEGER,
-            mae_pct         NUMERIC,
-            mfe_pct         NUMERIC,
-            confidence      NUMERIC,
-            verdict         TEXT,
-            evaluated_at    TIMESTAMPTZ DEFAULT NOW()
-        )
-        """,
-        "CREATE UNIQUE INDEX IF NOT EXISTS uniq_signal_intraday ON signal_log_intraday(signal_id, fill_mode)",
-        "CREATE INDEX IF NOT EXISTS idx_signal_intraday_mode_logic ON signal_log_intraday(fill_mode, logic_name)",
-        """
-        CREATE TABLE IF NOT EXISTS positions (
-            id                SERIAL PRIMARY KEY,
-            ticker            TEXT NOT NULL,
-            direction         TEXT NOT NULL DEFAULT 'LONG',
-            entry_date        DATE NOT NULL,
-            entry_price       NUMERIC NOT NULL,
-            shares            NUMERIC NOT NULL,
-            stop_price        NUMERIC,
-            tp1_price         NUMERIC,
-            target_price      NUMERIC,
-            source_logic      TEXT,
-            source_signal_id  INTEGER,
-            status            TEXT NOT NULL DEFAULT 'open',
-            exit_date         DATE,
-            exit_price        NUMERIC,
-            exit_reason       TEXT,
-            notes             TEXT,
-            tags              JSONB DEFAULT '[]'::jsonb,
-            created_at        TIMESTAMPTZ DEFAULT NOW(),
-            updated_at        TIMESTAMPTZ DEFAULT NOW()
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS idx_positions_status ON positions(status)",
-        "CREATE INDEX IF NOT EXISTS idx_positions_ticker ON positions(ticker)",
-        "CREATE INDEX IF NOT EXISTS idx_positions_entry_date ON positions(entry_date DESC)",
-        "CREATE INDEX IF NOT EXISTS idx_positions_tags ON positions USING gin (tags)",
-        """
-        CREATE TABLE IF NOT EXISTS journal_entries (
-            id           SERIAL PRIMARY KEY,
-            position_id  INTEGER NOT NULL REFERENCES positions(id) ON DELETE CASCADE,
-            entry_type   TEXT NOT NULL DEFAULT 'note',
-            body         TEXT NOT NULL,
-            created_at   TIMESTAMPTZ DEFAULT NOW()
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS idx_journal_position ON journal_entries(position_id, created_at DESC)",
-        """
-        CREATE TABLE IF NOT EXISTS custom_insights (
-            id            SERIAL PRIMARY KEY,
-            title         TEXT NOT NULL,
-            body          TEXT NOT NULL,
-            severity      TEXT NOT NULL DEFAULT 'info',
-            icon          TEXT DEFAULT '💡',
-            metrics       JSONB,
-            tags          JSONB,
-            source        TEXT DEFAULT 'claude',
-            pinned        BOOLEAN DEFAULT false,
-            created_at    TIMESTAMPTZ DEFAULT NOW(),
-            dismissed_at  TIMESTAMPTZ
-        )
-        """,
-        "CREATE INDEX IF NOT EXISTS idx_custom_insights_active ON custom_insights(created_at DESC) WHERE dismissed_at IS NULL",
     ]
-
-    for stmt in statements:
-        cur.execute(stmt)
-
-    pg_migrations = [
-        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS eps_growth_q REAL",
-        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS operating_margin REAL",
-        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS profit_margin REAL",
-        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS inst_own_pct REAL",
-        "ALTER TABLE fundamentals ADD COLUMN IF NOT EXISTS debt_to_equity REAL",
-        "DROP TABLE IF EXISTS logic3_picks",
-        "DELETE FROM signal_log WHERE logic_name = 'logic3'",
-        "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''",
-        "ALTER TABLE news_events ADD COLUMN IF NOT EXISTS next_release TEXT DEFAULT ''",
-        "ALTER TABLE tech_daily_picks ADD COLUMN IF NOT EXISTS stage_b_signals_json TEXT DEFAULT '[]'",
-        "ALTER TABLE daily_picks ADD COLUMN IF NOT EXISTS take_profit_verdict TEXT DEFAULT 'HOLD'",
-        "ALTER TABLE daily_picks ADD COLUMN IF NOT EXISTS take_profit_signals TEXT DEFAULT ''",
-        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS price_to_support_pct REAL",
-        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h1_trigger TEXT",
-        "ALTER TABLE logic4_picks ADD COLUMN IF NOT EXISTS h4_structure TEXT DEFAULT 'neutral'",
-        "ALTER TABLE logic2_picks ADD COLUMN IF NOT EXISTS chart_pattern TEXT",
-        "ALTER TABLE signal_log_intraday ADD COLUMN IF NOT EXISTS verdict TEXT",
-    ]
-    for m in pg_migrations:
-        try:
-            cur.execute(m)
-        except Exception:
-            conn.rollback()
-
+    for statement in statements:
+        cur.execute(statement)
     conn.commit()
     conn.close()
     print("[DB] PostgreSQL tables initialized (Supabase)")
@@ -609,7 +195,7 @@ def init_db():
 
 def get_fmp_call_count(date_str: str) -> int:
     with db_cursor() as cur:
-        cur.execute("SELECT fmp_calls FROM api_usage WHERE date = %s", (date_str,))
+        cur.execute("SELECT fmp_calls FROM api_usage WHERE date = ?", (date_str,))
         row = cur.fetchone()
         return row["fmp_calls"] if row else 0
 
@@ -617,6 +203,6 @@ def get_fmp_call_count(date_str: str) -> int:
 def increment_fmp_call_count(date_str: str, n: int = 1):
     with db_cursor() as cur:
         cur.execute("""
-            INSERT INTO api_usage (date, fmp_calls) VALUES (%s, %s)
-            ON CONFLICT (date) DO UPDATE SET fmp_calls = api_usage.fmp_calls + %s
+            INSERT INTO api_usage (date, fmp_calls) VALUES (?, ?)
+            ON CONFLICT (date) DO UPDATE SET fmp_calls = api_usage.fmp_calls + ?
         """, (date_str, n, n))

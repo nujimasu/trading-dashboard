@@ -1,22 +1,15 @@
-"""
-Full pipeline orchestrator.
-Run: python pipeline/run_pipeline.py [options]
+"""Trading dashboard pipeline orchestrator."""
 
-Options:
-  --daily-only     Only run daily_adjustment (fast, for market hours)
-  --skip-download  Skip Stage 2 download (use existing price data)
-  --tech-weekly    Run pure-technical scan (signal-scanner logic)
-  --tech-daily     Run tech daily adjustment only
-"""
+import argparse
 import os
 import sys
 import time
-import argparse
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from backend.db import init_db, db_cursor
+
+from backend.db import db_cursor, init_db
 
 
 def log_stage(stage: str, status: str, message: str, duration: float = 0):
@@ -28,506 +21,183 @@ def log_stage(stage: str, status: str, message: str, duration: float = 0):
     print(f"[{stage}] {status}: {message} ({duration:.1f}s)")
 
 
-def _collect_daily_price_tickers() -> list[str]:
-    """Collect tickers whose charts/signals need fresh daily OHLCV."""
-    queries = [
-        "SELECT ticker FROM weekly_picks",
-        "SELECT ticker FROM tech_weekly_picks",
-        "SELECT ticker FROM logic2_picks",
-        "SELECT ticker FROM logic4_picks",
-        "SELECT ticker FROM positions WHERE status = 'open'",
-        "SELECT ticker FROM signal_log WHERE status = 'open'",
-    ]
-    tickers = set()
-    with db_cursor() as cur:
-        for sql in queries:
-            try:
-                cur.execute(sql)
-                tickers.update((r["ticker"] or "").strip().upper() for r in cur.fetchall())
-            except Exception:
-                # Older local DBs may not have every optional table yet.
-                continue
-    return sorted(t for t in tickers if t)
+def _load_universe() -> list[str]:
+    from backend.db import get_connection
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT ticker FROM universe")
+        return [row["ticker"] for row in cur.fetchall()]
+    finally:
+        conn.close()
 
 
-def run_full(skip_download: bool = False):
+def _run_market_health(stage: str = "MarketHealth") -> None:
+    from backend.db import get_connection
+    from pipeline.market_health import compute_market_health
+
+    started = time.time()
+    conn = get_connection()
+    try:
+        compute_market_health(conn, date.today().isoformat())
+        log_stage(stage, "OK", "market_health updated", time.time() - started)
+    except Exception as exc:
+        log_stage(stage, "ERROR", str(exc), time.time() - started)
+        print(f"[WARN] market_health computation failed: {exc}")
+    finally:
+        conn.close()
+
+
+def _run_news(stage: str = "News") -> None:
+    started = time.time()
+    try:
+        from pipeline.news_collector import run as news_run
+
+        news_run()
+        log_stage(stage, "OK", "Economic + news events saved", time.time() - started)
+    except Exception as exc:
+        log_stage(stage, "ERROR", str(exc), time.time() - started)
+        print(f"[WARN] News collection failed: {exc}")
+
+
+def run_full(skip_download: bool = False) -> None:
     print("=" * 60)
     print(f"Trading Dashboard Pipeline — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     print("=" * 60)
-
-    # Ensure DB is initialized
     init_db()
-
     total_start = time.time()
 
-    # ── Stage 1: Universe ──────────────────────────────────────────────────
-    # 既存universeが十分新しければ再構築をスキップする。
-    # 理由: FMP /stock/list は現プランで404のため Stage1 は実質 static_universe
-    # (コード内固定リスト)依存で、再構築は membership を更新せず sector補完(yfinance)
-    # のみが長時間化し pooler 切断→FATAL を招く。週次自動更新を完走させるための堅牢化。
-    UNIVERSE_MAX_AGE_DAYS = 14
-    t0 = time.time()
-    existing, last_upd = [], None
-    try:
-        from backend.db import get_connection
-        _c = get_connection(); _cur = _c.cursor()
-        _cur.execute("SELECT ticker FROM universe")
-        existing = [r["ticker"] for r in _cur.fetchall()]
-        _cur.execute("SELECT MAX(updated_at) AS mx FROM universe")
-        _row = _cur.fetchone()
-        last_upd = _row["mx"] if _row else None
-        _c.close()
-    except Exception:
-        pass
+    max_age_days = 14
+    started = time.time()
+    existing = _load_universe()
+    last_updated = None
+    if existing:
+        try:
+            from backend.db import get_connection
+
+            conn = get_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT MAX(updated_at) AS mx FROM universe")
+            row = cur.fetchone()
+            last_updated = row["mx"] if row else None
+            conn.close()
+        except Exception:
+            pass
 
     fresh = False
-    if existing and len(existing) >= 400 and last_upd:
+    if len(existing) >= 400 and last_updated:
         try:
-            fresh = date.fromisoformat(str(last_upd)[:10]) >= date.today() - timedelta(days=UNIVERSE_MAX_AGE_DAYS)
+            fresh = date.fromisoformat(str(last_updated)[:10]) >= date.today() - timedelta(days=max_age_days)
         except Exception:
-            fresh = True  # 日付パース不能でも既存が十分あれば使う
+            fresh = True
 
     if fresh:
         tickers = existing
-        log_stage("Stage1", "SKIP", f"既存universe {len(tickers)}銘柄が新鮮(再構築不要)", time.time() - t0)
+        log_stage("Stage1", "SKIP", f"既存universe {len(tickers)}銘柄が新鮮(再構築不要)", time.time() - started)
     else:
         try:
             from pipeline.stage1_universe import run as stage1_run
+
             tickers = stage1_run()
-            log_stage("Stage1", "OK", f"{len(tickers)} tickers in universe", time.time() - t0)
-        except Exception as e:
-            if existing:  # 再構築失敗 → 既存universeで続行(週次をFATALさせない)
+            log_stage("Stage1", "OK", f"{len(tickers)} tickers in universe", time.time() - started)
+        except Exception as exc:
+            if existing:
                 tickers = existing
-                log_stage("Stage1", "WARN", f"再構築失敗→既存{len(tickers)}銘柄を使用: {str(e)[:120]}", time.time() - t0)
+                log_stage("Stage1", "WARN", f"再構築失敗→既存{len(tickers)}銘柄を使用: {str(exc)[:120]}", time.time() - started)
             else:
-                log_stage("Stage1", "ERROR", str(e), time.time() - t0)
-                print(f"[FATAL] Stage 1 failed: {e}")
+                log_stage("Stage1", "ERROR", str(exc), time.time() - started)
+                print(f"[FATAL] Stage 1 failed: {exc}")
                 return
 
-    # ── Stage 2: Price download ────────────────────────────────────────────
-    # POLYGON_API_KEY があれば grouped daily(1コール/営業日)で直近を全銘柄一括前進。
-    # price_data は日次 grouped で最新化済みのため gap-fill は軽量で済みタイムアウトしない。
-    # キーが無ければ従来の yfinance 全銘柄DLにフォールバック。
-    if not skip_download:
-        t0 = time.time()
+    if skip_download:
+        log_stage("Stage2", "SKIP", "--skip-download specified", 0)
+    else:
+        started = time.time()
         try:
             if os.getenv("POLYGON_API_KEY"):
                 from pipeline.stage2_price_data import run_grouped
+
                 downloaded = run_grouped(tickers, lookback_days=15)
-                log_stage("Stage2", "OK", f"{len(downloaded)} tickers (Polygon grouped)", time.time() - t0)
+                message = f"{len(downloaded)} tickers (Polygon grouped)"
             else:
                 from pipeline.stage2_price_data import run as stage2_run
+
                 downloaded = stage2_run(tickers)
-                log_stage("Stage2", "OK", f"{len(downloaded)} tickers (yfinance)", time.time() - t0)
-        except Exception as e:
-            log_stage("Stage2", "ERROR", str(e), time.time() - t0)
-            print(f"[WARN] Stage 2 failed: {e}, continuing with existing data...")
-    else:
-        print("[Stage2] Skipped (--skip-download)")
+                message = f"{len(downloaded)} tickers (yfinance)"
+            log_stage("Stage2", "OK", message, time.time() - started)
+        except Exception as exc:
+            log_stage("Stage2", "ERROR", str(exc), time.time() - started)
+            print(f"[WARN] Stage 2 failed: {exc}, continuing with existing data...")
 
-    # ── Stage 3: Technical filter ─────────────────────────────────────────
-    t0 = time.time()
+    _run_market_health()
+    _run_news()
+
+    started = time.time()
     try:
-        from pipeline.stage3_technical_filter import run as stage3_run
-        survivors_s3 = stage3_run(tickers)
-        longs_s3  = len(survivors_s3.get("longs",  []))
-        shorts_s3 = len(survivors_s3.get("shorts", []))
-        log_stage("Stage3", "OK", f"{longs_s3} long + {shorts_s3} short passed filter", time.time() - t0)
-    except Exception as e:
-        log_stage("Stage3", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage 3 failed: {e}")
-        return
+        from pipeline.swing_scan import run as swing_run
 
-    if not longs_s3 and not shorts_s3:
-        print("[Pipeline] No stocks passed Stage 3 filter. Logic1 still scans the full universe.")
+        swing_run()
+        log_stage("SwingScan", "OK", "swing picks updated", time.time() - started)
+    except Exception as exc:
+        log_stage("SwingScan", "ERROR", str(exc), time.time() - started)
+        print(f"[WARN] Swing scan failed: {exc}")
 
-    # ── Market Health（Stage3のtechnical_screen + universe から本算出）─────────
-    # Stage6 を撤去したため、その compute_market_health を明示的に呼ぶ。
-    # （これが無いと Stage3 が overall_score=0/signal='' のプレースホルダーのままになる）
-    t0 = time.time()
-    try:
-        from pipeline.stage6_scoring import compute_market_health
-        from backend.db import get_connection as _gc_mh
-        _mh = _gc_mh()
-        compute_market_health(_mh, date.today().isoformat())
-        _mh.close()
-        log_stage("MarketHealth", "OK", "market_health updated", time.time() - t0)
-    except Exception as e:
-        log_stage("MarketHealth", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] market_health computation failed: {e}")
-
-    # ── Logic2 scan ───────────────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.logic2_scan import run as logic2_run
-        logic2_run()
-        log_stage("Logic2", "OK", "Logic2 picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("Logic2", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic2 scan failed: {e}")
-
-    # ── Logic4 scan ───────────────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.logic4_scan import run as logic4_run
-        logic4_run()
-        log_stage("Logic4", "OK", "Logic4 picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("Logic4", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic4 scan failed: {e}")
-
-    # ── Logic5 scan: 押し目リバーサル ──────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.logic5_scan import run as logic5_run
-        logic5_run()
-        log_stage("Logic5", "OK", "Logic5 picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("Logic5", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic5 scan failed: {e}")
-
-    # ── Logic1 scan: ファンダ重視（グロース）───────────────────────────────
-    # logic2/logic4 の後に実行する（当日の logic2_picks/logic4_picks を
-    # クロスタグ「v1/v2にも出現」で参照するため）。
-    t0 = time.time()
-    try:
-        from pipeline.logic1_scan import run as logic1_run
-        logic1_picks = logic1_run()
-        log_stage("Logic1", "OK", f"{len(logic1_picks)} weekly picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("Logic1", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Logic1 scan failed: {e}")
-        return
-
-    # ── News collection ───────────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.news_collector import run as news_run
-        news_run()
-        log_stage("News", "OK", "Economic + news events saved", time.time() - t0)
-    except Exception as e:
-        log_stage("News", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] News collection failed: {e}")
-
-    total = time.time() - total_start
     print("=" * 60)
-    print(f"Pipeline complete in {total:.0f}s. {len(logic1_picks)} picks ready.")
+    print(f"Pipeline complete in {time.time() - total_start:.0f}s.")
     print("Start dashboard: python run.py")
     print("=" * 60)
 
 
-def run_daily():
-    print(f"[Daily] Running daily adjustment — {datetime.now().strftime('%H:%M')}")
-    init_db()
-
-    # 先に price_data を差分更新する。daily_picks だけが新しく、チャートや
-    # テクニカル判定の元データが古い状態になるのを避けるため。
-    tickers = _collect_daily_price_tickers()
-    if tickers:
-        t0 = time.time()
-        try:
-            from pipeline.stage2_price_data import run_incremental
-            updated = run_incremental(tickers, days=10)
-            missing = len(tickers) - len(updated)
-            status = "OK" if updated and missing == 0 else "WARN"
-            log_stage(
-                "DailyPrice",
-                status,
-                f"price_data updated {len(updated)}/{len(tickers)} tickers",
-                time.time() - t0,
-            )
-        except Exception as e:
-            log_stage("DailyPrice", "ERROR", str(e), time.time() - t0)
-            print(f"[WARN] price_data incremental update failed: {e}")
-    else:
-        log_stage("DailyPrice", "WARN", "No tickers found for price_data update", 0)
-
-    t0 = time.time()
-    try:
-        from pipeline.daily_adjustment import run as daily_run
-        stats = daily_run()
-        expected = stats.get("expected", 0) if stats else 0
-        updated = stats.get("updated", 0) if stats else 0
-        failed = stats.get("failed", 0) if stats else 0
-        dates = ",".join(stats.get("dates", [])) if stats else "-"
-        status = "OK" if expected and updated == expected else "WARN"
-        if not expected:
-            status = "WARN"
-        log_stage(
-            "Daily",
-            status,
-            f"daily_picks updated {updated}/{expected}, failed={failed}, dates={dates}",
-            time.time() - t0,
-        )
-    except Exception as e:
-        log_stage("Daily", "ERROR", str(e), time.time() - t0)
-        print(f"[ERROR] Daily adjustment failed: {e}")
-    # テクニカル日次も同時実行
-    t0 = time.time()
-    try:
-        from pipeline.tech_scan import run_daily as tech_daily_run
-        tech_daily_run()
-        log_stage("TechDaily", "OK", "Tech daily picks updated", time.time() - t0)
-    except Exception as e:
-        log_stage("TechDaily", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Tech daily adjustment failed: {e}")
-
-
-def run_daily_full():
-    """日次フルフィルタ: 差分DL → Stage3〜6再実行 → weekly_picks/tech_picks を毎日更新。"""
-    print(f"[DailyFull] 日次フルフィルタ — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    init_db()
-
-    # ── ユニバース取得（DBから、FMP呼び出しなし）──────────────────────────────
-    from backend.db import get_connection
-    conn = get_connection()
-    cur  = conn.cursor()
-    cur.execute("SELECT ticker FROM universe")
-    tickers = [r["ticker"] for r in cur.fetchall()]
-    conn.close()
-
-    if not tickers:
-        print("[DailyFull] universe が空。先に週次パイプラインを実行してください。")
-        return
-
-    # ── Stage 2: 差分DL（直近10日分）─────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage2_price_data import run_incremental
-        updated = run_incremental(tickers, days=10)
-        missing = len(tickers) - len(updated)
-        status = "OK" if updated and missing == 0 else "WARN"
-        log_stage("DailyFull-Stage2", status, f"{len(updated)}/{len(tickers)} tickers incremental update", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Stage2", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] 差分DL失敗: {e}、既存データで続行...")
-
-    # ── Stage 3: テクニカルフィルター ─────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage3_technical_filter import run as stage3_run
-        survivors_s3 = stage3_run(tickers)
-        longs  = len(survivors_s3.get("longs",  []))
-        shorts = len(survivors_s3.get("shorts", []))
-        log_stage("DailyFull-Stage3", "OK", f"{longs} long + {shorts} short", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Stage3", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Stage3 失敗: {e}")
-        return
-
-    if not longs and not shorts:
-        print("[DailyFull] Stage3通過銘柄なし。Logic1は全ユニバースを継続スキャンします。")
-
-    # ── Market Health（Stage6撤去分の本算出）────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.stage6_scoring import compute_market_health
-        from backend.db import get_connection as _gc_mh
-        _mh = _gc_mh()
-        compute_market_health(_mh, date.today().isoformat())
-        _mh.close()
-        log_stage("DailyFull-MarketHealth", "OK", "market_health updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-MarketHealth", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] market_health computation failed: {e}")
-
-    # ── ロジック２スキャン（日次）────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.logic2_scan import run as logic2_run
-        logic2_run()
-        log_stage("DailyFull-Logic2", "OK", "logic2_picks updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Logic2", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic2 scan failed: {e}")
-
-    # ── ロジック４スキャン（日次）────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.logic4_scan import run as logic4_run
-        logic4_picks = logic4_run()
-        log_stage("DailyFull-Logic4", "OK", f"{len(logic4_picks)} logic4_picks updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Logic4", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Logic4 scan failed: {e}")
-
-    # ── Logic1: ファンダ重視（グロース）→ weekly_picks 更新 ───────────────
-    # logic2/logic4 の後に実行（クロスタグで当日の v1/v2 出現を参照）。
-    # daily_adjustment は logic1 の最新 weekly_picks を読むため Logic1 の後に置く。
-    t0 = time.time()
-    try:
-        from pipeline.logic1_scan import run as logic1_run
-        logic1_picks = logic1_run()
-        log_stage("DailyFull-Logic1", "OK", f"{len(logic1_picks)} picks updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Logic1", "ERROR", str(e), time.time() - t0)
-        print(f"[FATAL] Logic1 失敗: {e}")
-        return
-
-    # ── 日次調整（当日価格・verdict 更新）────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.daily_adjustment import run as daily_run
-        stats = daily_run()
-        expected = stats.get("expected", 0) if stats else 0
-        updated = stats.get("updated", 0) if stats else 0
-        failed = stats.get("failed", 0) if stats else 0
-        dates = ",".join(stats.get("dates", [])) if stats else "-"
-        status = "OK" if expected and updated == expected else "WARN"
-        log_stage("DailyFull-Daily", status, f"daily_picks updated {updated}/{expected}, failed={failed}, dates={dates}", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-Daily", "ERROR", str(e), time.time() - t0)
-
-    # ── テクニカルスキャン（日次）────────────────────────────────────────────
-    t0 = time.time()
-    try:
-        from pipeline.tech_scan import run_daily as tech_daily_run
-        tech_daily_run()
-        log_stage("DailyFull-TechDaily", "OK", "tech daily updated", time.time() - t0)
-    except Exception as e:
-        log_stage("DailyFull-TechDaily", "ERROR", str(e), time.time() - t0)
-
-    print(f"[DailyFull] 完了。{len(logic1_picks)} picks、daily_picks 更新済み。")
-
-
-def run_tech_weekly():
-    print(f"[TechWeekly] Pure technical scan — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    init_db()
-    t0 = time.time()
-    try:
-        from pipeline.tech_scan import run as tech_run
-        results = tech_run()
-        log_stage("TechWeekly", "OK", f"{len(results)} tech picks generated", time.time() - t0)
-    except Exception as e:
-        log_stage("TechWeekly", "ERROR", str(e), time.time() - t0)
-        print(f"[ERROR] Tech weekly scan failed: {e}")
-
-
-def run_daily_light():
-    """
-    日次軽量モード — GH Actions 分数節約のため Stage 3-6 を省く。
-    やること:
-      1. 価格データ差分DL (オープンポジ + オープンシグナル銘柄に絞る)
-      2. シグナル評価 (signal_tracker.evaluate_open_signals)
-    Stage 3-6 (フィルタ再計算) は週次に任せる。
-    """
+def run_daily_light() -> None:
+    """Light update: Stage 2, market health, and news (no swing scan)."""
     print(f"[DailyLight] 日次軽量モード — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     init_db()
-
-    from backend.db import get_connection
-
-    # ── 全universe を Polygon grouped で前進(1コール/営業日, キーがある時のみ) ──
-    # これで週次フル実行時に重い価格DLが不要になりタイムアウトを回避する。
-    grouped_ok = False
-    if os.getenv("POLYGON_API_KEY"):
-        t0 = time.time()
-        try:
-            conn = get_connection(); cur = conn.cursor()
-            cur.execute("SELECT ticker FROM universe")
-            uni = [r["ticker"] for r in cur.fetchall()]
-            conn.close()
+    tickers = _load_universe()
+    started = time.time()
+    try:
+        if os.getenv("POLYGON_API_KEY"):
             from pipeline.stage2_price_data import run_grouped
-            grouped_saved = run_grouped(uni, lookback_days=6)
-            grouped_ok = bool(grouped_saved)
-            status = "OK" if grouped_saved else "WARN"
-            log_stage("DailyLight-Grouped", status,
-                      f"{len(grouped_saved)}/{len(uni)} tickers (Polygon grouped)", time.time() - t0)
-        except Exception as e:
-            log_stage("DailyLight-Grouped", "ERROR", str(e), time.time() - t0)
-            print(f"[WARN] grouped前進失敗: {e} — 続行")
 
-    # 当日分の追加差分DL(yfinance)。
-    # Polygon grouped が成功していれば全universeを更新済みなので、オープン銘柄を
-    # yfinance で再DLするのは冗長かつ重く(タイムアウトの主因)、スキップする。
-    # grouped が無い/失敗した場合のみフォールバックとして実行する。
-    if grouped_ok:
-        log_stage("DailyLight-Stage2", "SKIP",
-                  "Polygon grouped 成功のため yfinance 増分DL は省略", 0.0)
-    else:
-        # オープンポジ + オープンシグナルの ticker を抽出
-        conn = get_connection()
-        cur  = conn.cursor()
-        cur.execute("""
-            SELECT DISTINCT ticker FROM positions WHERE status = 'open'
-            UNION
-            SELECT DISTINCT ticker FROM signal_log WHERE status = 'open'
-        """)
-        tickers = [r["ticker"] for r in cur.fetchall()]
-        conn.close()
+            updated = run_grouped(tickers, lookback_days=6)
+            message = f"{len(updated)}/{len(tickers)} tickers (Polygon grouped)"
+        else:
+            from pipeline.stage2_price_data import run_incremental
 
-        print(f"[DailyLight] 価格更新対象(フォールバック): {len(tickers)} tickers")
+            updated = run_incremental(tickers, days=10) if tickers else []
+            message = f"{len(updated)}/{len(tickers)} tickers (yfinance incremental)"
+        status = "OK" if updated else "WARN"
+        log_stage("DailyLight-Stage2", status, message, time.time() - started)
+    except Exception as exc:
+        log_stage("DailyLight-Stage2", "ERROR", str(exc), time.time() - started)
+        print(f"[WARN] Stage 2 light update failed: {exc}")
 
-        if tickers:
-            t0 = time.time()
-            try:
-                from pipeline.stage2_price_data import run_incremental
-                updated = run_incremental(tickers, days=10)
-                missing = len(tickers) - len(updated)
-                status = "OK" if updated and missing == 0 else "WARN"
-                log_stage("DailyLight-Stage2", status, f"{len(updated)}/{len(tickers)} tickers", time.time() - t0)
-            except Exception as e:
-                log_stage("DailyLight-Stage2", "ERROR", str(e), time.time() - t0)
-                print(f"[WARN] 差分DL失敗: {e} — 評価は続行")
+    _run_market_health("DailyLight-MarketHealth")
+    _run_news("DailyLight-News")
+    print("[DailyLight] 完了")
 
-    # シグナル評価
-    t0 = time.time()
-    try:
-        from backend.services.signal_tracker import evaluate_open_signals
-        stats = evaluate_open_signals()
-        log_stage("DailyLight-Eval", "OK", str(stats), time.time() - t0)
-    except Exception as e:
-        log_stage("DailyLight-Eval", "ERROR", str(e), time.time() - t0)
-        print(f"[ERROR] シグナル評価失敗: {e}")
 
-    # Intraday評価 (5分足・指値タッチ約定)。5分足は直近60日のローリングウィンドウで
-    # 差分更新だと状態がずれるため毎回まるごと再計算する。失敗しても日次は落とさない。
-    t0 = time.time()
-    try:
-        from backend.services.intraday_tracker import rebuild as rebuild_intraday
-        stats = rebuild_intraday()
-        log_stage("DailyLight-Intraday", "OK", str(stats.get("by_mode")), time.time() - t0)
-    except Exception as e:
-        log_stage("DailyLight-Intraday", "ERROR", str(e), time.time() - t0)
-        print(f"[WARN] Intraday評価失敗: {e} — 続行")
+def run_backfill(days: int) -> None:
+    init_db()
+    tickers = _load_universe()
+    from pipeline.stage2_price_data import run_grouped_backfill
 
-    print(f"[DailyLight] 完了")
+    started = time.time()
+    saved = run_grouped_backfill(tickers, lookback_days=days)
+    log_stage("Backfill-Grouped", "OK" if saved else "WARN", f"{len(saved)}/{len(tickers)} tickers", time.time() - started)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Trading Dashboard Pipeline")
-    parser.add_argument("--daily-only",    action="store_true", help="Run daily adjustment only")
-    parser.add_argument("--daily-full",    action="store_true", help="Run incremental DL + full Stage3-6 re-filter daily")
-    parser.add_argument("--daily-light",   action="store_true", help="Light daily: incremental DL for open positions/signals + signal evaluation only")
-    parser.add_argument("--skip-download", action="store_true", help="Skip price data download")
-    parser.add_argument("--tech-weekly",   action="store_true", help="Run pure-technical weekly scan")
-    parser.add_argument("--tech-daily",    action="store_true", help="Run tech daily adjustment only")
-    parser.add_argument("--backfill",      action="store_true", help="Polygon grouped で全universeの履歴を一括バックフィル(初回用)")
-    parser.add_argument("--backfill-days", type=int, default=320, help="バックフィルする営業日数(既定320≒300取引日)")
+    parser.add_argument("--daily-light", action="store_true", help="Run light Stage 2 + market health + news")
+    parser.add_argument("--skip-download", action="store_true", help="Skip full-pipeline price download")
+    parser.add_argument("--backfill", action="store_true", help="Backfill Polygon grouped price data")
+    parser.add_argument("--backfill-days", type=int, default=320, help="Business days to backfill")
     args = parser.parse_args()
 
     if args.backfill:
-        init_db()
-        from backend.db import get_connection as _gc
-        _conn = _gc(); _cur = _conn.cursor()
-        _cur.execute("SELECT ticker FROM universe")
-        _uni = [r["ticker"] for r in _cur.fetchall()]
-        _conn.close()
-        from pipeline.stage2_price_data import run_grouped_backfill
-        t0 = time.time()
-        saved = run_grouped_backfill(_uni, lookback_days=args.backfill_days)
-        log_stage("Backfill-Grouped", "OK" if saved else "WARN",
-                  f"{len(saved)}/{len(_uni)} tickers (Polygon grouped backfill)", time.time() - t0)
-    elif args.daily_only:
-        run_daily()
-    elif args.daily_full:
-        run_daily_full()
+        run_backfill(args.backfill_days)
     elif args.daily_light:
         run_daily_light()
-    elif args.tech_weekly:
-        run_tech_weekly()
-    elif args.tech_daily:
-        init_db()
-        from pipeline.tech_scan import run_daily as tech_daily_run
-        tech_daily_run()
     else:
         run_full(skip_download=args.skip_download)
