@@ -11,10 +11,12 @@ import { renderBacktest }          from "./components/backtest.js?v=5";
 import { renderIntradayBacktest }  from "./components/intraday-backtest.js?v=2";
 import { renderPositions }         from "./components/positions.js?v=2";
 import { renderTradeAnalytics }    from "./components/trade-analytics.js?v=9";
+import { renderSwingScreener }     from "./components/swing-screener.js?v=1";
 import { apiFetch }                from "./utils/api.js?v=3";
 
 // ── Navigation config ─────────────────────────────────────────────────────
 const SECTIONS = [
+  { id: "swing",         label: "押し目スクリーナー", icon: "🎯", load: loadSwing },
   { id: "market-health", label: "市場ヘルス", icon: "📊", load: loadMarketHealth },
   { id: "economic",      label: "経済指標",   icon: "📈", load: loadEconomic },
   { id: "logic1",        label: "ファンダ重視", icon: "🎯", load: loadLogic1 },
@@ -148,6 +150,10 @@ function renderTabbedSection(container, tabs, defaultTabId) {
 }
 
 // ── Section loaders ───────────────────────────────────────────────────────
+async function loadSwing(container) {
+  await renderSwingScreener(container);
+}
+
 async function loadMarketHealth(container) {
   await renderMarketHealth(container);
 }

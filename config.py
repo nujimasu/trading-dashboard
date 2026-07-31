@@ -25,6 +25,18 @@ FRED_BASE_URL   = "https://api.stlouisfed.org/fred"
 POLYGON_API_KEY = os.getenv("POLYGON_API_KEY", "")
 POLYGON_BASE_URL = "https://api.polygon.io"
 
+# ─── Swing Screener ─────────────────────────────────────────────────────────
+SWING_STORE_PATH = DATA_DIR / "swing_store.pkl"
+SWING_UNIVERSE_DIR = DATA_DIR / "universe15y"
+SWING_STORE_YEARS = 6
+SWING_MIN_HISTORY = 1300
+SWING_MIN_DOLLAR_VOLUME = 20e6
+SWING_MIN_PRICE = 5.0
+SWING_POLYGON_RATE_SLEEP = 13.0
+SWING_INTRADAY_CACHE_TTL = 900
+SWING_INTRADAY_LOOKBACK_DAYS = 9
+SWING_INTRADAY_SESSION_DAYS = 5
+
 # ─── Screening Parameters (market-analyst.md準拠) ─────────────────────────
 MIN_RR_TIER2       = 1.5   # Tier 2 最低RR
 MIN_RR_TIER1       = 2.0   # Tier 1 最低RR

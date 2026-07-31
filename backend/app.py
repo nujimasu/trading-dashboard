@@ -30,6 +30,7 @@ from backend.routes.backtest           import router as backtest_router
 from backend.routes.intraday           import router as intraday_router
 from backend.routes.positions          import router as positions_router
 from backend.routes.trade_analytics    import router as trade_analytics_router
+from backend.routes.swing             import router as swing_router
 from backend.db import init_db
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -74,6 +75,7 @@ def create_app() -> FastAPI:
         intraday_router,
         positions_router,
         trade_analytics_router,
+        swing_router,
     ]:
         app.include_router(router)
 

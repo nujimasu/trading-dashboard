@@ -182,6 +182,25 @@ else:
             message     TEXT,
             duration_s  REAL
         );
+        CREATE TABLE IF NOT EXISTS swing_picks (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            scan_date       TEXT NOT NULL,
+            ticker          TEXT NOT NULL,
+            price           REAL,
+            state           TEXT,
+            touch_days_ago  INTEGER,
+            dow_trend       TEXT,
+            adx             REAL,
+            rs63            REAL,
+            rs126           REAL,
+            atr_pct         REAL,
+            dollar_vol      REAL,
+            ema20_dist      REAL,
+            po_weeks        INTEGER,
+            levels          TEXT,
+            created_at      TEXT DEFAULT (datetime('now')),
+            UNIQUE(scan_date, ticker)
+        );
         CREATE TABLE IF NOT EXISTS api_usage (
             date        TEXT PRIMARY KEY,
             fmp_calls   INTEGER DEFAULT 0
