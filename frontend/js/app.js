@@ -2,6 +2,7 @@ import { renderSwingScreener } from "./components/swing-screener.js?v=1";
 import { renderMarketHealth } from "./components/market-health.js?v=7";
 import { renderEconomicDashboard } from "./components/economic-dashboard.js?v=2";
 import { renderSearchUI } from "./components/stock-search.js?v=2";
+import { renderLogicGuide } from "./components/logic-guide.js?v=1";
 import { apiFetch } from "./utils/api.js?v=3";
 
 const SECTIONS = [
@@ -9,6 +10,7 @@ const SECTIONS = [
   { id: "market-health", label: "市場ヘルス", icon: "📊", load: loadMarketHealth },
   { id: "economic", label: "経済指標", icon: "📈", load: loadEconomic },
   { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
+  { id: "logic-guide", label: "ロジック解説", icon: "📖", load: loadLogicGuide },
 ];
 
 let currentSection = null;
@@ -95,6 +97,10 @@ async function loadEconomic(container) {
 
 function loadSearch(container) {
   renderSearchUI(container);
+}
+
+function loadLogicGuide(container) {
+  renderLogicGuide(container);
 }
 
 async function loadPipelineStatus() {

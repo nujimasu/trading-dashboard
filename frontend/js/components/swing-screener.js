@@ -179,6 +179,8 @@ const STYLE = `
   .swing-adx-value { min-width:24px; color:#93c5fd; font-weight:800; font-variant-numeric:tabular-nums; }
   .swing-reset, .swing-mini { border:1px solid #365071; border-radius:6px; background:#16253a; color:#bfdbfe; font:inherit; cursor:pointer; }
   .swing-reset { min-height:32px; padding:5px 10px; font-size:.72rem; }
+  .swing-guide-link { margin-left:auto; color:#93c5fd; font-size:.69rem; text-underline-offset:3px; }
+  .swing-guide-link:hover { color:#dbeafe; }
   .swing-mini { padding:2px 6px; font-size:.62rem; }
   .swing-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
   .swing-filter-group { min-width:0; padding:9px; border:1px solid #2a3a54; border-radius:9px; background:#0d1727; }
@@ -557,6 +559,7 @@ export async function renderSwingScreener(container) {
             <input class="swing-adx-range" data-control="adx-min" type="range" min="15" max="35" aria-label="ADX下限">
             <output class="swing-adx-value"></output>
           </label>
+          <a class="swing-guide-link" href="#logic-guide" data-logic-guide>ロジック解説を見る</a>
           <button class="swing-reset" data-reset-prefs type="button">デフォルトに戻す</button>
         </div>
         <div class="swing-filter-grid">${Object.entries(FILTER_GROUPS).map(([key, group]) => filterGroupHtml(key, group)).join("")}</div>
@@ -582,6 +585,11 @@ export async function renderSwingScreener(container) {
 
       <section class="swing-detail" hidden></section>
     </div>`;
+
+  container.querySelector("[data-logic-guide]").addEventListener("click", event => {
+    event.preventDefault();
+    document.querySelector('[data-section="logic-guide"]')?.click();
+  });
 
   const body = container.querySelector(".swing-table tbody");
   const detail = container.querySelector(".swing-detail");
