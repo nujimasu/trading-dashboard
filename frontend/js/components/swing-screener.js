@@ -223,11 +223,14 @@ const STYLE = `
   .swing-positive { color:#86efac; }
   .swing-negative { color:#fca5a5; }
   .swing-empty { padding:34px 16px; color:var(--text-muted); text-align:center; }
-  .swing-detail { border:1px solid #314563; border-radius:12px; overflow:hidden; background:#0a1322; box-shadow:0 18px 45px rgba(0,0,0,.24); }
+  .swing-detail { border:1px solid #314563; border-radius:12px; overflow:visible; background:#0a1322; box-shadow:0 18px 45px rgba(0,0,0,.24); }
   .swing-detail[hidden] { display:none; }
-  .swing-detail-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:11px 14px; border-bottom:1px solid #263750; background:#111d31; }
+  .swing-detail-head { position:sticky; top:0; z-index:6; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:11px 14px; border-bottom:1px solid #263750; border-radius:11px 11px 0 0; background:#111d31; box-shadow:0 5px 14px rgba(2,6,23,.32); }
   .swing-detail-title { display:flex; align-items:baseline; gap:10px; font-weight:850; }
   .swing-detail-sub { color:var(--text-muted); font-size:.7rem; font-weight:500; }
+  .swing-detail-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+  .swing-detail-close { min-height:32px; padding:5px 10px; border:1px solid #46617f; border-radius:7px; background:#192a41; color:#dbeafe; font:inherit; font-size:.72rem; font-weight:750; cursor:pointer; }
+  .swing-detail-close:hover { border-color:#6b8db4; background:#213650; }
   .swing-volume-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; padding:14px; border-bottom:1px solid #263750; background:linear-gradient(110deg,#0f1b2d,#101827); }
   .swing-volume-copy { min-width:0; }
   .swing-volume-lead { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
@@ -443,7 +446,10 @@ function drawIntradayChart(slot, payload, chartState) {
     <div class="swing-chart"></div>
     <div class="swing-chart-legend">${labels.map(label => {
       const line = payload.annotations.lines.find(item => item.label === label);
-      return `<span><i class="swing-legend-dot" style="background:${lineColor(line)}"></i>${escapeHtml(label)}</span>`;
+      const price = line.type === "level" && line.points?.[0] && finite(line.points[0].price)
+        ? ` ${fixed(line.points[0].price, 2)}`
+        : "";
+      return `<span><i class="swing-legend-dot" style="background:${lineColor(line)}"></i>${escapeHtml(label)}${price}</span>`;
     }).join("")}</div>`;
   const chartElement = slot.querySelector(".swing-chart");
   const chart = window.LightweightCharts.createChart(chartElement, {
@@ -484,7 +490,6 @@ function drawIntradayChart(slot, payload, chartState) {
         lineWidth: 1,
         lineStyle: 2,
         axisLabelVisible: true,
-        title: line.label,
       });
     } else if (points.length >= 2) {
       const series = chart.addLineSeries({
@@ -492,7 +497,6 @@ function drawIntradayChart(slot, payload, chartState) {
         lineWidth: line.type === "trendline" || line.type === "neckline" ? 2 : 1,
         priceLineVisible: false,
         lastValueVisible: false,
-        title: line.label,
       });
       series.setData(points.slice(0, 2).map(point => ({ time: point.time, value: point.price })));
     }
@@ -647,6 +651,14 @@ export async function renderSwingScreener(container) {
     chartState.resizeObserver = null;
   }
 
+  function restoreRow(ticker) {
+    requestAnimationFrame(() => {
+      const row = [...body.querySelectorAll(".swing-row")]
+        .find(candidate => candidate.dataset.ticker === ticker);
+      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
   async function loadIntraday(ticker) {
     const requestId = ++state.requestId;
     const slot = detail.querySelector(".swing-chart-slot");
@@ -674,10 +686,19 @@ export async function renderSwingScreener(container) {
     detail.innerHTML = `
       <div class="swing-detail-head">
         <div class="swing-detail-title">${escapeHtml(ticker)} <span class="swing-detail-sub">15分足・直近5営業日</span></div>
-        <label class="swing-control"><input type="checkbox" data-extended> 時間外も表示</label>
+        <div class="swing-detail-actions">
+          <label class="swing-control"><input type="checkbox" data-extended> 時間外も表示</label>
+          <button class="swing-detail-close" type="button" data-close-detail>✕ 閉じる</button>
+        </div>
       </div>
       ${volumeCard(pick?.volume)}
       <div class="swing-chart-slot"></div>`;
+    detail.querySelector("[data-close-detail]").addEventListener("click", () => {
+      const returnTicker = state.activeTicker;
+      closeDetail();
+      renderRows();
+      if (returnTicker) restoreRow(returnTicker);
+    });
     detail.querySelector("[data-extended]").addEventListener("change", event => {
       state.extended = event.currentTarget.checked;
       loadIntraday(ticker);

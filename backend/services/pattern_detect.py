@@ -30,6 +30,24 @@ def _point(bars: list[dict[str, Any]], index: int, price: float) -> dict[str, An
     return {"time": int(bars[index]["t"]), "price": float(price)}
 
 
+def _spans_enough_bars(
+    bars: list[dict[str, Any]], start: int, end: int, min_span_ratio: float
+) -> bool:
+    """Return whether the fitted source span covers enough of the chart."""
+    return bool(bars) and end > start and (end - start) >= len(bars) * min_span_ratio
+
+
+def _extended_points(
+    bars: list[dict[str, Any]], start: int, slope: float, intercept: float
+) -> list[dict[str, Any]]:
+    """Build a fitted line from its first source pivot through the final bar."""
+    end = len(bars) - 1
+    return [
+        _point(bars, start, slope * start + intercept),
+        _point(bars, end, slope * end + intercept),
+    ]
+
+
 def _latest_descending_high_pair(
     bars: list[dict[str, Any]], k: int
 ) -> tuple[tuple[int, float], tuple[int, float]] | None:
@@ -41,18 +59,25 @@ def _latest_descending_high_pair(
 
 
 def detect_trendline(
-    bars: list[dict[str, Any]], k: int = DEFAULT_PIVOT_K
+    bars: list[dict[str, Any]],
+    k: int = DEFAULT_PIVOT_K,
+    *,
+    min_span_ratio: float = 0.15,
 ) -> list[dict[str, Any]]:
     """Return the latest descending line joining two confirmed pivot highs."""
     pair = _latest_descending_high_pair(bars, k)
     if pair is None:
         return []
     old, new = pair
+    if not _spans_enough_bars(bars, old[0], new[0], min_span_ratio):
+        return []
+    slope = (new[1] - old[1]) / (new[0] - old[0])
+    intercept = old[1] - slope * old[0]
     return [
         {
             "type": "trendline",
             "label": "下降トレンドライン",
-            "points": [_point(bars, *old), _point(bars, *new)],
+            "points": _extended_points(bars, old[0], slope, intercept),
         }
     ]
 
@@ -72,7 +97,11 @@ def _trendline_break_marker(
 
 
 def detect_double_bottom(
-    bars: list[dict[str, Any]], k: int = DEFAULT_PIVOT_K, tol: float = 0.015
+    bars: list[dict[str, Any]],
+    k: int = DEFAULT_PIVOT_K,
+    tol: float = 0.015,
+    *,
+    min_span_ratio: float = 0.15,
 ) -> list[dict[str, Any]]:
     """Return the latest confirmed double-bottom or inverse-H&S neckline."""
     highs, lows = _pivots(bars, k)
@@ -90,6 +119,7 @@ def detect_double_bottom(
             and abs(left[1] - right[1]) / shoulder_scale <= tol
             and left_necks
             and right_necks
+            and _spans_enough_bars(bars, left[0], right[0], min_span_ratio)
         ):
             neck_price = (
                 max(left_necks, key=lambda pivot: pivot[1])[1]
@@ -101,7 +131,7 @@ def detect_double_bottom(
                     "label": "逆三尊 ネックライン",
                     "points": [
                         _point(bars, left[0], neck_price),
-                        _point(bars, right[0], neck_price),
+                        _point(bars, len(bars) - 1, neck_price),
                     ],
                 }
             ]
@@ -114,6 +144,8 @@ def detect_double_bottom(
         between_highs = [pivot for pivot in highs if first[0] < pivot[0] < second[0]]
         if not between_highs:
             continue
+        if not _spans_enough_bars(bars, first[0], second[0], min_span_ratio):
+            continue
         neck = max(between_highs, key=lambda pivot: pivot[1])
         return [
             {
@@ -121,7 +153,7 @@ def detect_double_bottom(
                 "label": "ダブルボトム ネックライン",
                 "points": [
                     _point(bars, first[0], neck[1]),
-                    _point(bars, second[0], neck[1]),
+                    _point(bars, len(bars) - 1, neck[1]),
                 ],
             }
         ]
@@ -134,10 +166,7 @@ def _fit_line(
     x = np.asarray([pivot[0] for pivot in pivots], dtype=float)
     y = np.asarray([pivot[1] for pivot in pivots], dtype=float)
     slope, intercept = np.polyfit(x, y, 1)
-    points = [
-        _point(bars, int(x[0]), float(slope * x[0] + intercept)),
-        _point(bars, int(x[-1]), float(slope * x[-1] + intercept)),
-    ]
+    points = _extended_points(bars, int(x[0]), float(slope), float(intercept))
     normalized_slope = float(slope / max(abs(float(np.mean(y))), np.finfo(float).eps))
     return float(slope), float(intercept), points, normalized_slope
 
@@ -149,6 +178,9 @@ def detect_flag(
     near_horizontal: float = 0.0005,
     parallel_tolerance: float = 0.0015,
     max_abs_slope: float = 0.02,
+    *,
+    min_span_ratio: float = 0.15,
+    convergence_ratio: float = 0.70,
 ) -> list[dict[str, Any]]:
     """Fit recent pivot rails and classify a bull flag or contracting triangle."""
     highs, lows = _pivots(bars, k)
@@ -156,14 +188,37 @@ def detect_flag(
         return []
     recent_highs = highs[-pivot_count:]
     recent_lows = lows[-pivot_count:]
-    _, _, upper_points, upper_norm = _fit_line(recent_highs, bars)
-    _, _, lower_points, lower_norm = _fit_line(recent_lows, bars)
+    span_start = min(recent_highs[0][0], recent_lows[0][0])
+    span_end = max(recent_highs[-1][0], recent_lows[-1][0])
+    if not _spans_enough_bars(bars, span_start, span_end, min_span_ratio):
+        return []
+
+    upper_slope, upper_intercept, upper_points, upper_norm = _fit_line(recent_highs, bars)
+    lower_slope, lower_intercept, lower_points, lower_norm = _fit_line(recent_lows, bars)
 
     if upper_norm < 0 and lower_norm > 0:
-        return [
-            {"type": "tri_upper", "label": "三角収束 上辺", "points": upper_points},
-            {"type": "tri_lower", "label": "三角収束 下辺", "points": lower_points},
-        ]
+        start_width = (
+            upper_slope * span_start
+            + upper_intercept
+            - lower_slope * span_start
+            - lower_intercept
+        )
+        end_width = (
+            upper_slope * span_end
+            + upper_intercept
+            - lower_slope * span_end
+            - lower_intercept
+        )
+        if (
+            start_width > 0
+            and end_width >= 0
+            and end_width < start_width
+            and end_width <= start_width * convergence_ratio
+        ):
+            return [
+                {"type": "tri_upper", "label": "三角収束 上辺", "points": upper_points},
+                {"type": "tri_lower", "label": "三角収束 下辺", "points": lower_points},
+            ]
 
     flag_slopes = (
         -max_abs_slope <= upper_norm <= near_horizontal
@@ -178,8 +233,23 @@ def detect_flag(
     return []
 
 
-def detect_all(bars: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    """Combine every detector into the public annotations schema."""
-    lines = detect_trendline(bars) + detect_double_bottom(bars) + detect_flag(bars)
-    marker = _trendline_break_marker(bars, k=DEFAULT_PIVOT_K)
+def detect_all(
+    bars: list[dict[str, Any]],
+    *,
+    k: int = DEFAULT_PIVOT_K,
+    min_span_ratio: float = 0.15,
+    convergence_ratio: float = 0.70,
+) -> dict[str, list[dict[str, Any]]]:
+    """Return only the highest-priority pattern plus an independent break marker."""
+    lines = detect_flag(
+        bars,
+        k=k,
+        min_span_ratio=min_span_ratio,
+        convergence_ratio=convergence_ratio,
+    )
+    if not lines:
+        lines = detect_double_bottom(bars, k=k, min_span_ratio=min_span_ratio)
+    if not lines:
+        lines = detect_trendline(bars, k=k, min_span_ratio=min_span_ratio)
+    marker = _trendline_break_marker(bars, k=k)
     return {"lines": lines, "markers": [marker] if marker else []}
