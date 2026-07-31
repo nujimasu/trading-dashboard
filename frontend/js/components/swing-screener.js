@@ -159,6 +159,7 @@ const LEVEL_COLORS = {
 
 const STYLE = `
   .swing-shell { --sw-line:#26354d; --sw-panel:#111c30; display:grid; gap:16px; }
+  .swing-shell > * { min-width:0; }
   .swing-hero { position:relative; overflow:hidden; border:1px solid var(--sw-line); border-radius:14px; padding:18px 20px; background:linear-gradient(120deg,#101d32 0%,#0e1728 62%,#14243a 100%); }
   .swing-hero::after { content:"W1 × D1"; position:absolute; right:16px; top:2px; color:rgba(96,165,250,.08); font-size:4.4rem; font-weight:900; letter-spacing:-.08em; pointer-events:none; }
   .swing-kicker { color:#60a5fa; font-size:.68rem; letter-spacing:.18em; text-transform:uppercase; font-weight:800; }
@@ -201,7 +202,7 @@ const STYLE = `
   .swing-results { border:1px solid var(--sw-line); border-radius:12px; background:#0d1727; overflow:hidden; }
   .swing-results-bar { display:flex; justify-content:space-between; gap:12px; padding:10px 13px; border-bottom:1px solid var(--sw-line); color:var(--text-muted); font-size:.74rem; }
   .swing-count { color:#dbeafe; font-weight:800; }
-  .swing-table-wrap { overflow:auto; max-height:620px; }
+  .swing-table-wrap { min-width:0; overflow-x:auto; overflow-y:auto; max-height:620px; }
   .swing-table { min-width:1180px; font-variant-numeric:tabular-nums; }
   .swing-table thead { position:sticky; top:0; z-index:2; background:#111c30; }
   .swing-table th { padding:0; white-space:nowrap; }

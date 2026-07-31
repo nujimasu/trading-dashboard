@@ -144,7 +144,9 @@ body {
 /* ── Main ─────────────────────────────────────────────────── */
 #main {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px;
 }
 
@@ -1589,7 +1591,7 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   #sidebar.open { transform: translateX(0); }
 
   /* メインコンテンツ — 全幅 */
-  #main { padding: 12px; overflow: visible; }
+  #main { padding: 12px; overflow: visible; overflow-x: hidden; }
 
   /* グリッドを1カラムに */
 
@@ -1597,6 +1599,8 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   .mh-index-row              { grid-template-columns: 1fr !important; }
   .mh-sector-grid            { grid-template-columns: repeat(2, 1fr) !important; }
   .detail-grid               { grid-template-columns: 1fr !important; }
+  .econ-sector-row           { grid-template-columns: minmax(0, 1fr); }
+  .econ-sector-nums          { min-width: 0; justify-content: flex-start; flex-wrap: wrap; }
 
 
   /* センチメント */
