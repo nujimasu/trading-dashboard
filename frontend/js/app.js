@@ -98,12 +98,34 @@ function loadSearch(container) {
 }
 
 async function loadPipelineStatus() {
-  try {
-    const marketHealth = await apiFetch("/api/market-health");
-    _setMarketBadge(marketHealth.overall_signal || "No Data");
-  } catch {
-    _setMarketBadge("No Data");
-  }
+  await Promise.all([
+    (async () => {
+      try {
+        const marketHealth = await apiFetch("/api/market-health");
+        _setMarketBadge(marketHealth.overall_signal || "No Data");
+      } catch {
+        _setMarketBadge("No Data");
+      }
+    })(),
+    (async () => {
+      try {
+        const swingPicks = await apiFetch("/api/swing/picks");
+        const picksStat = document.getElementById("hs-picks");
+        if (picksStat) picksStat.textContent = swingPicks.picks.length;
+      } catch {
+        // Keep the placeholder when swing picks are unavailable.
+      }
+    })(),
+    (async () => {
+      try {
+        const pipelineStatus = await apiFetch("/api/pipeline/status");
+        const tickersStat = document.getElementById("hs-tickers");
+        if (tickersStat) tickersStat.textContent = pipelineStatus.price_data_tickers;
+      } catch {
+        // Keep the placeholder when pipeline status is unavailable.
+      }
+    })(),
+  ]);
 }
 
 function _setMarketBadge(signal) {

@@ -15,7 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routes.market_health import router as market_health_router
 from backend.routes.economic      import router as economic_router
-from backend.routes.news          import router as news_router
 from backend.routes.search        import router as search_router
 from backend.routes.sentiment     import router as sentiment_router
 from backend.routes.swing         import router as swing_router
@@ -48,7 +47,6 @@ def create_app() -> FastAPI:
     for router in [
         market_health_router,
         economic_router,
-        news_router,
         search_router,
         sentiment_router,
         swing_router,
