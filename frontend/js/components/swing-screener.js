@@ -166,6 +166,7 @@ const STYLE = `
   .swing-title-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:10px; margin-top:3px; }
   .swing-title { margin:0; font-size:1.35rem; letter-spacing:.01em; }
   .swing-date { color:var(--text-muted); font-size:.78rem; font-variant-numeric:tabular-nums; }
+  .swing-stale-warning { position:relative; z-index:1; display:flex; align-items:center; gap:8px; margin-top:12px; padding:9px 11px; border:1px solid rgba(251,146,60,.58); border-radius:8px; background:linear-gradient(90deg,rgba(127,29,29,.42),rgba(120,53,15,.32)); color:#fed7aa; box-shadow:inset 3px 0 0 #f97316; font-size:.76rem; font-weight:750; font-variant-numeric:tabular-nums; }
   .swing-funnel { display:flex; align-items:stretch; flex-wrap:wrap; gap:7px; margin-top:15px; }
   .swing-funnel-node { min-width:94px; padding:8px 10px; border:1px solid #2b3d59; border-radius:8px; background:rgba(15,23,42,.74); }
   .swing-funnel-node span { display:block; color:var(--text-muted); font-size:.62rem; letter-spacing:.06em; }
@@ -278,6 +279,65 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function parseIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return date;
+}
+
+function isoDate(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function previousBusinessDate(date) {
+  const result = new Date(date.getTime());
+  do {
+    result.setUTCDate(result.getUTCDate() - 1);
+  } while (result.getUTCDay() === 0 || result.getUTCDay() === 6);
+  return result;
+}
+
+export function latestUsSessionDate(nowEt = new Date()) {
+  const instant = nowEt instanceof Date ? new Date(nowEt.getTime()) : new Date(nowEt);
+  if (Number.isNaN(instant.getTime())) throw new RangeError("nowEt must be a valid date");
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant).filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+  const etDate = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+  const weekday = etDate.getUTCDay();
+  const beforeClose = Number(parts.hour) < 16;
+  if (weekday === 0 || weekday === 6 || beforeClose) return isoDate(previousBusinessDate(etDate));
+  return isoDate(etDate);
+}
+
+export function businessDaysBetween(fromDate, toDate) {
+  const from = parseIsoDate(fromDate);
+  const to = parseIsoDate(toDate);
+  if (!from || !to || from >= to) return 0;
+  let count = 0;
+  const cursor = new Date(from.getTime());
+  while (cursor < to) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    if (cursor.getUTCDay() !== 0 && cursor.getUTCDay() !== 6) count += 1;
+  }
+  return count;
+}
+
+export function swingDataWarningHtml(scanDate, nowEt = new Date()) {
+  const latestDate = latestUsSessionDate(nowEt);
+  const staleDays = businessDaysBetween(scanDate, latestDate);
+  if (staleDays < 1) return "";
+  return `<div class="swing-stale-warning" role="alert">⚠️ データが ${staleDays} 営業日古いです（最終更新 ${escapeHtml(scanDate)} / 直近の営業日 ${latestDate}）</div>`;
 }
 
 function finite(value) {
@@ -547,6 +607,7 @@ export async function renderSwingScreener(container) {
           <h2 class="swing-title">押し目スクリーナー</h2>
           <span class="swing-date">基準日 ${escapeHtml(payload.scan_date || "未実行")}</span>
         </div>
+        ${swingDataWarningHtml(payload.scan_date)}
         <div class="swing-funnel">
           ${funnelNode("データ十分", funnel.universe)}<span class="swing-funnel-arrow">→</span>
           ${funnelNode("流動性", funnel.liquid)}<span class="swing-funnel-arrow">→</span>

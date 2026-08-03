@@ -2,7 +2,9 @@ name: Swing Scan
 
 on:
   schedule:
-    - cron: "45 22 * * 1-5"
+    # Polygon 無料枠の EOD 配信遅延に備え、早期取得と翌朝の再取得を行う。
+    - cron: "45 22 * * 1-5"   # JST 7:45 — 取れれば取る（早い方）
+    - cron: "0 5 * * 2-6"     # JST 14:00 — 確実に取る（ET 前日+α）
   workflow_dispatch:
 
 jobs:
