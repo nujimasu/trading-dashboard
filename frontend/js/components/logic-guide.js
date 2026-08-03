@@ -177,14 +177,14 @@ export function renderLogicGuide(container) {
       </section>
 
       <section class="lg-section" id="state-badge">
-        ${sectionHead("05", "状態バッジ（✅反発確認済 / ⏳押し目進行中）")}
+        ${sectionHead("05", "状態バッジ（🟢陽線引け / 🔴陰線引け）")}
         <div class="lg-rule-grid">
-          <div class="lg-rule"><strong class="lg-tag-up">✅ 反発確認済</strong><span>当日が陽線、つまり終値が始値より高い状態。</span></div>
-          <div class="lg-rule"><strong class="lg-tag-warn">⏳ 押し目進行中</strong><span>陽線以外。まだ押している途中、または当日の反発を確認できていない状態。</span></div>
+          <div class="lg-rule"><strong class="lg-tag-up">🟢 陽線引け</strong><span>基準日の終値が始値より高い。押し目から反発した日。</span></div>
+          <div class="lg-rule"><strong class="lg-tag-down">🔴 陰線引け</strong><span>基準日の終値が始値以下。まだ押している途中。</span></div>
           <div class="lg-rule"><strong>候補の合否とは別</strong><span>このバッジは絞り込み条件ではなく、現在地を伝える状態表示です。</span></div>
         </div>
         <p>陽線を必須にすると、市場全体が下げた日にリストがほぼ空になります。実測では1日あたりの候補が<strong>47件から25件へ半減</strong>しました。押し目を探したいのはまさに市場が下げている日なので、その日に候補が見えないのは本末転倒です。</p>
-        <p class="lg-strict"><strong>厳密な条件:</strong> ✅反発確認済 = <code>Close &gt; Open</code>。それ以外 = ⏳押し目進行中。いずれも必須スクリーニング条件には含めません。</p>
+        <p class="lg-strict"><strong>厳密な条件:</strong> 🟢陽線引け = <code>Close &gt; Open</code>。それ以外 = 🔴陰線引け。いずれも必須スクリーニング条件には含めません。</p>
         <a class="lg-back" href="#logic-guide-top">↑ 目次へ戻る</a>
       </section>
 
@@ -231,7 +231,7 @@ export function renderLogicGuide(container) {
               <tr><td><span class="lg-priority">4</span>⚠️ 売り圧力</td><td>押し目ではなく下落転換の疑い</td><td>週の株価が-2%以下、かつ週の出来高が前週比1.2倍以上</td><td>通常の押し目を超えた強い売りを避ける</td></tr>
               <tr><td><span class="lg-priority">5</span>✅ 出来高を伴う反発</td><td>押し目買いが実際に入っている</td><td>反発済みで、当日出来高が1.2倍以上</td><td>反発の信頼度が高い候補を優先する</td></tr>
               <tr><td><span class="lg-priority">6</span>⚠️ 出来高薄い反発</td><td>買いの勢いが確認できない</td><td>反発済みだが、当日出来高が0.8倍未満</td><td>見た目だけの反発になっていないか注意する</td></tr>
-              <tr><td><span class="lg-priority">7</span>✅ 健全な押し目</td><td>売り物が枯れつつある</td><td>週の株価が下落かつ週の出来高が0.8倍以下、または押し目進行中で当日出来高が0.8倍以下</td><td>売り圧力の弱い静かな押し目を探す</td></tr>
+              <tr><td><span class="lg-priority">7</span>✅ 健全な押し目</td><td>売り物が枯れつつある</td><td>週の株価が下落かつ週の出来高が0.8倍以下、または陰線引けで当日出来高が0.8倍以下</td><td>売り圧力の弱い静かな押し目を探す</td></tr>
               <tr><td><span class="lg-priority">8</span>💤 ブレイク待ち</td><td>エネルギーを溜めている</td><td>週の出来高が0.8倍以下、かつ直近5日の値幅がその前5日より小さい</td><td>値幅収縮後の動き出しを監視する</td></tr>
               <tr><td><span class="lg-priority">9</span>―</td><td>特筆すべきシグナルなし</td><td>上記のいずれにも当てはまらない</td><td>他の指標やチャート形状を中心に判断する</td></tr>
             </tbody>
@@ -267,7 +267,7 @@ export function renderLogicGuide(container) {
             <thead><tr><th>列</th><th>表示しているもの</th></tr></thead>
             <tbody>
               <tr><td>ティッカー</td><td>米国株の銘柄コード。クリックするとTradingViewを開けます。</td></tr>
-              <tr><td>状態</td><td>当日が陽線なら「反発確認済」、それ以外なら「押し目進行中」です。</td></tr>
+              <tr><td>状態</td><td>基準日のローソク足が陽線なら🟢、陰線なら🔴。それ以上の意味はありません。</td></tr>
               <tr><td>出来高</td><td>価格と出来高の組み合わせから判定した、9種類の出来高シグナルです。</td></tr>
               <tr><td>ダウ理論</td><td>直近の山と谷が、上昇・下降・中立のどの形かを示します。</td></tr>
               <tr><td>タッチ</td><td>安値が20EMAの2%以内へ近づいてから何営業日目か（1〜3）です。</td></tr>

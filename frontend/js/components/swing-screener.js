@@ -43,7 +43,7 @@ const FILTER_GROUPS = Object.freeze({
   pickStates: {
     label: "状態",
     values: ["bounced", "pulling"],
-    labels: { bounced: "✅ 反発確認済", pulling: "⏳ 押し目進行中" },
+    labels: { bounced: "🟢 陽線引け", pulling: "🔴 陰線引け" },
   },
   priceZones: {
     label: "価格位置",
@@ -215,7 +215,7 @@ const STYLE = `
   .swing-tv:hover { color:#dbeafe; text-decoration:underline; }
   .swing-badge { display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; font-size:.68rem; font-weight:800; }
   .swing-state-bounced { color:#86efac; background:rgba(34,197,94,.14); border:1px solid rgba(34,197,94,.28); }
-  .swing-state-pulling { color:#fde68a; background:rgba(245,158,11,.13); border:1px solid rgba(245,158,11,.27); }
+  .swing-state-pulling { color:#fca5a5; background:rgba(239,68,68,.13); border:1px solid rgba(239,68,68,.27); }
   .swing-dow-up { color:#86efac; background:rgba(34,197,94,.13); }
   .swing-dow-neutral, .swing-dow-unknown { color:#cbd5e1; background:rgba(148,163,184,.13); }
   .swing-dow-down { color:#fca5a5; background:rgba(239,68,68,.13); }
@@ -299,8 +299,8 @@ function signedClass(value) {
 
 function stateBadge(state) {
   return state === "bounced"
-    ? '<span class="swing-badge swing-state-bounced">✅ 反発確認済</span>'
-    : '<span class="swing-badge swing-state-pulling">⏳ 押し目進行中</span>';
+    ? '<span class="swing-badge swing-state-bounced">🟢 陽線引け</span>'
+    : '<span class="swing-badge swing-state-pulling">🔴 陰線引け</span>';
 }
 
 function dowBadge(trend) {
