@@ -1,0 +1,333 @@
+//@version=6
+// =============================================================================
+// 押し目スクリーナー (W1 パーフェクトオーダー × D1 押し目)
+//
+// trading-dashboard の backend/services/swing_screener.py をそのまま移植したもの。
+// 判定条件・しきい値・優先順位はすべて Python 実装と一致させてある。
+//
+// 【重要】日足チャート専用。
+//   EMA20 / ADX / RS / 出来高判定はすべて「日足バー」で定義されているため、
+//   他の時間軸に乗せると別物の数値になる。日足以外ではテーブルに警告を出す。
+//
+// 【W1 判定について】
+//   週足は request.security(lookahead_off) で取得している。仕様どおり
+//   「進行中の未確定週」を含むため、週の途中で判定が入れ替わることがある。
+//   リアルタイム中の値は確定足とズレる（いわゆるリペイント）ので、
+//   判断は日足の確定後に行うこと。
+//
+// 【必要な履歴】
+//   週足 SMA200 = 200週 ≒ 3.85年。日足チャートで約1,000本以上の履歴が必要。
+//   履歴が足りない銘柄は「W1: データ不足」と表示される。
+// =============================================================================
+
+indicator("押し目スクリーナー (W1 PO × D1 Dip)", shorttitle = "Swing Pullback", overlay = true, max_lines_count = 20, max_labels_count = 50)
+
+// ── 入力 ─────────────────────────────────────────────────────────────────────
+grpFilter = "フィルタ"
+useAdx      = input.bool(true,  "ADX で絞る",                 group = grpFilter)
+adxMin      = input.float(25.0, "ADX しきい値", minval = 15.0, maxval = 35.0, step = 1.0, group = grpFilter)
+excludeDown = input.bool(true,  "ダウ理論「下降」を除外",       group = grpFilter)
+useLiquidity= input.bool(true,  "流動性フィルタを使う",         group = grpFilter)
+minDollarVol= input.float(20.0, "最低売買代金（百万ドル・60日中央値）", minval = 0.0, group = grpFilter)
+minPrice    = input.float(5.0,  "最低株価（ドル）",             minval = 0.0, group = grpFilter)
+
+grpRs = "相対強度"
+rsSymbol = input.symbol("AMEX:SPY", "比較対象（RS の基準）", group = grpRs)
+
+grpView = "表示"
+showTable   = input.bool(true, "判定テーブル",       group = grpView)
+showMarker  = input.bool(true, "条件成立マーカー",   group = grpView)
+showEmaBand = input.bool(true, "20EMA と押し目帯",   group = grpView)
+showDow     = input.bool(true, "ダウ理論の山谷",     group = grpView)
+tablePos    = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView)
+
+// ── 定数（Python 実装と同じ値）──────────────────────────────────────────────
+PIVOT_K            = 5      // ダウ理論のピボット（前後5日）
+TOUCH_TOLERANCE    = 1.02   // 20EMA へのタッチ許容（+2%）
+TOUCH_WINDOW       = 3      // タッチを遡って見る営業日数
+RANGE_WINDOW       = 60     // 価格位置を測るレンジ（終値ベース）
+VOL_SMA_LEN        = 50     // 出来高の平均期間
+WEEK_SESSIONS      = 5      // 「1週間」とみなす営業日数
+HIGH_ZONE          = 0.70   // 高値圏のしきい値
+LOW_ZONE           = 0.30   // 安値圏のしきい値
+CLIMAX_BODY_ATR    = 1.0    // セリクラ判定：実体 >= ATR × この値
+CLIMAX_VOL         = 2.0    // セリクラ判定：当日出来高倍率
+ACCUM_VOL          = 1.5    // 買い意欲：当日出来高倍率
+DISTRIB_VOL        = 1.2    // 分配の疑い：週の出来高倍率
+DISTRIB_MAX_CHG    = 0.01   // 分配の疑い：週の株価変化の上限
+SELLPRESS_CHG      = -0.02  // 売り圧力：週の株価変化
+SELLPRESS_VOL      = 1.2    // 売り圧力：週の出来高倍率
+BOUNCE_VOL         = 1.2    // 出来高を伴う反発
+WEAK_BOUNCE_VOL    = 0.8    // 出来高薄い反発
+CONTRACTION_VOL    = 0.8    // 収縮とみなす出来高倍率
+
+isDaily = timeframe.isdaily
+
+// =============================================================================
+// 1. W1 パーフェクトオーダー
+//    週足終値の SMA20/50/200 が「並び順」と「4週前より上向き」の両方を満たす
+// =============================================================================
+f_weeklyState() =>
+    s20  = ta.sma(close, 20)
+    s50  = ta.sma(close, 50)
+    s200 = ta.sma(close, 200)
+    ready = not na(s200) and not na(s200[4])
+    ok = ready and close > s20 and s20 > s50 and s50 > s200 and s20 > s20[4] and s50 > s50[4] and s200 > s200[4]
+    // 成立が何週続いているか（直近で不成立だった週からの経過週数）
+    streak = ok ? nz(ta.barssince(not ok), bar_index + 1) : 0
+    [ok, streak, s20, s50, s200, ready]
+
+[wPo, wPoWeeks, wSma20, wSma50, wSma200, wReady] = request.security(syminfo.tickerid, "W", f_weeklyState(), lookahead = barmerge.lookahead_off)
+
+// =============================================================================
+// 2. D1 押し目
+//    直近3営業日のいずれかで安値が 20EMA×1.02 以内、かつ現在の終値が 20EMA の上
+// =============================================================================
+ema20 = ta.ema(close, 20)
+
+touchNow  = low       <= ema20     * TOUCH_TOLERANCE
+touch1    = low[1]    <= ema20[1]  * TOUCH_TOLERANCE
+touch2    = low[2]    <= ema20[2]  * TOUCH_TOLERANCE
+touchedAny = touchNow or touch1 or touch2
+// タッチした最も新しいバーが何営業日前か（当日 = 1）
+touchDaysAgo = touchNow ? 1 : touch1 ? 2 : touch2 ? 3 : na
+
+aboveEma = not na(ema20) and close > ema20
+dipOk    = aboveEma and touchedAny
+emaDist  = na(ema20) or ema20 == 0 ? na : close / ema20 - 1.0
+
+bounced = close > open   // 🟢陽線引け / 🔴陰線引け
+
+// =============================================================================
+// 3. ダウ理論（確定ピボット k=5 の直近2つの山と谷を比較）
+// =============================================================================
+ph = ta.pivothigh(high, PIVOT_K, PIVOT_K)
+pl = ta.pivotlow(low,  PIVOT_K, PIVOT_K)
+
+var float phOld    = na
+var float phNew    = na
+var int   phOldBar = na
+var int   phNewBar = na
+if not na(ph)
+    phOld    := phNew
+    phOldBar := phNewBar
+    phNew    := ph
+    phNewBar := bar_index - PIVOT_K
+
+var float plOld    = na
+var float plNew    = na
+var int   plOldBar = na
+var int   plNewBar = na
+if not na(pl)
+    plOld    := plNew
+    plOldBar := plNewBar
+    plNew    := pl
+    plNewBar := bar_index - PIVOT_K
+
+dowReady = not na(phOld) and not na(phNew) and not na(plOld) and not na(plNew)
+dowTrend = not dowReady ? "unknown" : (phNew > phOld and plNew > plOld) ? "up" : (phNew < phOld and plNew < plOld) ? "down" : "neutral"
+dowOk    = not excludeDown or dowTrend != "down"
+
+// =============================================================================
+// 4. ADX(14) — Wilder 平滑（Python の ewm(alpha=1/14) と同一）
+// =============================================================================
+[_diPlus, _diMinus, adxValue] = ta.dmi(14, 14)
+adxOk = not useAdx or (not na(adxValue) and adxValue >= adxMin)
+
+// =============================================================================
+// 5. 相対強度（SPY 比。フィルタではなく表示・並び替え用）
+// =============================================================================
+rsClose = request.security(rsSymbol, timeframe.period, close, lookahead = barmerge.lookahead_off)
+
+f_ret(src, len) =>
+    na(src) or na(src[len]) or src[len] == 0 ? na : src / src[len] - 1.0
+
+rs63  = f_ret(close, 63)  - f_ret(rsClose, 63)
+rs126 = f_ret(close, 126) - f_ret(rsClose, 126)
+
+// =============================================================================
+// 6. 流動性フィルタ（60日の売買代金・中央値）
+// =============================================================================
+dollarVol = ta.median(close * volume, 60)
+liquidOk  = not useLiquidity or (not na(dollarVol) and dollarVol >= minDollarVol * 1000000.0 and close >= minPrice)
+
+// =============================================================================
+// 7. 出来高判定（9パターン・上から評価して最初に当てはまったものを採用）
+// =============================================================================
+volSma      = ta.sma(volume, VOL_SMA_LEN)
+volReady    = not na(volSma) and volSma > 0
+
+rangeLow    = ta.lowest(close, RANGE_WINDOW)
+rangeHigh   = ta.highest(close, RANGE_WINDOW)
+zonePct     = rangeHigh > rangeLow ? math.min(math.max((close - rangeLow) / (rangeHigh - rangeLow), 0.0), 1.0) : 0.5
+priceZone   = zonePct >= HIGH_ZONE ? "high" : zonePct <= LOW_ZONE ? "low" : "mid"
+
+volRatioToday = volReady ? volume / volSma : na
+recentVol     = ta.sma(volume, WEEK_SESSIONS)
+prevVol       = ta.sma(volume, WEEK_SESSIONS)[WEEK_SESSIONS]
+weekVolRatio  = na(prevVol) or prevVol <= 0 ? na : recentVol / prevVol
+weekPriceChg  = na(close[WEEK_SESSIONS]) or close[WEEK_SESSIONS] == 0 ? na : close / close[WEEK_SESSIONS] - 1.0
+
+atr14         = ta.rma(ta.tr(true), 14)
+bodySize      = math.abs(close - open)
+curRange      = ta.sma(high - low, WEEK_SESSIONS)
+prevRange     = ta.sma(high - low, WEEK_SESSIONS)[WEEK_SESSIONS]
+
+volAssessReady = volReady and not na(volRatioToday) and not na(weekVolRatio) and not na(weekPriceChg)
+
+verdict = "unavailable"
+if volAssessReady
+    if priceZone == "low" and close < open and not na(atr14) and bodySize >= atr14 * CLIMAX_BODY_ATR and volRatioToday >= CLIMAX_VOL
+        verdict := "selling_climax"
+    else if priceZone == "low" and close > open and volRatioToday >= ACCUM_VOL
+        verdict := "accumulation"
+    else if priceZone == "high" and weekVolRatio >= DISTRIB_VOL and weekPriceChg <= DISTRIB_MAX_CHG
+        verdict := "distribution"
+    else if weekPriceChg <= SELLPRESS_CHG and weekVolRatio >= SELLPRESS_VOL
+        verdict := "selling_pressure"
+    else if bounced and volRatioToday >= BOUNCE_VOL
+        verdict := "bounce_confirmed"
+    else if bounced and volRatioToday < WEAK_BOUNCE_VOL
+        verdict := "weak_bounce"
+    else if weekPriceChg < 0.0 and weekVolRatio <= CONTRACTION_VOL
+        verdict := "healthy_pullback"
+    else if weekVolRatio <= CONTRACTION_VOL and not na(prevRange) and curRange < prevRange
+        verdict := "quiet_setup"
+    else if not bounced and volRatioToday <= WEAK_BOUNCE_VOL
+        verdict := "healthy_pullback"
+    else
+        verdict := "neutral"
+
+f_verdictLabel(v) =>
+    switch v
+        "bounce_confirmed" => "✅ 出来高を伴う反発"
+        "healthy_pullback" => "✅ 健全な押し目"
+        "accumulation"     => "✅ 買い意欲"
+        "selling_climax"   => "🔄 セリクラの可能性"
+        "quiet_setup"      => "💤 ブレイク待ち"
+        "weak_bounce"      => "⚠️ 出来高薄い反発"
+        "distribution"     => "⚠️ 分配の疑い"
+        "selling_pressure" => "⚠️ 売り圧力"
+        "neutral"          => "― 特筆なし"
+        => "データ不足"
+
+f_verdictColor(v) =>
+    switch v
+        "bounce_confirmed" => color.new(#86efac, 0)
+        "healthy_pullback" => color.new(#86efac, 0)
+        "accumulation"     => color.new(#86efac, 0)
+        "selling_climax"   => color.new(#fde68a, 0)
+        "weak_bounce"      => color.new(#fde68a, 0)
+        "distribution"     => color.new(#fca5a5, 0)
+        "selling_pressure" => color.new(#fca5a5, 0)
+        => color.new(#94a3b8, 0)
+
+// =============================================================================
+// 8. 総合判定
+// =============================================================================
+allOk = liquidOk and wPo and dipOk and dowOk and adxOk
+newSignal = allOk and not allOk[1]
+
+// =============================================================================
+// 9. 描画
+// =============================================================================
+// 20EMA と押し目帯（安値がこの帯に入ればタッチ扱い）
+emaPlot  = plot(showEmaBand ? ema20 : na, "20EMA", color = color.new(#facc15, 0), linewidth = 2)
+bandPlot = plot(showEmaBand ? ema20 * TOUCH_TOLERANCE : na, "押し目帯上端 (20EMA×1.02)", color = color.new(#facc15, 60), linewidth = 1)
+fill(emaPlot, bandPlot, color = color.new(#facc15, 88), title = "押し目帯")
+
+// ダウ理論の山谷
+plotshape(showDow ? ph : na, "確定ピボット高値", shape.triangledown, location.absolute, color.new(#ef4444, 20), offset = -PIVOT_K, size = size.tiny)
+plotshape(showDow ? pl : na, "確定ピボット安値", shape.triangleup,   location.absolute, color.new(#22c55e, 20), offset = -PIVOT_K, size = size.tiny)
+
+var line dowHighLine = na
+var line dowLowLine  = na
+if barstate.islast
+    line.delete(dowHighLine)
+    line.delete(dowLowLine)
+    if showDow and dowReady
+        dowHighLine := line.new(phOldBar, phOld, phNewBar, phNew, color = color.new(#ef4444, 30), width = 2, style = line.style_dotted)
+        dowLowLine  := line.new(plOldBar, plOld, plNewBar, plNew, color = color.new(#22c55e, 30), width = 2, style = line.style_dotted)
+
+// 条件成立マーカー
+plotshape(showMarker and newSignal, "条件成立（新規）", shape.triangleup, location.belowbar, color.new(#22c55e, 0), size = size.small, text = "候補")
+plotshape(showMarker and allOk and not newSignal, "条件成立（継続）", shape.circle, location.belowbar, color.new(#22c55e, 55), size = size.tiny)
+bgcolor(showMarker and allOk ? color.new(#22c55e, 92) : na, title = "条件成立の背景")
+
+// =============================================================================
+// 10. 判定テーブル
+// =============================================================================
+f_mark(ok) => ok ? "✅" : "❌"
+f_num(v, digits) => na(v) ? "—" : str.tostring(v, digits)
+f_pct(v) => na(v) ? "—" : str.tostring(v * 100, "#.#") + "%"
+
+tablePosition = tablePos == "右上" ? position.top_right : tablePos == "右下" ? position.bottom_right : tablePos == "左上" ? position.top_left : position.bottom_left
+
+var table infoTable = table.new(tablePosition, 2, 14, border_width = 1, frame_width = 1, frame_color = color.new(#2a3a54, 0), border_color = color.new(#2a3a54, 0))
+
+f_row(int r, string k, string v, color vc) =>
+    table.cell(infoTable, 0, r, k, text_color = color.new(#94a3b8, 0), text_size = size.tiny, text_halign = text.align_left,  bgcolor = color.new(#111c30, 0))
+    table.cell(infoTable, 1, r, v, text_color = vc,                    text_size = size.tiny, text_halign = text.align_right, bgcolor = color.new(#111c30, 0))
+
+if showTable and barstate.islast
+    green = color.new(#86efac, 0)
+    red   = color.new(#fca5a5, 0)
+    gray  = color.new(#cbd5e1, 0)
+    amber = color.new(#fde68a, 0)
+
+    headText  = allOk ? "✅ 候補" : "❌ 候補外"
+    headColor = allOk ? color.new(#166534, 0) : color.new(#3f1d1d, 0)
+    table.cell(infoTable, 0, 0, syminfo.ticker, text_color = color.new(#f8fafc, 0), text_size = size.normal, text_halign = text.align_left, bgcolor = headColor)
+    table.cell(infoTable, 1, 0, headText, text_color = allOk ? green : red, text_size = size.small, text_halign = text.align_right, bgcolor = headColor)
+
+    r = 1
+    if not isDaily
+        f_row(r, "⚠️ 時間軸", "日足で使ってください", amber)
+        r += 1
+
+    // W1 パーフェクトオーダー
+    poText = not wReady ? "データ不足（200週必要）" : wPo ? "✅ 成立（" + str.tostring(wPoWeeks) + "週継続）" : "❌ 不成立"
+    f_row(r, "W1 パーフェクトオーダー", poText, not wReady ? amber : wPo ? green : red)
+    r += 1
+
+    // D1 押し目
+    dipText = dipOk ? "✅ タッチ " + str.tostring(touchDaysAgo) + "日目" : aboveEma ? "❌ 3日以内のタッチなし" : "❌ 終値が20EMA以下"
+    f_row(r, "D1 押し目", dipText, dipOk ? green : red)
+    r += 1
+
+    f_row(r, "20EMA乖離", f_pct(emaDist), gray)
+    r += 1
+
+    f_row(r, "状態", bounced ? "🟢 陽線引け" : "🔴 陰線引け", bounced ? green : red)
+    r += 1
+
+    dowText = dowTrend == "up" ? "上昇" : dowTrend == "down" ? "下降" : dowTrend == "neutral" ? "中立" : "不明"
+    f_row(r, "ダウ理論", dowText + (excludeDown and dowTrend == "down" ? "（除外）" : ""), dowTrend == "up" ? green : dowTrend == "down" ? red : gray)
+    r += 1
+
+    f_row(r, "ADX(14)" + (useAdx ? " ≧ " + str.tostring(adxMin, "#") : ""), f_num(adxValue, "#.#") + " " + (useAdx ? f_mark(adxOk) : ""), adxOk ? green : red)
+    r += 1
+
+    f_row(r, "RS 3M / 6M（" + syminfo.ticker + " − SPY）", f_pct(rs63) + " / " + f_pct(rs126), (na(rs126) ? gray : rs126 > 0 ? green : red))
+    r += 1
+
+    f_row(r, "ATR%", na(atr14) or close == 0 ? "—" : f_pct(atr14 / close), gray)
+    r += 1
+
+    f_row(r, "売買代金（60日中央値）", na(dollarVol) ? "—" : "$" + str.tostring(dollarVol / 1000000.0, "#.#") + "M " + (useLiquidity ? f_mark(liquidOk) : ""), liquidOk ? gray : red)
+    r += 1
+
+    zoneText = priceZone == "high" ? "高値圏" : priceZone == "low" ? "安値圏" : "中間"
+    f_row(r, "価格位置（60日レンジ）", zoneText + " " + str.tostring(zonePct * 100, "#") + "%", gray)
+    r += 1
+
+    f_row(r, "出来高（当日 / 前週比）", f_num(volRatioToday, "#.#") + "倍 / " + f_num(weekVolRatio, "#.#") + "倍", gray)
+    r += 1
+
+    f_row(r, "出来高判定", f_verdictLabel(verdict), f_verdictColor(verdict))
+
+// =============================================================================
+// 11. アラート
+// =============================================================================
+alertcondition(newSignal, title = "押し目候補が新たに成立", message = "{{ticker}}: W1パーフェクトオーダー × D1押し目 の全条件が成立しました（{{close}}）")
+alertcondition(allOk,     title = "押し目候補（成立中）",   message = "{{ticker}}: 押し目候補の条件が成立しています（{{close}}）")
