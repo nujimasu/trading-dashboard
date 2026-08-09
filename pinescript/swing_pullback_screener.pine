@@ -316,13 +316,13 @@ newSignal = allOk and not allOk[1]
 // 9. 描画
 // =============================================================================
 // 20EMA と押し目帯（安値がこの帯に入ればタッチ扱い）
-emaPlot  = plot(showEmaBand ? ema20 : na, "20EMA", color = color.new(#facc15, 0), linewidth = 2)
-bandPlot = plot(showEmaBand ? ema20 * TOUCH_TOLERANCE : na, "押し目帯上端 (20EMA×1.02)", color = color.new(#facc15, 60), linewidth = 1)
-fill(emaPlot, bandPlot, color = color.new(#facc15, 88), title = "押し目帯")
+emaPlot  = plot(showEmaBand ? ema20 : na, "20EMA｜押し目判定の基準線", color = color.new(#facc15, 0), linewidth = 2)
+bandPlot = plot(showEmaBand ? ema20 * TOUCH_TOLERANCE : na, "押し目帯の上端｜20EMA×1.02・安値がここに触れるとタッチ", color = color.new(#facc15, 60), linewidth = 1)
+fill(emaPlot, bandPlot, color = color.new(#facc15, 88), title = "押し目帯の塗り｜20EMA〜×1.02")
 
 // ダウ理論の山谷
-plotshape(showDow ? ph : na, "確定ピボット高値", shape.triangledown, location.absolute, color.new(#ef4444, 20), offset = -PIVOT_K, size = size.tiny)
-plotshape(showDow ? pl : na, "確定ピボット安値", shape.triangleup,   location.absolute, color.new(#22c55e, 20), offset = -PIVOT_K, size = size.tiny)
+plotshape(showDow ? ph : na, "確定ピボット高値▽｜前後5日で最も高い・ダウ理論の山", shape.triangledown, location.absolute, color.new(#ef4444, 20), offset = -PIVOT_K, size = size.tiny)
+plotshape(showDow ? pl : na, "確定ピボット安値△｜前後5日で最も安い・ダウ理論の谷", shape.triangleup,   location.absolute, color.new(#22c55e, 20), offset = -PIVOT_K, size = size.tiny)
 
 var line dowHighLine = na
 var line dowLowLine  = na
@@ -343,11 +343,11 @@ ma4 = f_ma(MA_LEN_4)
 ma5 = f_ma(MA_LEN_5)
 
 // 名前に期間を入れておくと、スタイルタブでどの線がどれか分かる
-plot(maOn1 ? ma1 : na, "MA 5",   color = maCol1, linewidth = 2)
-plot(maOn2 ? ma2 : na, "MA 25",  color = maCol2, linewidth = 2)
-plot(maOn3 ? ma3 : na, "MA 50",  color = maCol3, linewidth = 2)
-plot(maOn4 ? ma4 : na, "MA 100", color = maCol4, linewidth = 2)
-plot(maOn5 ? ma5 : na, "MA 200", color = maCol5, linewidth = 2)
+plot(maOn1 ? ma1 : na, "MA 5｜超短期・値動きにほぼ張り付く",   color = maCol1, linewidth = 2)
+plot(maOn2 ? ma2 : na, "MA 25｜短期・浅い押し目の受け皿",  color = maCol2, linewidth = 2)
+plot(maOn3 ? ma3 : na, "MA 50｜中期・25を割った押し目が次に意識する",  color = maCol3, linewidth = 2)
+plot(maOn4 ? ma4 : na, "MA 100｜中長期・深い押し目の受け皿", color = maCol4, linewidth = 2)
+plot(maOn5 ? ma5 : na, "MA 200｜長期・強気と弱気の分岐", color = maCol5, linewidth = 2)
 
 // 右端のラベル。どの線がどの期間かをその線の色で示す。
 var label maLbl1 = na
@@ -453,9 +453,9 @@ if barstate.islast
                 vaBox := box.new(leftEdge, vpLo + vpStep * (highR + 1), bar_index + 8, vpLo + vpStep * lowR, border_color = color.new(vaColor, 40), border_width = 1, bgcolor = color.new(vaColor, 93))
 
 // 条件成立マーカー
-plotshape(showMarker and newSignal, "条件成立（新規）", shape.triangleup, location.belowbar, color.new(#22c55e, 0), size = size.small, text = "候補")
-plotshape(showMarker and allOk and not newSignal, "条件成立（継続）", shape.circle, location.belowbar, color.new(#22c55e, 55), size = size.tiny)
-bgcolor(showMarker and allOk ? color.new(#22c55e, 92) : na, title = "条件成立の背景")
+plotshape(showMarker and newSignal, "条件成立▲新規｜その日に全条件が揃った", shape.triangleup, location.belowbar, color.new(#22c55e, 0), size = size.small, text = "候補")
+plotshape(showMarker and allOk and not newSignal, "条件成立○継続｜前日から条件が続いている", shape.circle, location.belowbar, color.new(#22c55e, 55), size = size.tiny)
+bgcolor(showMarker and allOk ? color.new(#22c55e, 92) : na, title = "条件成立の背景｜薄緑の網掛け")
 
 // =============================================================================
 // 10. 判定テーブル
