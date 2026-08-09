@@ -37,13 +37,28 @@ rsSymbol = input.symbol("AMEX:SPY", "比較対象（RS の基準）", group = gr
 // ── 移動平均線（5本）────────────────────────────────────────────────────────
 // 各行は「表示 / 期間 / 色」。チャート右端に EMA25 のようなラベルを出すので
 // どの線がどの期間かが一目で分かる。
+//
+// 【SMA と EMA の違い】
+//   SMA（単純移動平均）: 期間内の終値をそのまま平均する。古い足も新しい足も
+//     重みは同じ。線が滑らかで機能する節目になりやすい反面、反応は遅れる。
+//     「みんなが見ている節目」を測りたいときはこちら（例: 200日線）。
+//   EMA（指数移動平均）: 直近の足ほど重みを大きくする。価格の変化に早く
+//     追随するが、その分ダマシも増える。押し目の反発点など、足元の勢いを
+//     測りたいときはこちら。
+//   同じ期間なら EMA のほうが常に価格の近くを走る（上昇中は SMA より上、
+//   下落中は SMA より下に来る）。
+//
+// ※ スクリーニングの押し目判定は種別の設定と無関係に EMA20 固定。
+//   ここでの EMA/SMA 切替は「表示用の5本」だけに効く。
 grpMa = "移動平均線"
-maType   = input.string("EMA", "種別", options = ["EMA", "SMA"], group = grpMa)
-maLabels = input.bool(true, "右端に期間ラベルを出す", group = grpMa)
+maType   = input.string("EMA", "種別", options = ["EMA", "SMA"], group = grpMa,
+   tooltip = "SMA（単純移動平均）: 期間内の終値を同じ重みで平均。滑らかで節目になりやすいが反応は遅い。\n\nEMA（指数移動平均）: 直近の足を重く見る。変化に早く追随するがダマシも増える。\n\n同じ期間なら EMA のほうが常に価格の近くを走る。\n\n※ 押し目判定に使う EMA20 はこの設定と無関係に固定。")
+maLabels = input.bool(true, "右端に期間ラベルを出す", group = grpMa,
+   tooltip = "各線の右端に「EMA 25」のようにその線の色でラベルを出す。どの線がどの期間かを見分けるため。")
 
 maOn1  = input.bool(false, "①", inline = "ma1", group = grpMa)
 maLen1 = input.int(5,      "",   inline = "ma1", minval = 1, group = grpMa)
-maCol1 = input.color(#9598a1, "", inline = "ma1", group = grpMa)
+maCol1 = input.color(#ffffff, "", inline = "ma1", group = grpMa)
 
 maOn2  = input.bool(true,  "②", inline = "ma2", group = grpMa)
 maLen2 = input.int(25,     "",   inline = "ma2", minval = 1, group = grpMa)
