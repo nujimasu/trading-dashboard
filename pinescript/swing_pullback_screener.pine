@@ -24,15 +24,22 @@ indicator("押し目スクリーナー (W1 PO × D1 Dip)", shorttitle = "Swing P
 
 // ── 入力 ─────────────────────────────────────────────────────────────────────
 grpFilter = "フィルタ"
-useAdx      = input.bool(true,  "ADX で絞る",                 group = grpFilter)
-adxMin      = input.float(25.0, "ADX しきい値", minval = 15.0, maxval = 35.0, step = 1.0, group = grpFilter)
-excludeDown = input.bool(true,  "ダウ理論「下降」を除外",       group = grpFilter)
-useLiquidity= input.bool(true,  "流動性フィルタを使う",         group = grpFilter)
-minDollarVol= input.float(20.0, "最低売買代金（百万ドル・60日中央値）", minval = 0.0, group = grpFilter)
-minPrice    = input.float(5.0,  "最低株価（ドル）",             minval = 0.0, group = grpFilter)
+useAdx      = input.bool(true,  "ADX で絞る", group = grpFilter,
+   tooltip = "ADX（平均方向性指数）でトレンドの「強さ」を測り、方向感のないレンジ相場を候補から外す。\n\nオフにすると ADX の値は表示だけされ、候補判定には使われない。")
+adxMin      = input.float(25.0, "ADX しきい値", minval = 15.0, maxval = 35.0, step = 1.0, group = grpFilter,
+   tooltip = "この値以上を「トレンドが出ている」とみなす。一般に 20〜25 が目安で、既定は 25。\n\n■ 注意\nADX は押し目の局面では必ず下がる。「今押している」と「ADX が高い」は構造的に引っ張り合うため、固定値ではなくここで調整できるようにしてある。\n\n候補が少なすぎるときは 20 前後まで下げ、多すぎるときは 30 前後まで上げる。")
+excludeDown = input.bool(true,  "ダウ理論「下降」を除外", group = grpFilter,
+   tooltip = "日足の確定した山と谷を比べ、高値も安値も切り下げている（＝下降）銘柄を候補から外す。\n\n■ なぜ「上昇のみ」にしないか\n押し目を作っている最中は直近の安値がまだ確定していないため判定が「中立」に落ちやすい。上昇のみに絞ると、狙っている深めの押し目を弾いてしまう。そのため既定では下降だけを外す。")
+useLiquidity= input.bool(true,  "流動性フィルタを使う", group = grpFilter,
+   tooltip = "実際に売買できる規模の銘柄に限定する。板が薄い銘柄は、チャートの形が良く見えても想定した値段で約定しないため。\n\nオフにすると売買代金と株価は表示だけされ、候補判定には使われない。")
+minDollarVol= input.float(20.0, "最低売買代金（百万ドル・60日中央値）", minval = 0.0, group = grpFilter,
+   tooltip = "1日あたりの売買代金（株価×出来高）の、直近60日の中央値がこの金額以上であることを求める。既定は 2,000万ドル。\n\n平均ではなく中央値を使うのは、決算日などの一時的な出来高急増に引っ張られないようにするため。\n\n小型株も広く見たいときは 5〜10 まで下げる。")
+minPrice    = input.float(5.0,  "最低株価（ドル）", minval = 0.0, group = grpFilter,
+   tooltip = "この株価未満の銘柄を候補から外す。既定は 5ドル。\n\n低位株は値動きの1ティックが相対的に大きく、テクニカルの形が崩れやすいため。")
 
 grpRs = "相対強度"
-rsSymbol = input.symbol("AMEX:SPY", "比較対象（RS の基準）", group = grpRs)
+rsSymbol = input.symbol("AMEX:SPY", "比較対象（RS の基準）", group = grpRs,
+   tooltip = "相対強度（RS）を測る基準となる銘柄。既定は S&P500 連動の SPY。\n\nRS は「この銘柄の3ヶ月/6ヶ月リターン − 基準のリターン」で、プラスなら市場平均より強いことを意味する。\n\n■ フィルタではない\nRS は候補の絞り込みには使わず、表示と並び替えのためだけに計算している。実測で、ADX の後に RS で絞っても候補が8%しか減らず、フィルタとしてはほとんど効かなかったため。\n\nセクター内の相対強度を見たいときは、ここを XLK（テクノロジー）などのセクターETFに変えるとよい。")
 
 // ── 移動平均線（5本）────────────────────────────────────────────────────────
 // 各行は「表示 / 期間 / 色」。チャート右端に EMA25 のようなラベルを出すので
@@ -50,51 +57,73 @@ rsSymbol = input.symbol("AMEX:SPY", "比較対象（RS の基準）", group = gr
 //
 // ※ スクリーニングの押し目判定は種別の設定と無関係に EMA20 固定。
 //   ここでの EMA/SMA 切替は「表示用の5本」だけに効く。
+// 期間は定数。plot() の名前（スタイルタブに出る文字列）はコンパイル時に
+// 確定している必要があり、入力値を埋め込めないため。固定にすることで
+// スタイルタブに「MA 25」のように期間そのものが表示される。
+MA_LEN_1 = 5
+MA_LEN_2 = 25
+MA_LEN_3 = 50
+MA_LEN_4 = 100
+MA_LEN_5 = 200
+
 grpMa = "移動平均線"
 maType   = input.string("EMA", "種別", options = ["EMA", "SMA"], group = grpMa,
-   tooltip = "SMA（単純移動平均）: 期間内の終値を同じ重みで平均。滑らかで節目になりやすいが反応は遅い。\n\nEMA（指数移動平均）: 直近の足を重く見る。変化に早く追随するがダマシも増える。\n\n同じ期間なら EMA のほうが常に価格の近くを走る。\n\n※ 押し目判定に使う EMA20 はこの設定と無関係に固定。")
+   tooltip = "5本すべての計算方法を切り替える。\n\n■ SMA（単純移動平均）\n期間内の終値をそのまま平均する。古い足も新しい足も重みは同じ。線が滑らかで、多くの市場参加者が見ている節目として機能しやすい。反面、価格の変化への反応は遅れる。\n「みんなが意識する水準」を測りたいとき（例: 200日線）に向く。\n\n■ EMA（指数移動平均）\n直近の足ほど重みを大きくする。価格の変化に早く追随するが、その分ダマシも増える。\n押し目の反発点など、足元の勢いを測りたいときに向く。\n\n■ 見分け方\n同じ期間なら EMA のほうが常に価格の近くを走る。上昇中は SMA より上、下落中は SMA より下に来る。\n\n※ スクリーニングの押し目判定に使う EMA20 は、この設定と無関係に常に EMA で固定。ここを SMA にしても判定結果は変わらない。")
 maLabels = input.bool(true, "右端に期間ラベルを出す", group = grpMa,
-   tooltip = "各線の右端に「EMA 25」のようにその線の色でラベルを出す。どの線がどの期間かを見分けるため。")
+   tooltip = "各線の右端に「EMA 25」のようなラベルを、その線と同じ色で表示する。\n\n線が5本あるとどれがどの期間か分からなくなるため、既定でオンにしてある。チャートをすっきりさせたいときはオフに。")
 
-maOn1  = input.bool(false, "①", inline = "ma1", group = grpMa)
-maLen1 = input.int(5,      "",   inline = "ma1", minval = 1, group = grpMa)
+maOn1  = input.bool(false, "① 5",   inline = "ma1", group = grpMa,
+   tooltip = "5期間の移動平均。値動きにほぼ張り付くほど短い。日々の勢いを見る用途で、押し目判断にはあまり使わないため既定はオフ。右のマスで色を変えられる。")
 maCol1 = input.color(#ffffff, "", inline = "ma1", group = grpMa)
 
-maOn2  = input.bool(true,  "②", inline = "ma2", group = grpMa)
-maLen2 = input.int(25,     "",   inline = "ma2", minval = 1, group = grpMa)
+maOn2  = input.bool(true,  "② 25",  inline = "ma2", group = grpMa,
+   tooltip = "25期間の移動平均。約1ヶ月強にあたる短期線。上昇トレンド中の浅い押し目はこの線付近で止まりやすい。\n\n※ スクリーニングの押し目判定はこれではなく EMA20（黄色の線と帯）を使う。")
 maCol2 = input.color(#e91e63, "", inline = "ma2", group = grpMa)
 
-maOn3  = input.bool(true,  "③", inline = "ma3", group = grpMa)
-maLen3 = input.int(50,     "",   inline = "ma3", minval = 1, group = grpMa)
+maOn3  = input.bool(true,  "③ 50",  inline = "ma3", group = grpMa,
+   tooltip = "50期間の移動平均。約2ヶ月半にあたる中期線。25を割り込んだ押し目が次に意識する水準。ここを明確に割ると押し目ではなくトレンド転換を疑う。")
 maCol3 = input.color(#9c27b0, "", inline = "ma3", group = grpMa)
 
-maOn4  = input.bool(true,  "④", inline = "ma4", group = grpMa)
-maLen4 = input.int(100,    "",   inline = "ma4", minval = 1, group = grpMa)
+maOn4  = input.bool(true,  "④ 100", inline = "ma4", group = grpMa,
+   tooltip = "100期間の移動平均。50と200の中間にあたる線。深めの押し目の受け皿になることがある。")
 maCol4 = input.color(#ff9800, "", inline = "ma4", group = grpMa)
 
-maOn5  = input.bool(true,  "⑤", inline = "ma5", group = grpMa)
-maLen5 = input.int(200,    "",   inline = "ma5", minval = 1, group = grpMa)
+maOn5  = input.bool(true,  "⑤ 200", inline = "ma5", group = grpMa,
+   tooltip = "200期間の移動平均。約10ヶ月にあたる長期線で、強気相場と弱気相場を分ける代表的な節目。\n\n株価がこの線の上にあるか下にあるかで地合いの見方が変わる。割り込んだ銘柄は押し目買いの対象から外すのが無難。")
 maCol5 = input.color(#00bcd4, "", inline = "ma5", group = grpMa)
 
 // ── 出来高プロファイル ───────────────────────────────────────────────────────
 grpVp = "出来高プロファイル"
-showVp     = input.bool(false, "表示する", group = grpVp)
-vpLookback = input.int(120, "対象バー数",      minval = 20, maxval = 500, group = grpVp)
-vpRows     = input.int(24,  "価格帯の分割数",  minval = 8,  maxval = 50,  group = grpVp)
-vpWidth    = input.int(28,  "最大の横幅（バー数）", minval = 5, maxval = 120, group = grpVp)
-vpUpColor  = input.color(color.new(#22c55e, 62), "陽線側の色", group = grpVp)
-vpDnColor  = input.color(color.new(#ef4444, 62), "陰線側の色", group = grpVp)
-showPoc    = input.bool(true, "POC（最も出来高が多い価格帯）", group = grpVp)
+showVp     = input.bool(false, "表示する", group = grpVp,
+   tooltip = "価格帯ごとにどれだけ出来高があったかを横棒で表示する。\n\n横棒が長い価格帯ほど多くの売買が成立した＝多くの人がその値段で建玉を持っている。そうした価格帯は将来の支持線・抵抗線として機能しやすい。\n\n横棒が短い（スカスカな）価格帯は、入ると一気に走り抜けやすい。\n\n線が増えて見づらくなるため既定はオフ。")
+vpLookback = input.int(120, "対象バー数", minval = 20, maxval = 500, group = grpVp,
+   tooltip = "直近何本のバーを集計するか。日足なら 120 ≒ 半年、250 ≒ 1年。\n\n短くすると足元の需給、長くすると長期的な滞留玉が見える。押し目の受け皿を探すなら 120〜250 が扱いやすい。")
+vpRows     = input.int(24,  "価格帯の分割数", minval = 8,  maxval = 50,  group = grpVp,
+   tooltip = "対象期間の高値〜安値を何段に分けるか。多いほど細かく見えるが、1段あたりの出来高が減ってデコボコになる。\n\n20〜30 くらいが読みやすい。")
+vpWidth    = input.int(28,  "最大の横幅（バー数）", minval = 5, maxval = 120, group = grpVp,
+   tooltip = "最も出来高が多い価格帯の横棒を、何本分の幅で描くか。他の価格帯はこれに比例した長さになる。\n\nローソク足が隠れて見づらいときは小さくする。")
+vpUpColor  = input.color(color.new(#22c55e, 62), "陽線側の色", group = grpVp,
+   tooltip = "その価格帯の出来高のうち、陽線（終値 ≧ 始値）のバーが占める分の色。買い優勢だった出来高。\n\n透明度も一緒に調整できる。ローソク足を隠したくないので既定は薄め。")
+vpDnColor  = input.color(color.new(#ef4444, 62), "陰線側の色", group = grpVp,
+   tooltip = "その価格帯の出来高のうち、陰線（終値 < 始値）のバーが占める分の色。売り優勢だった出来高。")
+showPoc    = input.bool(true, "POC（最も出来高が多い価格帯）", group = grpVp,
+   tooltip = "POC = Point of Control。対象期間で最も出来高が多かった価格帯の中心に横線を引く。\n\nその期間で最も売買が集中した「本命の値段」。株価がここへ戻ると反応しやすく、押し目の目標にも損切りの目安にもなる。")
 pocColor   = input.color(#facc15, "POC の色", group = grpVp)
-showVa     = input.bool(true, "バリューエリア（出来高の70%）", group = grpVp)
+showVa     = input.bool(true, "バリューエリア（出来高の70%）", group = grpVp,
+   tooltip = "POC から上下に範囲を広げ、対象期間の出来高の70%が収まる価格帯をボックスで囲む。\n\nこの中は「多くの人が納得して売買した適正圏」。ここを上に抜けると割高、下に抜けると割安と判断され、抜けた方向に走りやすい。\n\n押し目がこのボックスの下限付近で止まるかどうかは、よく見られる分岐点。")
 vaColor    = input.color(#60a5fa, "バリューエリアの色", group = grpVp)
 
 grpView = "表示"
-showTable   = input.bool(true, "判定テーブル",       group = grpView)
-showMarker  = input.bool(true, "条件成立マーカー",   group = grpView)
-showEmaBand = input.bool(true, "20EMA と押し目帯",   group = grpView)
-showDow     = input.bool(true, "ダウ理論の山谷",     group = grpView)
-tablePos    = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView)
+showTable   = input.bool(true, "判定テーブル", group = grpView,
+   tooltip = "各条件の合否と実数値を一覧で表示する。ダッシュボードの1行分をチャート上に出したもの。\n\n最上段に総合判定（✅候補 / ❌候補外）、以下に W1パーフェクトオーダー・D1押し目・ダウ理論・ADX・RS・売買代金・出来高判定などが並ぶ。")
+showMarker  = input.bool(true, "条件成立マーカー", group = grpView,
+   tooltip = "すべての条件を満たした日に、ローソク足の下に印を出す。\n\n▲「候補」＝その日に新しく条件が揃った\n○（小さい丸）＝前日から条件が続いている\n背景の薄い緑＝条件成立中\n\n過去に何回発火したかを目で追えるので、この銘柄との相性を確認できる。")
+showEmaBand = input.bool(true, "20EMA と押し目帯", group = grpView,
+   tooltip = "押し目判定の基準そのものを描く。\n\n黄色い線＝日足 EMA20\n塗りつぶし＝EMA20 〜 EMA20×1.02 の帯\n\n安値がこの帯に入ると「タッチ」とみなす。あとどれくらい下がれば候補になるかが目で見て分かる。\n\n※ この EMA20 は移動平均線グループの設定とは無関係に固定。")
+showDow     = input.bool(true, "ダウ理論の山谷", group = grpView,
+   tooltip = "ダウ理論の判定根拠を描く。\n\n▽（赤）＝確定した山（前後5日で最も高い）\n△（緑）＝確定した谷（前後5日で最も安い）\n点線＝直近2つの山どうし・谷どうしを結んだ線\n\n両方の点線が右上がりなら「上昇」、両方が右下がりなら「下降」、片方だけなら「中立」。\n\n※ 印は5日遅れて確定する。直近5本には印が付かない。")
+tablePos    = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView,
+   tooltip = "判定テーブルを表示する場所。価格や他のインジケーターと重なるときに変更する。")
 
 // ── 定数（Python 実装と同じ値）──────────────────────────────────────────────
 PIVOT_K            = 5      // ダウ理論のピボット（前後5日）
@@ -307,17 +336,18 @@ if barstate.islast
 // ── 移動平均線（5本）＋ 期間ラベル ─────────────────────────────────────────
 f_ma(len) => maType == "SMA" ? ta.sma(close, len) : ta.ema(close, len)
 
-ma1 = f_ma(maLen1)
-ma2 = f_ma(maLen2)
-ma3 = f_ma(maLen3)
-ma4 = f_ma(maLen4)
-ma5 = f_ma(maLen5)
+ma1 = f_ma(MA_LEN_1)
+ma2 = f_ma(MA_LEN_2)
+ma3 = f_ma(MA_LEN_3)
+ma4 = f_ma(MA_LEN_4)
+ma5 = f_ma(MA_LEN_5)
 
-plot(maOn1 ? ma1 : na, "MA①", color = maCol1, linewidth = 2)
-plot(maOn2 ? ma2 : na, "MA②", color = maCol2, linewidth = 2)
-plot(maOn3 ? ma3 : na, "MA③", color = maCol3, linewidth = 2)
-plot(maOn4 ? ma4 : na, "MA④", color = maCol4, linewidth = 2)
-plot(maOn5 ? ma5 : na, "MA⑤", color = maCol5, linewidth = 2)
+// 名前に期間を入れておくと、スタイルタブでどの線がどれか分かる
+plot(maOn1 ? ma1 : na, "MA 5",   color = maCol1, linewidth = 2)
+plot(maOn2 ? ma2 : na, "MA 25",  color = maCol2, linewidth = 2)
+plot(maOn3 ? ma3 : na, "MA 50",  color = maCol3, linewidth = 2)
+plot(maOn4 ? ma4 : na, "MA 100", color = maCol4, linewidth = 2)
+plot(maOn5 ? ma5 : na, "MA 200", color = maCol5, linewidth = 2)
 
 // 右端のラベル。どの線がどの期間かをその線の色で示す。
 var label maLbl1 = na
@@ -331,11 +361,11 @@ f_maLabel(lbl, show, value, len, col) =>
     show and maLabels and not na(value) ? label.new(bar_index + 3, value, maType + " " + str.tostring(len), color = color.new(col, 82), textcolor = col, style = label.style_label_left, size = size.small) : na
 
 if barstate.islast
-    maLbl1 := f_maLabel(maLbl1, maOn1, ma1, maLen1, maCol1)
-    maLbl2 := f_maLabel(maLbl2, maOn2, ma2, maLen2, maCol2)
-    maLbl3 := f_maLabel(maLbl3, maOn3, ma3, maLen3, maCol3)
-    maLbl4 := f_maLabel(maLbl4, maOn4, ma4, maLen4, maCol4)
-    maLbl5 := f_maLabel(maLbl5, maOn5, ma5, maLen5, maCol5)
+    maLbl1 := f_maLabel(maLbl1, maOn1, ma1, MA_LEN_1, maCol1)
+    maLbl2 := f_maLabel(maLbl2, maOn2, ma2, MA_LEN_2, maCol2)
+    maLbl3 := f_maLabel(maLbl3, maOn3, ma3, MA_LEN_3, maCol3)
+    maLbl4 := f_maLabel(maLbl4, maOn4, ma4, MA_LEN_4, maCol4)
+    maLbl5 := f_maLabel(maLbl5, maOn5, ma5, MA_LEN_5, maCol5)
 
 // ── 出来高プロファイル ───────────────────────────────────────────────────────
 // 対象バーの出来高を価格帯ごとに集計する。各バーの出来高は高値〜安値が
