@@ -3,6 +3,7 @@ from __future__ import annotations
 """Market-health calculation extracted from the legacy scoring stage."""
 
 import json
+from datetime import date
 
 import numpy as np
 import pandas as pd
@@ -111,9 +112,16 @@ def _load_stage2_flags(cur) -> dict[str, bool]:
     return flags
 
 
-def compute_market_health(conn, today: str):
-    """Compute sector + theme health scores and update market_health table."""
+def compute_market_health(conn):
+    """Compute sector + theme health scores and update market_health table.
+
+    基準日は実行日ではなく price_data の最新日を使う。Polygon 無料枠の EOD は
+    配信が遅れるため、実行日を使うと「当日の日付が付いた前営業日のスコア」になる。
+    """
     cur = conn.cursor()
+    cur.execute("SELECT MAX(date) AS latest FROM price_data")
+    row = cur.fetchone()
+    as_of = str(row["latest"])[:10] if row and row["latest"] else date.today().isoformat()
     stage2_flags = _load_stage2_flags(cur)
     total_screened = len(stage2_flags)
     stage2_count = sum(stage2_flags.values())
@@ -164,12 +172,12 @@ def compute_market_health(conn, today: str):
             overall_score=EXCLUDED.overall_score, overall_signal=EXCLUDED.overall_signal,
             sector_scores=EXCLUDED.sector_scores, theme_scores=EXCLUDED.theme_scores,
             total_screened=EXCLUDED.total_screened, stage2_count=EXCLUDED.stage2_count
-    """, (today, overall_score, signal,
+    """, (as_of, overall_score, signal,
           json.dumps(sector_scores, ensure_ascii=False),
           json.dumps(theme_scores, ensure_ascii=False),
           total_screened, stage2_count))
     conn.commit()
 
-    print(f"[MarketHealth] score={overall_score}%, signal={signal}")
+    print(f"[MarketHealth] as-of={as_of} (price_data 最新日), score={overall_score}%, signal={signal}")
     print(f"[MarketHealth] Sector scores: {sector_scores}")
     print(f"[MarketHealth] Theme scores:  {theme_scores}")

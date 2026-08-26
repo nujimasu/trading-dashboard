@@ -40,7 +40,7 @@ def _run_market_health(stage: str = "MarketHealth") -> None:
     started = time.time()
     conn = get_connection()
     try:
-        compute_market_health(conn, date.today().isoformat())
+        compute_market_health(conn)
         log_stage(stage, "OK", "market_health updated", time.time() - started)
     except Exception as exc:
         log_stage(stage, "ERROR", str(exc), time.time() - started)

@@ -6,8 +6,10 @@ name: Daily Pipeline (Light)
 
 on:
   schedule:
-    # 月〜金 22:30 UTC = 翌朝 7:30 JST（米国市場クローズ後）
-    - cron: "30 22 * * 1-5"
+    # Polygon 無料枠の EOD 配信遅延に備え、早期取得と翌朝の再取得を行う。
+    # Stage2 は 6 営業日を遡って upsert するため、朝の再実行で前営業日が埋まる。
+    - cron: "30 22 * * 1-5"   # JST 7:30 — 取れれば取る（早い方）
+    - cron: "0 5 * * 2-6"     # JST 14:00 — 確実に取る（ET 前日+α）
   workflow_dispatch:  # 手動実行も可能
 
 jobs:
