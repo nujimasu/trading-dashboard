@@ -89,6 +89,19 @@ else:
             volume TEXT,
             created_at TEXT DEFAULT (datetime('now')), UNIQUE(scan_date, ticker)
         );
+        CREATE TABLE IF NOT EXISTS ai_news (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, news_date TEXT NOT NULL,
+            category TEXT NOT NULL, ticker TEXT NOT NULL DEFAULT '',
+            headline TEXT NOT NULL, summary_ja TEXT NOT NULL,
+            sentiment TEXT DEFAULT 'neutral', source_url TEXT DEFAULT '',
+            created_at TEXT DEFAULT (datetime('now')),
+            UNIQUE (news_date, category, ticker)
+        );
+        CREATE TABLE IF NOT EXISTS earnings_dates (
+            ticker TEXT PRIMARY KEY, earnings_date TEXT NOT NULL,
+            timing TEXT DEFAULT '', updated_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_ai_news_date ON ai_news (news_date DESC);
         """)
         swing_columns = {
             row[1] for row in cur.execute("PRAGMA table_info(swing_picks)").fetchall()

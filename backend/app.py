@@ -18,6 +18,7 @@ from backend.routes.economic      import router as economic_router
 from backend.routes.search        import router as search_router
 from backend.routes.sentiment     import router as sentiment_router
 from backend.routes.swing         import router as swing_router
+from backend.routes.ai_map        import router as ai_map_router
 from backend.db import init_db
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
         search_router,
         sentiment_router,
         swing_router,
+        ai_map_router,
     ]:
         app.include_router(router)
 

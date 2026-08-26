@@ -128,3 +128,48 @@ SECTOR_DISPLAY: dict[str, str] = {
 # ─── Market Health Thresholds ─────────────────────────────────────────────
 HEALTH_BULLISH_THRESHOLD = 50   # アップトレンド率50%以上 → Bullish
 HEALTH_BEARISH_THRESHOLD = 30   # アップトレンド率30%未満 → Bearish
+
+# ─── AI Sector Map（AIセクターマップ専用のカテゴリー分類） ─────────────────
+# THEME_MAP とは別物。1銘柄=1カテゴリー。銘柄の追加・削除・カテゴリー移動はここで完結する。
+AI_CATEGORY_MAP: dict[str, dict] = {
+    "hyperscaler": {
+        "label": "ハイパースケーラー・クラウド",
+        "tickers": ["MSFT", "GOOGL", "AMZN", "META", "ORCL", "CRWV", "NBIS"],
+    },
+    "ai_chip": {
+        "label": "AI半導体（GPU・カスタムチップ）",
+        "tickers": ["NVDA", "AMD", "AVGO", "MRVL", "ARM", "QCOM"],
+    },
+    "semi_equip": {
+        "label": "半導体製造・装置",
+        "tickers": ["TSM", "ASML", "AMAT", "LRCX", "KLAC", "TER", "ONTO"],
+    },
+    "memory": {
+        "label": "メモリ・ストレージ",
+        "tickers": ["MU", "WDC", "PSTG", "NTAP"],
+    },
+    "optical": {
+        "label": "光通信・ネットワーキング",
+        "tickers": ["ANET", "COHR", "LITE", "CIEN", "CRDO", "ALAB", "FN"],
+    },
+    "dc_power": {
+        "label": "データセンター・電力",
+        "tickers": ["VRT", "ETN", "GEV", "VST", "CEG", "OKLO", "SMR", "DLR"],
+    },
+    "ai_server": {
+        "label": "AIサーバー",
+        "tickers": ["SMCI", "DELL", "HPE", "IBM"],
+    },
+    "ai_soft": {
+        "label": "AIソフトウェア",
+        "tickers": ["PLTR", "NOW", "SNOW", "DDOG", "CRM"],
+    },
+}
+
+AI_MAP_BENCHMARK_TICKER = "SPY"
+AI_MAP_PERIODS = {"1w": 5, "1m": 21, "3m": 63}   # 期間ラベル→営業日数
+AI_MAP_RS_RANK_ARROW_THRESHOLD = 2               # 1週間順位 - 1ヶ月順位の差がこの値以上でRS矢印表示
+AI_MAP_OVERHEAT_5D_PCT = 10.0                    # 直近5営業日リターンがこの値以上で過熱警告
+AI_MAP_MOVER_PCT = 3.0                           # ニュース収集ルーチンが急動銘柄とみなす前日比の閾値
+AI_MAP_NEWS_RETENTION_DAYS = 30                  # ai_news の保持日数
+AI_MAP_CACHE_TTL = 900                           # summary API の in-memory キャッシュ秒数

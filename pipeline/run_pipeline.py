@@ -49,6 +49,54 @@ def _run_market_health(stage: str = "MarketHealth") -> None:
         conn.close()
 
 
+def _run_ai_earnings(stage: str = "AIEarnings") -> None:
+    """AIセクターマップ対象銘柄の決算日を FMP から取得し earnings_dates を更新する。"""
+    started = time.time()
+    try:
+        import requests
+
+        from config import AI_CATEGORY_MAP, FMP_API_KEY, FMP_BASE_URL
+        from backend.db import increment_fmp_call_count
+
+        if not FMP_API_KEY:
+            log_stage(stage, "SKIP", "FMP_API_KEY 未設定", time.time() - started)
+            return
+
+        ai_tickers = {t for cat in AI_CATEGORY_MAP.values() for t in cat["tickers"]}
+        today = date.today()
+        resp = requests.get(
+            f"{FMP_BASE_URL}/earnings-calendar",
+            params={
+                "from": today.isoformat(),
+                "to": (today + timedelta(days=30)).isoformat(),
+                "apikey": FMP_API_KEY,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        increment_fmp_call_count(today.isoformat())
+        rows = [r for r in resp.json() if r.get("symbol") in ai_tickers and r.get("date")]
+
+        with db_cursor() as cur:
+            for r in rows:
+                cur.execute(
+                    """
+                    INSERT INTO earnings_dates (ticker, earnings_date, timing, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(ticker) DO UPDATE SET
+                        earnings_date=excluded.earnings_date,
+                        timing=excluded.timing, updated_at=excluded.updated_at
+                    """,
+                    (r["symbol"], r["date"], "", datetime.now().isoformat()),
+                )
+            # 過去日になった決算日は掃除（次回決算が未announceの間は空欄に戻る）
+            cur.execute("DELETE FROM earnings_dates WHERE earnings_date < ?", (today.isoformat(),))
+        log_stage(stage, "OK", f"{len(rows)}/{len(ai_tickers)} AI銘柄の決算日を更新", time.time() - started)
+    except Exception as exc:
+        log_stage(stage, "ERROR", str(exc), time.time() - started)
+        print(f"[WARN] AI earnings fetch failed: {exc}")
+
+
 def _run_news(stage: str = "News") -> None:
     started = time.time()
     try:
@@ -173,6 +221,7 @@ def run_daily_light() -> None:
         print(f"[WARN] Stage 2 light update failed: {exc}")
 
     _run_market_health("DailyLight-MarketHealth")
+    _run_ai_earnings("DailyLight-AIEarnings")
     _run_news("DailyLight-News")
     print("[DailyLight] 完了")
 

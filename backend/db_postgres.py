@@ -185,6 +185,22 @@ def init_db():
             created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(scan_date, ticker)
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS ai_news (
+            id SERIAL PRIMARY KEY, news_date DATE NOT NULL, category TEXT NOT NULL,
+            ticker TEXT NOT NULL DEFAULT '', headline TEXT NOT NULL,
+            summary_ja TEXT NOT NULL, sentiment TEXT DEFAULT 'neutral',
+            source_url TEXT DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE (news_date, category, ticker)
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS earnings_dates (
+            ticker TEXT PRIMARY KEY, earnings_date DATE NOT NULL,
+            timing TEXT DEFAULT '', updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS idx_ai_news_date ON ai_news (news_date DESC)",
     ]
     for statement in statements:
         cur.execute(statement)

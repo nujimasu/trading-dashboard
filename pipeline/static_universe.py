@@ -140,6 +140,10 @@ STATIC_TICKERS = [
 
     # ── Agriculture / Commodities ─────────────────────────────────────────
     "ADM", "BG", "TSN", "HRL", "CF", "MOS", "NTR", "FMC", "CTVA",
+
+    # ── AI Sector Map 用に追加（2026-08 config.AI_CATEGORY_MAP 対応） ──────
+    "VRT", "COHR", "CRDO", "ALAB", "FN", "ASML", "TSM", "ARM", "CRWV",
+    "NBIS", "IREN", "APLD", "INTC", "TER",
 ]
 
 # Deduplicate while preserving order, remove tickers with dots
