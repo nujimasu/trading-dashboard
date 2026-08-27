@@ -134,34 +134,42 @@ HEALTH_BEARISH_THRESHOLD = 30   # アップトレンド率30%未満 → Bearish
 AI_CATEGORY_MAP: dict[str, dict] = {
     "hyperscaler": {
         "label": "ハイパースケーラー・クラウド",
+        "short": "クラウド",
         "tickers": ["MSFT", "GOOGL", "AMZN", "META", "ORCL", "CRWV", "NBIS"],
     },
     "ai_chip": {
         "label": "AI半導体（GPU・カスタムチップ）",
+        "short": "AI半導体",
         "tickers": ["NVDA", "AMD", "AVGO", "MRVL", "ARM", "QCOM"],
     },
     "semi_equip": {
         "label": "半導体製造・装置",
+        "short": "製造装置",
         "tickers": ["TSM", "ASML", "AMAT", "LRCX", "KLAC", "TER", "ONTO"],
     },
     "memory": {
         "label": "メモリ・ストレージ",
+        "short": "メモリ",
         "tickers": ["MU", "WDC", "PSTG", "NTAP"],
     },
     "optical": {
         "label": "光通信・ネットワーキング",
+        "short": "光通信",
         "tickers": ["ANET", "COHR", "LITE", "CIEN", "CRDO", "ALAB", "FN"],
     },
     "dc_power": {
         "label": "データセンター・電力",
+        "short": "DC・電力",
         "tickers": ["VRT", "ETN", "GEV", "VST", "CEG", "OKLO", "SMR", "DLR"],
     },
     "ai_server": {
         "label": "AIサーバー",
+        "short": "AIサーバー",
         "tickers": ["SMCI", "DELL", "HPE", "IBM"],
     },
     "ai_soft": {
         "label": "AIソフトウェア",
+        "short": "AIソフト",
         "tickers": ["PLTR", "NOW", "SNOW", "DDOG", "CRM"],
     },
 }

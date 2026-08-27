@@ -3,12 +3,14 @@ import { renderMarketHealth } from "./components/market-health.js?v=7";
 import { renderEconomicDashboard } from "./components/economic-dashboard.js?v=2";
 import { renderSearchUI } from "./components/stock-search.js?v=2";
 import { renderLogicGuide } from "./components/logic-guide.js?v=1";
-import { renderAiSectorMap } from "./components/ai-sector-map.js?v=1";
+import { renderAiSectorMap } from "./components/ai-sector-map.js?v=2";
+import { renderAiNews } from "./components/ai-news.js?v=1";
 import { apiFetch } from "./utils/api.js?v=3";
 
 const SECTIONS = [
   { id: "swing", label: "押し目スクリーナー", icon: "🎯", load: loadSwing },
   { id: "ai-map", label: "AIセクターマップ", icon: "🤖", load: loadAiSectorMap },
+  { id: "ai-news", label: "AIニュース", icon: "📰", load: loadAiNews },
   { id: "market-health", label: "市場ヘルス", icon: "📊", load: loadMarketHealth },
   { id: "economic", label: "経済指標", icon: "📈", load: loadEconomic },
   { id: "search", label: "銘柄検索", icon: "🔍", load: loadSearch },
@@ -91,6 +93,10 @@ async function loadSwing(container) {
 
 async function loadAiSectorMap(container) {
   await renderAiSectorMap(container);
+}
+
+async function loadAiNews(container) {
+  await renderAiNews(container);
 }
 
 async function loadMarketHealth(container) {

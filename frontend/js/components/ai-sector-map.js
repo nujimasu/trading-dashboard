@@ -3,7 +3,6 @@ import { apiFetch } from "../utils/api.js?v=3";
 const PERIOD_LABELS = { "1w": "1週間", "1m": "1ヶ月", "3m": "3ヶ月" };
 const PERIOD_ORDER = ["1w", "1m", "3m"];
 const PREFS_KEY = "ai-sector-map-period-v1";
-const SENTIMENT_LABEL = { positive: "ポジティブ", negative: "ネガティブ", neutral: "中立" };
 const RS_TREND_ICON = { improving: "↗", worsening: "↘", flat: "→" };
 const RS_TREND_LABEL = { improving: "改善中", worsening: "悪化中", flat: "横ばい" };
 
@@ -82,13 +81,13 @@ function businessDaysBetween(fromIso, toIso) {
 function categoryBadges(cat) {
   const badges = [];
   if (cat.swing_pick_count > 0) {
-    badges.push(`<span class="aimap-badge aimap-badge-swing" title="押し目スクリーナーの本日の候補（スキャン対象外の銘柄は含まれません）">🎯 押し目 ${cat.swing_pick_count}件</span>`);
+    badges.push(`<span class="aimap-badge aimap-badge-swing" title="押し目スクリーナーの本日の候補 ${cat.swing_pick_count}件（スキャン対象外の銘柄は含まれません）">🎯${cat.swing_pick_count}</span>`);
   }
   if (cat.earnings_this_week > 0) {
-    badges.push(`<span class="aimap-badge aimap-badge-earnings" title="7日以内に決算発表を控えている銘柄数">📅 今週決算 ${cat.earnings_this_week}件</span>`);
+    badges.push(`<span class="aimap-badge aimap-badge-earnings" title="7日以内に決算発表を控えている銘柄 ${cat.earnings_this_week}件">📅${cat.earnings_this_week}</span>`);
   }
   if (cat.overheat) {
-    badges.push(`<span class="aimap-badge aimap-badge-overheat" title="直近5営業日で+10%以上上昇。追いかけ買いは過熱リスクに注意">⚠ 過熱</span>`);
+    badges.push(`<span class="aimap-badge aimap-badge-overheat" title="直近5営業日で+10%以上上昇。追いかけ買いは過熱リスクに注意">⚠</span>`);
   }
   return badges.join("");
 }
@@ -102,8 +101,11 @@ function categoryCardHtml(cat, index) {
       <div class="aimap-card-rank">${index + 1}</div>
       <div class="aimap-card-main">
         <div class="aimap-card-head">
-          <span class="aimap-card-label">${escapeHtml(cat.label)}</span>
-          <span class="aimap-card-ret ${toneClass(ret)}">${signed(ret)}%</span>
+          <span class="aimap-card-label"><span class="aimap-label-full">${escapeHtml(cat.label)}</span><span class="aimap-label-short">${escapeHtml(cat.short_label || cat.label)}</span></span>
+          <span class="aimap-card-ret-group">
+            <span class="aimap-card-ret ${toneClass(ret)}">${signed(ret)}%</span>
+            <span class="aimap-rs-trend-mini aimap-rs-${trend}">${RS_TREND_ICON[trend]}</span>
+          </span>
         </div>
         <div class="aimap-card-sub">
           <span title="SPY比の相対強度（パーセントポイント差）">RS ${signed(cat.rs_pt)}pt</span>
@@ -112,7 +114,7 @@ function categoryCardHtml(cat, index) {
         <div class="aimap-card-chart">${sparklinePath(cat.index_series.map(p => p.value))}</div>
         <div class="aimap-card-breadth" title="20EMAより上にある銘柄の比率（一部の銘柄だけの見せかけの強さではないかを確認）">
           <div class="aimap-breadth-bar"><div class="aimap-breadth-fill" style="width:${breadthPct ?? 0}%"></div></div>
-          <span class="aimap-breadth-label">参加率 ${breadthPct == null ? "―" : `${fixed(breadthPct, 0)}%`} (${cat.breadth_n}/${cat.breadth_total})</span>
+          <span class="aimap-breadth-label">参加率 ${breadthPct == null ? "―" : `${fixed(breadthPct, 0)}%`}<span class="aimap-breadth-frac"> (${cat.breadth_n}/${cat.breadth_total})</span></span>
         </div>
         <div class="aimap-card-badges">${categoryBadges(cat)}</div>
         ${cat.n_calc < cat.n_total ? `<div class="aimap-card-note">データ不足の銘柄を除いて算出（${cat.n_calc}/${cat.n_total}銘柄）</div>` : ""}
@@ -145,50 +147,19 @@ function tickerRowHtml(t) {
   `;
 }
 
-function newsItemHtml(item) {
-  return `
-    <div class="aimap-news-item aimap-sent-${escapeHtml(item.sentiment)}">
-      <div class="aimap-news-head">
-        <span class="aimap-news-date">${escapeHtml(item.news_date)}</span>
-        ${item.ticker ? `<span class="aimap-news-ticker">${escapeHtml(item.ticker)}</span>` : `<span class="aimap-news-ticker aimap-news-overview">総括</span>`}
-        <span class="aimap-news-sentiment" title="ニュースの論調">${SENTIMENT_LABEL[item.sentiment] || "中立"}</span>
-      </div>
-      <div class="aimap-news-headline">${escapeHtml(item.headline)}</div>
-      <div class="aimap-news-summary">${escapeHtml(item.summary_ja)}</div>
-      ${affectedTickersHtml(item.affected_tickers)}
-    </div>
-  `;
-}
-
-function affectedTickersHtml(tickers) {
-  if (!tickers || !tickers.length) return "";
-  return `
-    <div class="aimap-affected" title="この材料が波及しそうな銘柄（AIによる推定であり保証はありません）">
-      <span class="aimap-affected-label">影響波及先:</span>
-      ${tickers.map(t => `<a class="aimap-affected-chip" href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(t)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`).join("")}
-    </div>
-  `;
-}
-
-function categoryDetailHtml(cat, newsByCategory) {
-  const overview = (newsByCategory[cat.id] || []).filter(n => !n.ticker);
-  const tickerNews = (newsByCategory[cat.id] || []).filter(n => n.ticker);
-  const newsByTicker = {};
-  for (const n of tickerNews) {
-    (newsByTicker[n.ticker] ??= []).push(n);
-  }
+function categoryDetailHtml(cat) {
   return `
     <div class="aimap-detail" data-cat-detail="${escapeHtml(cat.id)}" hidden>
-      ${overview.length ? `<div class="aimap-overview-news">${overview.map(newsItemHtml).join("")}</div>` : ""}
+      <div class="aimap-detail-actions">
+        <button type="button" class="aimap-news-link" data-news-cat="${escapeHtml(cat.id)}">📰 ${escapeHtml(cat.short_label || cat.label)}のニュースを見る</button>
+      </div>
       <div class="aimap-table-wrap">
         <table class="aimap-table">
           <thead>
             <tr><th>銘柄</th><th>株価</th><th>前日比</th><th>期間リターン</th><th>推移</th><th></th></tr>
           </thead>
           <tbody>
-            ${cat.tickers.map(t => tickerRowHtml(t) + (
-              (newsByTicker[t.ticker] || []).map(n => `<tr class="aimap-news-row"><td colspan="6">${newsItemHtml(n)}</td></tr>`).join("")
-            )).join("")}
+            ${cat.tickers.map(tickerRowHtml).join("")}
           </tbody>
         </table>
       </div>
@@ -200,16 +171,6 @@ function priceStaleWarningHtml(summary) {
   if (!summary.price_stale) return "";
   const days = businessDaysBetween(summary.as_of, new Date().toISOString().slice(0, 10));
   return `<div class="aimap-warning" role="alert">⚠️ 価格データが${days > 0 ? `約${days}営業日` : ""}古い可能性があります（最終更新 ${escapeHtml(summary.as_of)}）</div>`;
-}
-
-function newsStaleWarningHtml(news) {
-  if (!news || news.items.length === 0) {
-    return `<div class="aimap-news-empty">ニュースはまだありません。毎朝のクラウド実行後に自動で追加されます。</div>`;
-  }
-  if (news.stale) {
-    return `<div class="aimap-warning" role="alert">⚠️ ニュースの更新が止まっている可能性があります（最終更新 ${escapeHtml(news.updated_at || "不明")}）</div>`;
-  }
-  return "";
 }
 
 let chartInstance = null;
@@ -232,7 +193,7 @@ function renderComparisonChart(container, categories) {
   }
 
   container.innerHTML = `
-    <div class="aimap-chart-legend">${withSeries.map((c, i) => `<span><i class="aimap-legend-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></i>${escapeHtml(c.label)}</span>`).join("")}</div>
+    <div class="aimap-chart-legend">${withSeries.map((c, i) => `<span><i class="aimap-legend-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></i>${escapeHtml(c.short_label || c.label)}</span>`).join("")}</div>
     <div class="aimap-chart"></div>
   `;
   const chartEl = container.querySelector(".aimap-chart");
@@ -264,12 +225,13 @@ function renderComparisonChart(container, categories) {
   resizeObserver.observe(chartEl);
 }
 
-function groupNewsByCategory(items) {
-  const grouped = {};
-  for (const item of items) {
-    (grouped[item.category] ??= []).push(item);
+function goToNewsPage(categoryId) {
+  try {
+    window.sessionStorage.setItem("ai-news-filter-category", categoryId);
+  } catch {
+    /* sessionStorageが使えない環境は無視（フィルタ無しでニュースページが開く） */
   }
-  return grouped;
+  document.querySelector('.nav-item[data-section="ai-news"]')?.click();
 }
 
 export async function renderAiSectorMap(container) {
@@ -277,12 +239,8 @@ export async function renderAiSectorMap(container) {
 
   let period = loadPeriodPref();
   let summary;
-  let news;
   try {
-    [summary, news] = await Promise.all([
-      apiFetch(`/api/ai-map/summary?period=${period}`),
-      apiFetch(`/api/ai-map/news?days=14`),
-    ]);
+    summary = await apiFetch(`/api/ai-map/summary?period=${period}`);
   } catch (error) {
     container.innerHTML = `<div class="empty-state">AIセクターマップの取得に失敗しました: ${escapeHtml(error.message)}</div>`;
     return;
@@ -312,13 +270,8 @@ export async function renderAiSectorMap(container) {
         <div id="aimap-chart-container"></div>
       </div>
 
-      <div class="aimap-panel">
-        <div class="aimap-panel-title">最新ニュース</div>
-        <div id="aimap-news-warning">${newsStaleWarningHtml(news)}</div>
-      </div>
-
       <div id="aimap-details">
-        ${summary.categories.map(c => categoryDetailHtml(c, groupNewsByCategory(news.items))).join("")}
+        ${summary.categories.map(categoryDetailHtml).join("")}
       </div>
     </div>
   `;
@@ -348,6 +301,10 @@ export async function renderAiSectorMap(container) {
       }
     });
   });
+
+  container.querySelectorAll(".aimap-news-link").forEach(btn => {
+    btn.addEventListener("click", () => goToNewsPage(btn.dataset.newsCat));
+  });
 }
 
 const STYLE = `
@@ -371,7 +328,10 @@ const STYLE = `
   .aimap-card-main { flex:1; min-width:0; }
   .aimap-card-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
   .aimap-card-label { font-weight:800; font-size:.86rem; }
+  .aimap-label-short { display:none; }
+  .aimap-card-ret-group { display:inline-flex; align-items:baseline; gap:4px; white-space:nowrap; }
   .aimap-card-ret { font-weight:900; font-size:1.05rem; font-variant-numeric:tabular-nums; }
+  .aimap-rs-trend-mini { display:none; font-weight:900; font-size:.82rem; }
   .aimap-card-sub { display:flex; align-items:center; gap:10px; margin-top:3px; color:var(--text-muted); font-size:.72rem; }
   .aimap-rs-trend { font-weight:800; }
   .aimap-rs-improving { color:#22c55e; }
@@ -405,11 +365,11 @@ const STYLE = `
   .aimap-chart { width:100%; height:320px; }
   .aimap-chart-error { min-height:200px; display:grid; place-items:center; color:#fca5a5; }
 
-  .aimap-news-empty { color:var(--text-muted); font-size:.78rem; padding:6px 2px; }
-
   .aimap-detail { margin-top:-4px; border:1px solid #314563; border-radius:12px; padding:12px; background:#0a1322; }
   .aimap-detail[hidden] { display:none; }
-  .aimap-overview-news { display:grid; gap:8px; margin-bottom:12px; }
+  .aimap-detail-actions { margin-bottom:10px; }
+  .aimap-news-link { min-height:32px; padding:6px 12px; border:1px solid #4c3a7a; border-radius:999px; background:rgba(168,85,247,.12); color:#d8b4fe; font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; }
+  .aimap-news-link:hover { background:rgba(168,85,247,.2); }
   .aimap-table-wrap { min-width:0; overflow-x:auto; }
   .aimap-table { width:100%; min-width:560px; border-collapse:collapse; font-variant-numeric:tabular-nums; }
   .aimap-table th { padding:7px 9px; text-align:left; color:var(--text-muted); font-size:.68rem; border-bottom:1px solid var(--am-line); white-space:nowrap; }
@@ -425,27 +385,24 @@ const STYLE = `
   .aimap-earn-badge { display:inline-flex; align-items:center; border-radius:999px; padding:2px 6px; font-size:.62rem; background:rgba(148,163,184,.12); color:#cbd5e1; white-space:nowrap; }
   .aimap-swing-badge { background:rgba(59,130,246,.14); color:#93c5fd; }
 
-  .aimap-news-row td { white-space:normal; padding:6px 9px 10px; }
-  .aimap-news-item { padding:9px 10px; border-radius:8px; background:#0d1727; border-left:3px solid #64748b; }
-  .aimap-news-item.aimap-sent-positive { border-left-color:#22c55e; }
-  .aimap-news-item.aimap-sent-negative { border-left-color:#ef4444; }
-  .aimap-news-item.aimap-sent-neutral { border-left-color:#64748b; }
-  .aimap-news-head { display:flex; align-items:center; gap:8px; margin-bottom:3px; }
-  .aimap-news-date { color:var(--text-muted); font-size:.64rem; font-variant-numeric:tabular-nums; }
-  .aimap-news-ticker { color:#dbeafe; font-weight:800; font-size:.7rem; }
-  .aimap-news-overview { color:#93c5fd; }
-  .aimap-news-sentiment { margin-left:auto; color:#64748b; font-size:.62rem; }
-  .aimap-news-headline { font-weight:750; font-size:.76rem; }
-  .aimap-news-summary { margin-top:2px; color:#cbd5e1; font-size:.72rem; line-height:1.5; }
-  .aimap-affected { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; }
-  .aimap-affected-label { color:#64748b; font-size:.64rem; }
-  .aimap-affected-chip { display:inline-flex; align-items:center; border-radius:999px; padding:2px 8px; font-size:.66rem; font-weight:750; color:#c4b5fd; background:rgba(168,85,247,.14); text-decoration:none; }
-  .aimap-affected-chip:hover { background:rgba(168,85,247,.24); }
-
   @media (max-width:720px) {
     .aimap-hero { padding:15px; }
-    .aimap-cards { grid-template-columns:1fr; }
     .aimap-period-toggle { width:100%; }
     .aimap-period-btn { flex:1; text-align:center; }
+
+    /* カードを1行2列のコンパクト表示に切り替える */
+    .aimap-cards { grid-template-columns:repeat(2,1fr); gap:8px; }
+    .aimap-card { flex-direction:column; padding:10px; gap:0; }
+    .aimap-card-rank, .aimap-card-chevron, .aimap-card-sub, .aimap-card-note, .aimap-breadth-frac { display:none; }
+    .aimap-label-full { display:none; }
+    .aimap-label-short { display:inline; }
+    .aimap-card-label { font-size:.74rem; }
+    .aimap-card-ret { font-size:.9rem; }
+    .aimap-rs-trend-mini { display:inline; }
+    .aimap-card-chart { height:22px; margin-top:5px; }
+    .aimap-card-breadth { margin-top:5px; gap:5px; }
+    .aimap-breadth-label { font-size:.6rem; }
+    .aimap-card-badges { margin-top:5px; gap:4px; }
+    .aimap-badge { padding:1px 5px; font-size:.62rem; }
   }
 `;

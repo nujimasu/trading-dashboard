@@ -228,6 +228,7 @@ def build_category_results(
             categories.append({
                 "id": cid,
                 "label": cat["label"],
+                "short_label": cat.get("short", cat["label"]),
                 "return_pct": cat_return_pct[pname].get(cid),
                 "rs_pt": rs_pt[pname].get(cid),
                 "rs_trend": rs_trend,
@@ -315,8 +316,14 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
     if latest_news_date:
         stale = bool(np.busday_count(latest_news_date, date.today().isoformat()) > 2)
 
+    categories = [
+        {"id": cid, "label": cat["label"], "short_label": cat.get("short", cat["label"])}
+        for cid, cat in AI_CATEGORY_MAP.items()
+    ]
+
     return {
         "updated_at": latest_created_at,
         "stale": stale,
+        "categories": categories,
         "items": items,
     }
