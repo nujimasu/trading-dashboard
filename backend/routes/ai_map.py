@@ -54,14 +54,33 @@ def _iso(value: Any) -> str | None:
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
 
 
-def _parse_ticker_list(value: Any) -> list[str]:
+def _parse_affected_tickers(value: Any) -> list[dict[str, str]]:
+    """影響波及先を [{"ticker": ..., "reason": ...}] の形に正規化する。
+
+    保存形式は2種類ある:
+      - 旧: ["AMD", "ARM"]                                （理由なし。reason は空文字になる）
+      - 新: [{"ticker": "AMD", "reason": "..."}]           （銘柄ごとの波及理由つき）
+    どちらで保存されていても読めるようにしておく。
+    """
     if not value:
         return []
     try:
         parsed = json.loads(value)
     except (TypeError, json.JSONDecodeError):
         return []
-    return [str(t) for t in parsed] if isinstance(parsed, list) else []
+    if not isinstance(parsed, list):
+        return []
+
+    out: list[dict[str, str]] = []
+    for item in parsed:
+        if isinstance(item, str):
+            out.append({"ticker": item, "reason": ""})
+        elif isinstance(item, dict) and item.get("ticker"):
+            out.append({
+                "ticker": str(item["ticker"]),
+                "reason": str(item.get("reason") or ""),
+            })
+    return out
 
 
 def _all_tickers(category_map: dict[str, dict]) -> list[str]:
@@ -356,7 +375,7 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
             "headline": r["headline"],
             "summary_ja": r["summary_ja"],
             "sentiment": r["sentiment"] or "neutral",
-            "affected_tickers": _parse_ticker_list(r.get("affected_tickers")),
+            "affected_tickers": _parse_affected_tickers(r.get("affected_tickers")),
             "source_url": r["source_url"] or "",
         })
 

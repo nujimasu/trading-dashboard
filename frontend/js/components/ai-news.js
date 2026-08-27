@@ -65,12 +65,20 @@ function tvUrl(ticker) {
   return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(ticker)}`;
 }
 
-function affectedTickersHtml(tickers) {
-  if (!tickers || !tickers.length) return "";
+function affectedTickersHtml(entries) {
+  if (!entries || !entries.length) return "";
+  // entries は [{ticker, reason}]。古いデータは reason が空文字で来る。
   return `
-    <div class="ainews-affected" title="この材料が波及しそうな銘柄（AIによる推定であり保証はありません）">
-      <span class="ainews-affected-label">影響波及先:</span>
-      ${tickers.map(t => `<a class="ainews-affected-chip" href="${tvUrl(t)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`).join("")}
+    <div class="ainews-affected">
+      <div class="ainews-affected-label" title="この材料が波及しそうな銘柄。AIによる推定であり保証はありません">影響波及先</div>
+      <div class="ainews-affected-list">
+        ${entries.map(e => `
+          <div class="ainews-affected-row">
+            <a class="ainews-affected-chip" href="${tvUrl(e.ticker)}" target="_blank" rel="noopener">${escapeHtml(e.ticker)}</a>
+            ${e.reason ? `<span class="ainews-affected-reason">${escapeHtml(e.reason)}</span>` : ""}
+          </div>
+        `).join("")}
+      </div>
     </div>
   `;
 }
@@ -246,10 +254,13 @@ const STYLE = `
   .ainews-sentiment { margin-left:auto; color:#64748b; font-size:.64rem; }
   .ainews-headline { font-weight:750; font-size:.82rem; }
   .ainews-summary { margin-top:3px; color:#cbd5e1; font-size:.76rem; line-height:1.55; }
-  .ainews-affected { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; }
-  .ainews-affected-label { color:#64748b; font-size:.66rem; }
-  .ainews-affected-chip { display:inline-flex; align-items:center; border-radius:999px; padding:2px 8px; font-size:.68rem; font-weight:750; color:#c4b5fd; background:rgba(168,85,247,.14); text-decoration:none; }
+  .ainews-affected { margin-top:9px; padding-top:8px; border-top:1px dashed rgba(148,163,184,.22); }
+  .ainews-affected-label { color:#64748b; font-size:.66rem; margin-bottom:5px; }
+  .ainews-affected-list { display:grid; gap:5px; }
+  .ainews-affected-row { display:flex; align-items:baseline; gap:7px; }
+  .ainews-affected-chip { flex:none; display:inline-flex; align-items:center; border-radius:999px; padding:2px 8px; font-size:.68rem; font-weight:750; color:#c4b5fd; background:rgba(168,85,247,.14); text-decoration:none; }
   .ainews-affected-chip:hover { background:rgba(168,85,247,.24); }
+  .ainews-affected-reason { min-width:0; color:#94a3b8; font-size:.7rem; line-height:1.5; }
   .ainews-source { display:inline-block; margin-top:8px; color:#93c5fd; font-size:.68rem; text-decoration:none; }
   .ainews-source:hover { color:#dbeafe; text-decoration:underline; }
 
