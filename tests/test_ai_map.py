@@ -182,3 +182,35 @@ def test_missing_benchmark_column_returns_empty_dict():
     idx = pd.bdate_range("2026-01-01", periods=30)
     wide = pd.DataFrame({"UP1": np.linspace(100, 110, 30)}, index=idx)
     assert build_category_results(wide, None, set(), {}, {}) == {}
+
+
+def test_custom_category_map_and_benchmark_are_used(monkeypatch):
+    """market='jp' 相当。category_map / benchmark を明示指定した場合にそれが使われる。"""
+    idx = pd.bdate_range("2026-01-01", periods=40)
+    wide = pd.DataFrame({
+        "1306.T": np.full(40, 2800.0),                 # ベンチマーク（横ばい）
+        "8035.T": np.linspace(100.0, 130.0, 40),       # +30%
+        "6857.T": np.linspace(100.0, 120.0, 40),       # +20%
+    }, index=idx)
+    jp_map = {"jp_semi_equip": {"label": "半導体製造装置", "short": "製造装置", "tickers": ["8035.T", "6857.T"]}}
+
+    result = build_category_results(
+        wide, None, set(), {}, {"8035.T": "東京エレクトロン"},
+        today=idx[-1].date(),
+        category_map=jp_map, benchmark="1306.T", benchmark_label="TOPIX",
+    )
+    r1m = result["1m"]
+    assert r1m["benchmark"]["ticker"] == "1306.T"
+    assert r1m["benchmark"]["label"] == "TOPIX"
+    assert r1m["benchmark"]["return_pct"] == 0.0
+    cat = r1m["categories"][0]
+    assert cat["id"] == "jp_semi_equip"
+    assert cat["short_label"] == "製造装置"
+    assert cat["return_pct"] > 0
+    assert cat["rs_pt"] == pytest.approx(cat["return_pct"], abs=0.01)
+
+
+def test_tokyo_tickers_get_tse_tradingview_url():
+    from backend.routes.ai_map import _tv_url
+    assert _tv_url("8035.T") == "https://www.tradingview.com/chart/?symbol=TSE%3A8035"
+    assert _tv_url("NVDA") == "https://www.tradingview.com/chart/?symbol=NVDA"

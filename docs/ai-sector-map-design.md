@@ -258,3 +258,77 @@ CREATE TABLE IF NOT EXISTS earnings_dates (
 - カード色のグラデーション閾値（±何%で最大彩度か）
 - IREN / APLD をどのカテゴリーに入れるか（当面は未所属の予備）
 - RSモメンタムの順位差閾値（初期値±2）と過熱閾値（初期値+10%/5日）の実運用チューニング
+
+
+---
+
+# 実装後の変更履歴
+
+## 2026-08-27 追記（実装セッションでの設計変更）
+
+実装時に判明した制約・追加要望により、当初設計から以下を変更した。
+
+### 1. ニュース収集はREST API方式に変更（設計 §9 の psycopg2 方式は破棄）
+
+**クラウドサンドボックス環境は Postgres への生TCP接続（5432/6543）を一切許可しない**ことが
+試験実行で判明した。「pooler URI ならIPv4で届く」という当初の前提が誤り。
+実際の解決策は **Supabase REST API（PostgREST / HTTPS）経由**:
+- クラウド環境の環境変数: `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY`（`DATABASE_URL` は使わない）
+- upsert は `POST /rest/v1/ai_news?on_conflict=news_date,category,ticker` に
+  `Prefer: resolution=merge-duplicates`
+- 30日retention は `DELETE /rest/v1/ai_news?news_date=lt.YYYY-MM-DD`
+
+あわせてクラウド環境の Network access を **Full** に変更した。Custom（ドメイン許可リスト）では
+WebFetch が全ニュースサイトでブロックされ、検索スニペットだけの低精度な要約しか作れなかった。
+Full 化により元記事に当たれるようになり、騰落率・出典URLの精度が明確に向上した。
+※ トレードオフとして `SUPABASE_SERVICE_ROLE_KEY` を持つセッションが任意ドメインに到達できる。
+   ルーティンのプロンプトにプロンプトインジェクション対策の指示を明記して緩和している。
+
+### 2. ニュースは専用ページに完全分離
+
+セクターマップにニュースを埋め込む構成は情報過多だったため、`ai-news.js`（📰 AIニュース）へ移行。
+セクターマップ側はニュースAPIを呼ばなくなり軽量化。カテゴリー詳細の
+「📰 ◯◯のニュースを見る」ボタンから sessionStorage 経由でフィルタを引き継いで遷移する。
+
+### 3. モバイル2列カード
+
+`max-width:720px` でカテゴリーカードを2列化。カテゴリー名は `AI_CATEGORY_MAP` の
+`short`（短縮名）に自動切替、ランク番号・RS詳細・参加率の分数を非表示にして情報密度を調整。
+デスクトップ表示は変更なし。
+
+### 4. `affected_tickers`（影響波及先）の追加
+
+各ニュースに「この材料が波及しそうな他の銘柄（最大3件）」を付与。
+`ai_news.affected_tickers TEXT DEFAULT '[]'`（既存 `news_events` と同じくJSON配列の文字列化）。
+日米をまたいだ推定も許容する（例: NVIDIA好決算 → 8035.T / 6857.T への追風）。
+
+### 5. カテゴリー拡張と日本市場の追加
+
+**米国**: 「冷却・空調・設備」カテゴリーを新設（8→9分類）。
+VRT を dc_power から移し、CARR / TT / JCI / MOD / FIX を追加。データセンターの冷却需要を
+AIインフラの一部として捉えるため。
+
+**日本**: `JP_AI_CATEGORY_MAP`（5分類27銘柄）と `JP_TICKER_NAMES`（日本語社名）を新設。
+
+| 項目 | 米国 | 日本 |
+|---|---|---|
+| 価格ソース | Polygon grouped daily | **yfinance**（`pipeline/jp_price_data.py`） |
+| ベンチマーク | SPY | **1306.T（TOPIX ETF）** |
+| EOD遅延 | あり（朝の再取得cronで対応） | **なし**（東証15:00引け） |
+| 🎯押し目バッジ | あり | なし（押し目スクリーナーは米国株のみ） |
+| 📅決算バッジ | あり（FMP） | なし（FMPは日本株非対応） |
+| TradingViewリンク | `?symbol=NVDA` | `?symbol=TSE:8035` |
+
+実装は**ページ複製ではなく市場パラメータ化**（`/api/ai-map/summary?market=us|jp`）。
+`backend/routes/ai_map.py` の `MARKETS` 定数で市場ごとの設定を保持し、
+`build_category_results()` は `category_map` / `benchmark` を引数で受ける。
+フロントは市場タブ（🇺🇸米国 / 🇯🇵日本）で切替え、選択は localStorage に保存。
+
+日本株は price_data テーブルに米国株と同居させ、`.T` サフィックスで区別する。
+`market_health` は米国市場のスコアを保つため `WHERE ticker NOT LIKE '%.T'` で除外している。
+
+### 6. ニュース収集ルーティンの日米対応
+
+毎朝 JST 8:15 の実行時点で、米国・日本とも直近の終値は**同じカレンダー日付**になることを
+検証済み（cron 5パターン全てで一致）。したがって `news_date` は両市場共通で使える。
+祝日は日米で異なるため、休場判定は市場ごとに別々に行い、片方だけスキップできるようにしている。

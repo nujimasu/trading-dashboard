@@ -79,9 +79,12 @@ def _is_stage2_uptrend(df: pd.DataFrame) -> bool:
 
 
 def _load_stage2_flags(cur) -> dict[str, bool]:
+    # 日本AIマップ用の東証銘柄（".T" サフィックス）は price_data に同居しているが、
+    # 市場ヘルスは米国市場のスコアなので除外する。
     cur.execute("""
         SELECT ticker, date, open, high, low, close, volume
         FROM price_data
+        WHERE ticker NOT LIKE '%.T'
         ORDER BY ticker, date
     """)
     rows = cur.fetchall()

@@ -1,6 +1,10 @@
 import { apiFetch } from "../utils/api.js?v=3";
 
 const FILTER_KEY = "ai-news-filter-category";
+const FILTER_MARKET_KEY = "ai-news-filter-market";
+const MARKET_KEY = "ai-news-market-v1";
+const MARKET_ORDER = ["us", "jp"];
+const MARKET_LABELS = { us: "🇺🇸 米国", jp: "🇯🇵 日本" };
 const SENTIMENT_LABEL = { positive: "ポジティブ", negative: "ネガティブ", neutral: "中立" };
 const WEEKDAY_JA = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -32,12 +36,41 @@ function popFilterCategory() {
   }
 }
 
+function popFilterMarket() {
+  /** セクターマップから遷移してきた場合はその市場を優先し、無ければ前回選択を使う。 */
+  try {
+    const handoff = window.sessionStorage.getItem(FILTER_MARKET_KEY);
+    window.sessionStorage.removeItem(FILTER_MARKET_KEY);
+    if (MARKET_ORDER.includes(handoff)) return handoff;
+    const saved = window.localStorage.getItem(MARKET_KEY);
+    return MARKET_ORDER.includes(saved) ? saved : "us";
+  } catch {
+    return "us";
+  }
+}
+
+function saveMarketPref(market) {
+  try {
+    window.localStorage.setItem(MARKET_KEY, market);
+  } catch {
+    /* localStorageが使えない環境は無視 */
+  }
+}
+
+function tvUrl(ticker) {
+  // 東証銘柄（8035.T）は TradingView の TSE:8035 形式にする
+  if (ticker.endsWith(".T")) {
+    return `https://www.tradingview.com/chart/?symbol=TSE%3A${encodeURIComponent(ticker.slice(0, -2))}`;
+  }
+  return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(ticker)}`;
+}
+
 function affectedTickersHtml(tickers) {
   if (!tickers || !tickers.length) return "";
   return `
     <div class="ainews-affected" title="この材料が波及しそうな銘柄（AIによる推定であり保証はありません）">
       <span class="ainews-affected-label">影響波及先:</span>
-      ${tickers.map(t => `<a class="ainews-affected-chip" href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(t)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`).join("")}
+      ${tickers.map(t => `<a class="ainews-affected-chip" href="${tvUrl(t)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`).join("")}
     </div>
   `;
 }
@@ -92,14 +125,25 @@ export async function renderAiNews(container) {
     return;
   }
 
-  const categories = news.categories || [];
-  const categoryLabel = Object.fromEntries(categories.map(c => [c.id, c.short_label || c.label]));
-  const items = news.items.map(item => ({ ...item, category_label: categoryLabel[item.category] || item.category }));
+  const allCategories = news.categories || [];
+  const categoryLabel = Object.fromEntries(allCategories.map(c => [c.id, c.short_label || c.label]));
+  const categoryMarket = Object.fromEntries(allCategories.map(c => [c.id, c.market || "us"]));
+  const items = news.items.map(item => ({
+    ...item,
+    category_label: categoryLabel[item.category] || item.category,
+    market: categoryMarket[item.category] || "us",
+  }));
 
   let activeCategory = popFilterCategory();
-  if (activeCategory !== "all" && !categories.some(c => c.id === activeCategory)) {
+  let activeMarket = popFilterMarket();
+  // 引き継いだカテゴリーがある場合はその市場に合わせる（市場とカテゴリーの不一致を防ぐ）
+  if (activeCategory !== "all" && categoryMarket[activeCategory]) {
+    activeMarket = categoryMarket[activeCategory];
+  } else if (activeCategory !== "all") {
     activeCategory = "all";
   }
+  saveMarketPref(activeMarket);
+  let categories = allCategories.filter(c => (c.market || "us") === activeMarket);
 
   container.innerHTML = `
     <style>${STYLE}</style>
@@ -109,19 +153,35 @@ export async function renderAiNews(container) {
         <h2 class="ainews-title">AIニュース</h2>
         <div class="ainews-updated">最終更新 ${escapeHtml(news.updated_at ? news.updated_at.slice(0, 16).replace("T", " ") : "―")}</div>
         ${staleWarningHtml(news)}
+        <div class="ainews-market-toggle" role="tablist">
+          ${MARKET_ORDER.map(m => `<button type="button" class="ainews-market-btn ${m === activeMarket ? "active" : ""}" data-market="${m}" role="tab" aria-selected="${m === activeMarket}">${MARKET_LABELS[m]}</button>`).join("")}
+        </div>
       </div>
 
-      <div class="ainews-filters" role="tablist">
-        <button type="button" class="ainews-filter-chip ${activeCategory === "all" ? "active" : ""}" data-cat="all">すべて</button>
-        ${categories.map(c => `<button type="button" class="ainews-filter-chip ${activeCategory === c.id ? "active" : ""}" data-cat="${escapeHtml(c.id)}">${escapeHtml(c.short_label || c.label)}</button>`).join("")}
-      </div>
+      <div class="ainews-filters" id="ainews-filters" role="tablist"></div>
 
       <div id="ainews-list"></div>
     </div>
   `;
 
+  function renderFilters() {
+    const wrap = container.querySelector("#ainews-filters");
+    wrap.innerHTML = `
+      <button type="button" class="ainews-filter-chip ${activeCategory === "all" ? "active" : ""}" data-cat="all">すべて</button>
+      ${categories.map(c => `<button type="button" class="ainews-filter-chip ${activeCategory === c.id ? "active" : ""}" data-cat="${escapeHtml(c.id)}">${escapeHtml(c.short_label || c.label)}</button>`).join("")}
+    `;
+    wrap.querySelectorAll(".ainews-filter-chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeCategory = btn.dataset.cat;
+        wrap.querySelectorAll(".ainews-filter-chip").forEach(b => b.classList.toggle("active", b === btn));
+        renderList();
+      });
+    });
+  }
+
   function renderList() {
-    const filtered = activeCategory === "all" ? items : items.filter(i => i.category === activeCategory);
+    const inMarket = items.filter(i => i.market === activeMarket);
+    const filtered = activeCategory === "all" ? inMarket : inMarket.filter(i => i.category === activeCategory);
     const list = container.querySelector("#ainews-list");
     if (!filtered.length) {
       list.innerHTML = `<div class="ainews-empty">該当するニュースがありません。</div>`;
@@ -136,12 +196,18 @@ export async function renderAiNews(container) {
     `).join("");
   }
 
+  renderFilters();
   renderList();
 
-  container.querySelectorAll(".ainews-filter-chip").forEach(btn => {
+  container.querySelectorAll(".ainews-market-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      activeCategory = btn.dataset.cat;
-      container.querySelectorAll(".ainews-filter-chip").forEach(b => b.classList.toggle("active", b === btn));
+      if (btn.dataset.market === activeMarket) return;
+      activeMarket = btn.dataset.market;
+      activeCategory = "all";
+      saveMarketPref(activeMarket);
+      categories = allCategories.filter(c => (c.market || "us") === activeMarket);
+      container.querySelectorAll(".ainews-market-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderFilters();
       renderList();
     });
   });
@@ -156,6 +222,9 @@ const STYLE = `
   .ainews-updated { margin-top:6px; color:var(--text-muted); font-size:.74rem; font-variant-numeric:tabular-nums; }
   .ainews-warning { position:relative; z-index:1; display:flex; align-items:center; gap:8px; margin-top:12px; padding:9px 11px; border:1px solid rgba(251,146,60,.58); border-radius:8px; background:linear-gradient(90deg,rgba(127,29,29,.42),rgba(120,53,15,.32)); color:#fed7aa; box-shadow:inset 3px 0 0 #f97316; font-size:.76rem; font-weight:750; }
 
+  .ainews-market-toggle { display:flex; gap:6px; margin-top:12px; }
+  .ainews-market-btn { min-height:34px; padding:6px 16px; border:1px solid #365071; border-radius:8px; background:#0d1727; color:#cbd5e1; font:inherit; font-size:.8rem; font-weight:800; cursor:pointer; }
+  .ainews-market-btn.active { background:#334155; border-color:#64748b; color:#fff; }
   .ainews-filters { display:flex; flex-wrap:wrap; gap:6px; }
   .ainews-filter-chip { min-height:30px; padding:5px 12px; border:1px solid #365071; border-radius:999px; background:#0d1727; color:#93c5fd; font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
   .ainews-filter-chip.active { background:#6d28d9; border-color:#6d28d9; color:#fff; }
@@ -186,6 +255,7 @@ const STYLE = `
 
   @media (max-width:720px) {
     .ainews-hero { padding:15px; }
-    .ainews-filters { width:100%; }
+    .ainews-filters, .ainews-market-toggle { width:100%; }
+    .ainews-market-btn { flex:1; text-align:center; }
   }
 `;

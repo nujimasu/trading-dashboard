@@ -49,6 +49,20 @@ def _run_market_health(stage: str = "MarketHealth") -> None:
         conn.close()
 
 
+def _run_jp_prices(stage: str = "JPPrices") -> None:
+    """日本AIマップ用の東証銘柄の日足を yfinance で更新する（Polygonは米国株のみのため）。"""
+    started = time.time()
+    try:
+        from pipeline.jp_price_data import jp_tickers, run_jp_prices
+
+        saved = run_jp_prices(period="6mo")
+        status = "OK" if saved else "WARN"
+        log_stage(stage, status, f"{len(saved)}/{len(jp_tickers())} 東証銘柄", time.time() - started)
+    except Exception as exc:
+        log_stage(stage, "ERROR", str(exc), time.time() - started)
+        print(f"[WARN] JP price update failed: {exc}")
+
+
 def _run_ai_earnings(stage: str = "AIEarnings") -> None:
     """AIセクターマップ対象銘柄の決算日を FMP から取得し earnings_dates を更新する。"""
     started = time.time()
@@ -220,6 +234,7 @@ def run_daily_light() -> None:
         log_stage("DailyLight-Stage2", "ERROR", str(exc), time.time() - started)
         print(f"[WARN] Stage 2 light update failed: {exc}")
 
+    _run_jp_prices("DailyLight-JPPrices")
     _run_market_health("DailyLight-MarketHealth")
     _run_ai_earnings("DailyLight-AIEarnings")
     _run_news("DailyLight-News")

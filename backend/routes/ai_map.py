@@ -17,11 +17,35 @@ from config import (
     AI_MAP_OVERHEAT_5D_PCT,
     AI_MAP_PERIODS,
     AI_MAP_RS_RANK_ARROW_THRESHOLD,
+    JP_AI_CATEGORY_MAP,
+    JP_AI_MAP_BENCHMARK_TICKER,
+    JP_TICKER_NAMES,
 )
 from backend.db import get_connection
 
 router = APIRouter()
 _summary_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+# 市場ごとの設定。"us" は既存の米国AIマップ、"jp" は日本AIマップ。
+MARKETS: dict[str, dict[str, Any]] = {
+    "us": {
+        "category_map": AI_CATEGORY_MAP,
+        "benchmark": AI_MAP_BENCHMARK_TICKER,
+        "benchmark_label": "SPY",
+    },
+    "jp": {
+        "category_map": JP_AI_CATEGORY_MAP,
+        "benchmark": JP_AI_MAP_BENCHMARK_TICKER,
+        "benchmark_label": "TOPIX",
+    },
+}
+
+
+def _tv_url(ticker: str) -> str:
+    """TradingView のシンボルURL。東証銘柄（8035.T）は TSE:8035 形式にする。"""
+    if ticker.endswith(".T"):
+        return f"https://www.tradingview.com/chart/?symbol=TSE%3A{ticker[:-2]}"
+    return f"https://www.tradingview.com/chart/?symbol={ticker}"
 
 
 def _iso(value: Any) -> str | None:
@@ -40,13 +64,13 @@ def _parse_ticker_list(value: Any) -> list[str]:
     return [str(t) for t in parsed] if isinstance(parsed, list) else []
 
 
-def _all_tickers() -> list[str]:
-    return sorted({t for cat in AI_CATEGORY_MAP.values() for t in cat["tickers"]})
+def _all_tickers(category_map: dict[str, dict]) -> list[str]:
+    return sorted({t for cat in category_map.values() for t in cat["tickers"]})
 
 
-def _load_price_wide() -> pd.DataFrame:
-    """全AI銘柄+SPYの終値を pivot(date index, ticker columns) で返す。"""
-    tickers = _all_tickers() + [AI_MAP_BENCHMARK_TICKER]
+def _load_price_wide(category_map: dict[str, dict], benchmark: str) -> pd.DataFrame:
+    """全対象銘柄+ベンチマークの終値を pivot(date index, ticker columns) で返す。"""
+    tickers = _all_tickers(category_map) + [benchmark]
     placeholders = ",".join("?" * len(tickers))
     conn = get_connection()
     cur = conn.cursor()
@@ -96,15 +120,26 @@ def _ticker_names() -> dict[str, str]:
     return {r["ticker"]: (r["name"] or "") for r in rows}
 
 
-def _compute_summary() -> dict[str, dict[str, Any]]:
+def _compute_summary(market: str) -> dict[str, dict[str, Any]]:
     """DBから読み込み、計算結果をまとめて返す（period別キャッシュの元データ）。"""
-    wide = _load_price_wide()
-    if wide.empty or AI_MAP_BENCHMARK_TICKER not in wide.columns:
+    cfg = MARKETS[market]
+    wide = _load_price_wide(cfg["category_map"], cfg["benchmark"])
+    if wide.empty or cfg["benchmark"] not in wide.columns:
         return {}
-    swing_scan_date, swing_picks = _swing_pick_tickers()
-    earnings = _earnings_map()
-    names = _ticker_names()
-    return build_category_results(wide, swing_scan_date, swing_picks, earnings, names)
+    if market == "jp":
+        # 押し目スクリーナー・決算カレンダーは米国株のみ対応のため日本版では空で渡す
+        swing_scan_date, swing_picks = None, set()
+        earnings: dict[str, dict[str, Any]] = {}
+        names = dict(JP_TICKER_NAMES)
+    else:
+        swing_scan_date, swing_picks = _swing_pick_tickers()
+        earnings = _earnings_map()
+        names = _ticker_names()
+    return build_category_results(
+        wide, swing_scan_date, swing_picks, earnings, names,
+        category_map=cfg["category_map"], benchmark=cfg["benchmark"],
+        benchmark_label=cfg["benchmark_label"],
+    )
 
 
 def build_category_results(
@@ -114,15 +149,25 @@ def build_category_results(
     earnings: dict[str, dict[str, Any]],
     names: dict[str, str],
     today: date | None = None,
+    category_map: dict[str, dict] | None = None,
+    benchmark: str | None = None,
+    benchmark_label: str | None = None,
 ) -> dict[str, dict[str, Any]]:
-    """価格pivotから3期間ぶんの計算結果を組み立てる純粋関数（DB非依存・テスト対象）。"""
-    if wide.empty or AI_MAP_BENCHMARK_TICKER not in wide.columns:
+    """価格pivotから3期間ぶんの計算結果を組み立てる純粋関数（DB非依存・テスト対象）。
+
+    category_map / benchmark を省略した場合は米国AIマップの設定を使う（既存テスト互換）。
+    """
+    category_map = category_map if category_map is not None else AI_CATEGORY_MAP
+    benchmark = benchmark or AI_MAP_BENCHMARK_TICKER
+    benchmark_label = benchmark_label or benchmark
+
+    if wide.empty or benchmark not in wide.columns:
         return {}
 
     # 個別銘柄のバックフィル等で他銘柄より新しい日付が1件だけ pivot に混ざることがある
-    # （例: 新規追加銘柄だけ先に翌日分が入る）。基準日は SPY の最終有効日に固定し、
+    # （例: 新規追加銘柄だけ先に翌日分が入る）。基準日はベンチマークの最終有効日に固定し、
     # それより先の行は切り捨てて全銘柄を同じ「as_of」で揃える。
-    spy_last_valid = wide[AI_MAP_BENCHMARK_TICKER].last_valid_index()
+    spy_last_valid = wide[benchmark].last_valid_index()
     if spy_last_valid is None:
         return {}
     wide = wide.loc[:spy_last_valid]
@@ -142,7 +187,7 @@ def build_category_results(
             period_returns[pname] = pd.Series(dtype=float)
 
     spy_returns = {
-        pname: (float(s[AI_MAP_BENCHMARK_TICKER]) if AI_MAP_BENCHMARK_TICKER in s.index and pd.notna(s.get(AI_MAP_BENCHMARK_TICKER)) else None)
+        pname: (float(s[benchmark]) if benchmark in s.index and pd.notna(s.get(benchmark)) else None)
         for pname, s in period_returns.items()
     }
 
@@ -151,7 +196,7 @@ def build_category_results(
 
     # カテゴリー別リターン・RSを算出し、1w/1m の順位差からモメンタム矢印を決める
     cat_return_pct: dict[str, dict[str, float | None]] = {pname: {} for pname in AI_MAP_PERIODS}
-    for cid, cat in AI_CATEGORY_MAP.items():
+    for cid, cat in category_map.items():
         have = [t for t in cat["tickers"] if t in wide.columns]
         for pname in AI_MAP_PERIODS:
             vals = period_returns[pname].reindex(have).dropna()
@@ -169,7 +214,7 @@ def build_category_results(
     result: dict[str, dict[str, Any]] = {}
     for pname, n in AI_MAP_PERIODS.items():
         categories = []
-        for cid, cat in AI_CATEGORY_MAP.items():
+        for cid, cat in category_map.items():
             have = [t for t in cat["tickers"] if t in wide.columns]
 
             rs_trend = "flat"
@@ -222,7 +267,7 @@ def build_category_results(
                     "earnings_date": earn["date"] if earn else None,
                     "earnings_timing": earn["timing"] if earn else "",
                     "spark": [round(float(v), 2) for v in spark],
-                    "tv_url": f"https://www.tradingview.com/chart/?symbol={t}",
+                    "tv_url": _tv_url(t),
                 })
 
             categories.append({
@@ -252,7 +297,8 @@ def build_category_results(
             "price_stale": price_stale,
             "period": pname,
             "benchmark": {
-                "ticker": AI_MAP_BENCHMARK_TICKER,
+                "ticker": benchmark,
+                "label": benchmark_label,
                 "return_pct": round(spy_returns[pname] * 100, 2) if spy_returns[pname] is not None else None,
             },
             "categories": categories,
@@ -261,18 +307,20 @@ def build_category_results(
 
 
 @router.get("/api/ai-map/summary")
-def ai_map_summary(period: str = Query("1m")) -> dict[str, Any]:
+def ai_map_summary(period: str = Query("1m"), market: str = Query("us")) -> dict[str, Any]:
     if period not in AI_MAP_PERIODS:
         period = "1m"
+    if market not in MARKETS:
+        market = "us"
 
     now = time_module.monotonic()
-    cached = _summary_cache.get("all")
+    cached = _summary_cache.get(market)
     if cached and now - cached[0] < AI_MAP_CACHE_TTL:
         return cached[1][period]
 
-    computed = _compute_summary()
+    computed = _compute_summary(market)
     if computed:
-        _summary_cache["all"] = (now, computed)
+        _summary_cache[market] = (now, computed)
     return computed.get(period, {"categories": [], "as_of": None})
 
 
@@ -316,9 +364,14 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
     if latest_news_date:
         stale = bool(np.busday_count(latest_news_date, date.today().isoformat()) > 2)
 
+    # 米国・日本両市場のカテゴリーを market キー付きで返す。
+    # フロント側は市場タブ + カテゴリーチップでフィルタする（API呼び出しは1回で済む）。
     categories = [
-        {"id": cid, "label": cat["label"], "short_label": cat.get("short", cat["label"])}
+        {"id": cid, "label": cat["label"], "short_label": cat.get("short", cat["label"]), "market": "us"}
         for cid, cat in AI_CATEGORY_MAP.items()
+    ] + [
+        {"id": cid, "label": cat["label"], "short_label": cat.get("short", cat["label"]), "market": "jp"}
+        for cid, cat in JP_AI_CATEGORY_MAP.items()
     ]
 
     return {

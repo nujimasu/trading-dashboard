@@ -3,6 +3,9 @@ import { apiFetch } from "../utils/api.js?v=3";
 const PERIOD_LABELS = { "1w": "1週間", "1m": "1ヶ月", "3m": "3ヶ月" };
 const PERIOD_ORDER = ["1w", "1m", "3m"];
 const PREFS_KEY = "ai-sector-map-period-v1";
+const MARKET_KEY = "ai-sector-map-market-v1";
+const MARKET_ORDER = ["us", "jp"];
+const MARKET_LABELS = { us: "🇺🇸 米国", jp: "🇯🇵 日本" };
 const RS_TREND_ICON = { improving: "↗", worsening: "↘", flat: "→" };
 const RS_TREND_LABEL = { improving: "改善中", worsening: "悪化中", flat: "横ばい" };
 
@@ -44,6 +47,23 @@ function loadPeriodPref() {
 function savePeriodPref(period) {
   try {
     window.localStorage.setItem(PREFS_KEY, period);
+  } catch {
+    /* localStorageが使えない環境は無視 */
+  }
+}
+
+function loadMarketPref() {
+  try {
+    const value = window.localStorage.getItem(MARKET_KEY);
+    return MARKET_ORDER.includes(value) ? value : "us";
+  } catch {
+    return "us";
+  }
+}
+
+function saveMarketPref(market) {
+  try {
+    window.localStorage.setItem(MARKET_KEY, market);
   } catch {
     /* localStorageが使えない環境は無視 */
   }
@@ -92,7 +112,7 @@ function categoryBadges(cat) {
   return badges.join("");
 }
 
-function categoryCardHtml(cat, index) {
+function categoryCardHtml(cat, index, benchmarkLabel) {
   const ret = cat.return_pct;
   const trend = cat.rs_trend || "flat";
   const breadthPct = cat.breadth_pct;
@@ -108,7 +128,7 @@ function categoryCardHtml(cat, index) {
           </span>
         </div>
         <div class="aimap-card-sub">
-          <span title="SPY比の相対強度（パーセントポイント差）">RS ${signed(cat.rs_pt)}pt</span>
+          <span title="${escapeHtml(benchmarkLabel)}比の相対強度（パーセントポイント差）">RS ${signed(cat.rs_pt)}pt</span>
           <span class="aimap-rs-trend aimap-rs-${trend}" title="1週間RSと1ヶ月RSの順位を比較したモメンタム（${RS_TREND_LABEL[trend]}）">${RS_TREND_ICON[trend]} ${RS_TREND_LABEL[trend]}</span>
         </div>
         <div class="aimap-card-chart">${sparklinePath(cat.index_series.map(p => p.value))}</div>
@@ -225,9 +245,10 @@ function renderComparisonChart(container, categories) {
   resizeObserver.observe(chartEl);
 }
 
-function goToNewsPage(categoryId) {
+function goToNewsPage(categoryId, market) {
   try {
     window.sessionStorage.setItem("ai-news-filter-category", categoryId);
+    window.sessionStorage.setItem("ai-news-filter-market", market);
   } catch {
     /* sessionStorageが使えない環境は無視（フィルタ無しでニュースページが開く） */
   }
@@ -238,9 +259,10 @@ export async function renderAiSectorMap(container) {
   container.innerHTML = '<div class="loading"><div class="spinner"></div><span>AIセクターマップを集計中...</span></div>';
 
   let period = loadPeriodPref();
+  const market = loadMarketPref();
   let summary;
   try {
-    summary = await apiFetch(`/api/ai-map/summary?period=${period}`);
+    summary = await apiFetch(`/api/ai-map/summary?period=${period}&market=${market}`);
   } catch (error) {
     container.innerHTML = `<div class="empty-state">AIセクターマップの取得に失敗しました: ${escapeHtml(error.message)}</div>`;
     return;
@@ -253,7 +275,10 @@ export async function renderAiSectorMap(container) {
         <div class="aimap-kicker">AI SECTOR MAP</div>
         <div class="aimap-title-row">
           <h2 class="aimap-title">AIセクターマップ</h2>
-          <span class="aimap-date">基準日 ${escapeHtml(summary.as_of || "―")}　ベンチマーク SPY ${signed(summary.benchmark?.return_pct)}%</span>
+          <span class="aimap-date">基準日 ${escapeHtml(summary.as_of || "―")}　ベンチマーク ${escapeHtml(summary.benchmark?.label || summary.benchmark?.ticker || "―")} ${signed(summary.benchmark?.return_pct)}%</span>
+        </div>
+        <div class="aimap-market-toggle" role="tablist">
+          ${MARKET_ORDER.map(m => `<button type="button" class="aimap-market-btn ${m === market ? "active" : ""}" data-market="${m}" role="tab" aria-selected="${m === market}">${MARKET_LABELS[m]}</button>`).join("")}
         </div>
         <div class="aimap-period-toggle" role="tablist">
           ${PERIOD_ORDER.map(p => `<button type="button" class="aimap-period-btn ${p === period ? "active" : ""}" data-period="${p}" role="tab" aria-selected="${p === period}">${PERIOD_LABELS[p]}</button>`).join("")}
@@ -262,7 +287,7 @@ export async function renderAiSectorMap(container) {
       </div>
 
       <div class="aimap-cards" id="aimap-cards">
-        ${summary.categories.map((c, i) => categoryCardHtml(c, i)).join("")}
+        ${summary.categories.map((c, i) => categoryCardHtml(c, i, summary.benchmark?.label || summary.benchmark?.ticker || "指数")).join("")}
       </div>
 
       <div class="aimap-panel">
@@ -277,6 +302,14 @@ export async function renderAiSectorMap(container) {
   `;
 
   renderComparisonChart(container.querySelector("#aimap-chart-container"), summary.categories);
+
+  container.querySelectorAll(".aimap-market-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (btn.dataset.market === market) return;
+      saveMarketPref(btn.dataset.market);
+      await renderAiSectorMap(container);
+    });
+  });
 
   container.querySelectorAll(".aimap-period-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -303,7 +336,7 @@ export async function renderAiSectorMap(container) {
   });
 
   container.querySelectorAll(".aimap-news-link").forEach(btn => {
-    btn.addEventListener("click", () => goToNewsPage(btn.dataset.newsCat));
+    btn.addEventListener("click", () => goToNewsPage(btn.dataset.newsCat, market));
   });
 }
 
@@ -315,7 +348,10 @@ const STYLE = `
   .aimap-title-row { display:flex; align-items:baseline; flex-wrap:wrap; gap:10px; margin-top:3px; }
   .aimap-title { margin:0; font-size:1.35rem; letter-spacing:.01em; }
   .aimap-date { color:var(--text-muted); font-size:.76rem; font-variant-numeric:tabular-nums; }
-  .aimap-period-toggle { display:flex; gap:6px; margin-top:14px; }
+  .aimap-market-toggle { display:flex; gap:6px; margin-top:14px; }
+  .aimap-market-btn { min-height:34px; padding:6px 16px; border:1px solid #365071; border-radius:8px; background:#0d1727; color:#cbd5e1; font:inherit; font-size:.8rem; font-weight:800; cursor:pointer; }
+  .aimap-market-btn.active { background:#334155; border-color:#64748b; color:#fff; }
+  .aimap-period-toggle { display:flex; gap:6px; margin-top:10px; }
   .aimap-period-btn { min-height:32px; padding:5px 14px; border:1px solid #365071; border-radius:999px; background:#0d1727; color:#93c5fd; font:inherit; font-size:.76rem; font-weight:700; cursor:pointer; }
   .aimap-period-btn.active { background:#1d4ed8; border-color:#1d4ed8; color:#fff; }
   .aimap-warning { position:relative; z-index:1; display:flex; align-items:center; gap:8px; margin-top:12px; padding:9px 11px; border:1px solid rgba(251,146,60,.58); border-radius:8px; background:linear-gradient(90deg,rgba(127,29,29,.42),rgba(120,53,15,.32)); color:#fed7aa; box-shadow:inset 3px 0 0 #f97316; font-size:.76rem; font-weight:750; }
@@ -387,8 +423,8 @@ const STYLE = `
 
   @media (max-width:720px) {
     .aimap-hero { padding:15px; }
-    .aimap-period-toggle { width:100%; }
-    .aimap-period-btn { flex:1; text-align:center; }
+    .aimap-market-toggle, .aimap-period-toggle { width:100%; }
+    .aimap-market-btn, .aimap-period-btn { flex:1; text-align:center; }
 
     /* カードを1行2列のコンパクト表示に切り替える */
     .aimap-cards { grid-template-columns:repeat(2,1fr); gap:8px; }

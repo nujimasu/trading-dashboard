@@ -3,8 +3,8 @@ import { renderMarketHealth } from "./components/market-health.js?v=7";
 import { renderEconomicDashboard } from "./components/economic-dashboard.js?v=2";
 import { renderSearchUI } from "./components/stock-search.js?v=2";
 import { renderLogicGuide } from "./components/logic-guide.js?v=1";
-import { renderAiSectorMap } from "./components/ai-sector-map.js?v=2";
-import { renderAiNews } from "./components/ai-news.js?v=1";
+import { renderAiSectorMap } from "./components/ai-sector-map.js?v=3";
+import { renderAiNews } from "./components/ai-news.js?v=2";
 import { apiFetch } from "./utils/api.js?v=3";
 
 const SECTIONS = [

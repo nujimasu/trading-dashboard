@@ -160,7 +160,12 @@ AI_CATEGORY_MAP: dict[str, dict] = {
     "dc_power": {
         "label": "データセンター・電力",
         "short": "DC・電力",
-        "tickers": ["VRT", "ETN", "GEV", "VST", "CEG", "OKLO", "SMR", "DLR"],
+        "tickers": ["ETN", "GEV", "VST", "CEG", "OKLO", "SMR", "DLR"],
+    },
+    "cooling": {
+        "label": "冷却・空調・設備",
+        "short": "冷却・空調",
+        "tickers": ["VRT", "CARR", "TT", "JCI", "MOD", "FIX"],
     },
     "ai_server": {
         "label": "AIサーバー",
@@ -174,7 +179,52 @@ AI_CATEGORY_MAP: dict[str, dict] = {
     },
 }
 
+# ─── 日本AIマップ（東証銘柄。yfinanceの ".T" サフィックス形式） ────────────
+# 日本株は universe テーブルには入れない（universe は米国ユニバースの意味を保つ）。
+# 名前は yfinance だとローマ字になるため、ここで日本語名を一元管理する。
+JP_AI_CATEGORY_MAP: dict[str, dict] = {
+    "jp_semi_equip": {
+        "label": "半導体製造装置",
+        "short": "製造装置",
+        "tickers": ["8035.T", "6857.T", "6146.T", "7735.T", "6920.T", "6525.T"],
+    },
+    "jp_material": {
+        "label": "半導体材料・基板",
+        "short": "材料・基板",
+        "tickers": ["4063.T", "3436.T", "4062.T", "6871.T", "4004.T", "6315.T"],
+    },
+    "jp_dc_infra": {
+        "label": "電線・冷却・DC設備",
+        "short": "電線・冷却",
+        "tickers": ["5803.T", "5801.T", "5802.T", "6367.T", "6361.T", "7011.T"],
+    },
+    "jp_ai_soft": {
+        "label": "AIソフト・IT",
+        "short": "AIソフト",
+        "tickers": ["9984.T", "6701.T", "6702.T", "6501.T", "3778.T", "3993.T"],
+    },
+    "jp_robot": {
+        "label": "FA・ロボット",
+        "short": "FA・ロボ",
+        "tickers": ["6954.T", "6506.T", "6861.T"],
+    },
+}
+
+JP_TICKER_NAMES: dict[str, str] = {
+    "8035.T": "東京エレクトロン", "6857.T": "アドバンテスト", "6146.T": "ディスコ",
+    "7735.T": "SCREENホールディングス", "6920.T": "レーザーテック", "6525.T": "KOKUSAI ELECTRIC",
+    "4063.T": "信越化学工業", "3436.T": "SUMCO", "4062.T": "イビデン",
+    "6871.T": "日本マイクロニクス", "4004.T": "レゾナック", "6315.T": "TOWA",
+    "5803.T": "フジクラ", "5801.T": "古河電気工業", "5802.T": "住友電気工業",
+    "6367.T": "ダイキン工業", "6361.T": "荏原製作所", "7011.T": "三菱重工業",
+    "9984.T": "ソフトバンクグループ", "6701.T": "NEC", "6702.T": "富士通",
+    "6501.T": "日立製作所", "3778.T": "さくらインターネット", "3993.T": "PKSHA Technology",
+    "6954.T": "ファナック", "6506.T": "安川電機", "6861.T": "キーエンス",
+    "1306.T": "TOPIX連動型上場投信",
+}
+
 AI_MAP_BENCHMARK_TICKER = "SPY"
+JP_AI_MAP_BENCHMARK_TICKER = "1306.T"   # TOPIX ETF（日本版のRS計算に使用）
 AI_MAP_PERIODS = {"1w": 5, "1m": 21, "3m": 63}   # 期間ラベル→営業日数
 AI_MAP_RS_RANK_ARROW_THRESHOLD = 2               # 1週間順位 - 1ヶ月順位の差がこの値以上でRS矢印表示
 AI_MAP_OVERHEAT_5D_PCT = 10.0                    # 直近5営業日リターンがこの値以上で過熱警告
