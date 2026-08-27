@@ -190,6 +190,7 @@ def init_db():
             id SERIAL PRIMARY KEY, news_date DATE NOT NULL, category TEXT NOT NULL,
             ticker TEXT NOT NULL DEFAULT '', headline TEXT NOT NULL,
             summary_ja TEXT NOT NULL, sentiment TEXT DEFAULT 'neutral',
+            affected_tickers TEXT DEFAULT '[]',
             source_url TEXT DEFAULT '', created_at TIMESTAMPTZ DEFAULT NOW(),
             UNIQUE (news_date, category, ticker)
         )
@@ -205,6 +206,7 @@ def init_db():
     for statement in statements:
         cur.execute(statement)
     cur.execute("ALTER TABLE swing_picks ADD COLUMN IF NOT EXISTS volume TEXT")
+    cur.execute("ALTER TABLE ai_news ADD COLUMN IF NOT EXISTS affected_tickers TEXT DEFAULT '[]'")
     conn.commit()
     conn.close()
     print("[DB] PostgreSQL tables initialized (Supabase)")

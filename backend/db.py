@@ -93,8 +93,8 @@ else:
             id INTEGER PRIMARY KEY AUTOINCREMENT, news_date TEXT NOT NULL,
             category TEXT NOT NULL, ticker TEXT NOT NULL DEFAULT '',
             headline TEXT NOT NULL, summary_ja TEXT NOT NULL,
-            sentiment TEXT DEFAULT 'neutral', source_url TEXT DEFAULT '',
-            created_at TEXT DEFAULT (datetime('now')),
+            sentiment TEXT DEFAULT 'neutral', affected_tickers TEXT DEFAULT '[]',
+            source_url TEXT DEFAULT '', created_at TEXT DEFAULT (datetime('now')),
             UNIQUE (news_date, category, ticker)
         );
         CREATE TABLE IF NOT EXISTS earnings_dates (
@@ -108,6 +108,11 @@ else:
         }
         if "volume" not in swing_columns:
             cur.execute("ALTER TABLE swing_picks ADD COLUMN volume TEXT")
+        ai_news_columns = {
+            row[1] for row in cur.execute("PRAGMA table_info(ai_news)").fetchall()
+        }
+        if "affected_tickers" not in ai_news_columns:
+            cur.execute("ALTER TABLE ai_news ADD COLUMN affected_tickers TEXT DEFAULT '[]'")
         conn.commit()
         conn.close()
         print(f"[DB] SQLite initialized: {DB_PATH}")

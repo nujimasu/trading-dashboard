@@ -1,6 +1,7 @@
 """GET /api/ai-map/summary, /api/ai-map/news — AIセクターマップ"""
 from __future__ import annotations
 
+import json
 import time as time_module
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -27,6 +28,16 @@ def _iso(value: Any) -> str | None:
     if value is None:
         return None
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _parse_ticker_list(value: Any) -> list[str]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return []
+    return [str(t) for t in parsed] if isinstance(parsed, list) else []
 
 
 def _all_tickers() -> list[str]:
@@ -271,7 +282,7 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT news_date, category, ticker, headline, summary_ja, sentiment, source_url, created_at
+        SELECT news_date, category, ticker, headline, summary_ja, sentiment, affected_tickers, source_url, created_at
         FROM ai_news
         WHERE news_date >= ?
         ORDER BY news_date DESC, category ASC, ticker ASC
@@ -296,6 +307,7 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
             "headline": r["headline"],
             "summary_ja": r["summary_ja"],
             "sentiment": r["sentiment"] or "neutral",
+            "affected_tickers": _parse_ticker_list(r.get("affected_tickers")),
             "source_url": r["source_url"] or "",
         })
 

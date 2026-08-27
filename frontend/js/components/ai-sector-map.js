@@ -155,6 +155,17 @@ function newsItemHtml(item) {
       </div>
       <div class="aimap-news-headline">${escapeHtml(item.headline)}</div>
       <div class="aimap-news-summary">${escapeHtml(item.summary_ja)}</div>
+      ${affectedTickersHtml(item.affected_tickers)}
+    </div>
+  `;
+}
+
+function affectedTickersHtml(tickers) {
+  if (!tickers || !tickers.length) return "";
+  return `
+    <div class="aimap-affected" title="この材料が波及しそうな銘柄（AIによる推定であり保証はありません）">
+      <span class="aimap-affected-label">影響波及先:</span>
+      ${tickers.map(t => `<a class="aimap-affected-chip" href="https://www.tradingview.com/chart/?symbol=${encodeURIComponent(t)}" target="_blank" rel="noopener">${escapeHtml(t)}</a>`).join("")}
     </div>
   `;
 }
@@ -426,6 +437,10 @@ const STYLE = `
   .aimap-news-sentiment { margin-left:auto; color:#64748b; font-size:.62rem; }
   .aimap-news-headline { font-weight:750; font-size:.76rem; }
   .aimap-news-summary { margin-top:2px; color:#cbd5e1; font-size:.72rem; line-height:1.5; }
+  .aimap-affected { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:7px; }
+  .aimap-affected-label { color:#64748b; font-size:.64rem; }
+  .aimap-affected-chip { display:inline-flex; align-items:center; border-radius:999px; padding:2px 8px; font-size:.66rem; font-weight:750; color:#c4b5fd; background:rgba(168,85,247,.14); text-decoration:none; }
+  .aimap-affected-chip:hover { background:rgba(168,85,247,.24); }
 
   @media (max-width:720px) {
     .aimap-hero { padding:15px; }
