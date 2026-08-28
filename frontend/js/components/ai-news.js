@@ -101,17 +101,17 @@ function newsItemHtml(item) {
   `;
 }
 
-function groupByDate(items) {
-  const groups = [];
-  let current = null;
+function uniqueDatesDesc(items) {
+  // items は news_date DESC で来る前提（APIのORDER BYに準拠）なので順序を保ったまま重複除去する
+  const seen = new Set();
+  const dates = [];
   for (const item of items) {
-    if (!current || current.date !== item.news_date) {
-      current = { date: item.news_date, items: [] };
-      groups.push(current);
+    if (!seen.has(item.news_date)) {
+      seen.add(item.news_date);
+      dates.push(item.news_date);
     }
-    current.items.push(item);
   }
-  return groups;
+  return dates;
 }
 
 function staleWarningHtml(news) {
@@ -155,6 +155,11 @@ export async function renderAiNews(container) {
   saveMarketPref(activeMarket);
   let categories = allCategories.filter(c => (c.market || "us") === activeMarket);
 
+  // 日付タブ: 市場を切り替えるとその市場が持つ日付一覧に合わせて選び直す
+  const datesByMarket = market => uniqueDatesDesc(items.filter(i => i.market === market));
+  let activeDates = datesByMarket(activeMarket);
+  let activeDate = activeDates[0] || null; // 常に最新日をデフォルトにする
+
   container.innerHTML = `
     <style>${STYLE}</style>
     <div class="ainews-shell">
@@ -168,11 +173,38 @@ export async function renderAiNews(container) {
         </div>
       </div>
 
+      <div class="ainews-date-tabs" id="ainews-date-tabs" role="tablist"></div>
       <div class="ainews-filters" id="ainews-filters" role="tablist"></div>
 
       <div id="ainews-list"></div>
     </div>
   `;
+
+  function countForDate(date) {
+    return items.filter(i => i.market === activeMarket && i.news_date === date).length;
+  }
+
+  function renderDateTabs() {
+    const wrap = container.querySelector("#ainews-date-tabs");
+    if (!activeDates.length) {
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.innerHTML = activeDates.map(d => `
+      <button type="button" class="ainews-date-tab ${d === activeDate ? "active" : ""}" data-date="${escapeHtml(d)}" role="tab" aria-selected="${d === activeDate}">
+        ${formatDateHeader(d)}<span class="ainews-date-tab-count">${countForDate(d)}</span>
+      </button>
+    `).join("");
+    wrap.querySelectorAll(".ainews-date-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.date === activeDate) return;
+        activeDate = btn.dataset.date;
+        wrap.querySelectorAll(".ainews-date-tab").forEach(b => b.classList.toggle("active", b === btn));
+        wrap.querySelectorAll(".ainews-date-tab").forEach(b => b.setAttribute("aria-selected", b === btn ? "true" : "false"));
+        renderList();
+      });
+    });
+  }
 
   function renderFilters() {
     const wrap = container.querySelector("#ainews-filters");
@@ -190,22 +222,21 @@ export async function renderAiNews(container) {
   }
 
   function renderList() {
-    const inMarket = items.filter(i => i.market === activeMarket);
+    const inMarket = items.filter(i => i.market === activeMarket && i.news_date === activeDate);
     const filtered = activeCategory === "all" ? inMarket : inMarket.filter(i => i.category === activeCategory);
     const list = container.querySelector("#ainews-list");
-    if (!filtered.length) {
-      list.innerHTML = `<div class="ainews-empty">該当するニュースがありません。</div>`;
+    if (!activeDate) {
+      list.innerHTML = `<div class="ainews-empty">ニュースはまだありません。毎朝のクラウド実行後に自動で追加されます。</div>`;
       return;
     }
-    const groups = groupByDate(filtered);
-    list.innerHTML = groups.map(g => `
-      <div class="ainews-date-group">
-        <div class="ainews-date-header">${formatDateHeader(g.date)}</div>
-        <div class="ainews-date-items">${g.items.map(newsItemHtml).join("")}</div>
-      </div>
-    `).join("");
+    if (!filtered.length) {
+      list.innerHTML = `<div class="ainews-empty">このカテゴリーには該当するニュースがありません。</div>`;
+      return;
+    }
+    list.innerHTML = `<div class="ainews-date-items">${filtered.map(newsItemHtml).join("")}</div>`;
   }
 
+  renderDateTabs();
   renderFilters();
   renderList();
 
@@ -216,7 +247,10 @@ export async function renderAiNews(container) {
       activeCategory = "all";
       saveMarketPref(activeMarket);
       categories = allCategories.filter(c => (c.market || "us") === activeMarket);
+      activeDates = datesByMarket(activeMarket);
+      activeDate = activeDates[0] || null; // 市場を切り替えたら常にその市場の最新日に戻す
       container.querySelectorAll(".ainews-market-btn").forEach(b => b.classList.toggle("active", b === btn));
+      renderDateTabs();
       renderFilters();
       renderList();
     });
@@ -239,10 +273,14 @@ const STYLE = `
   .ainews-filter-chip { min-height:30px; padding:5px 12px; border:1px solid #365071; border-radius:999px; background:#0d1727; color:#93c5fd; font:inherit; font-size:.72rem; font-weight:700; cursor:pointer; }
   .ainews-filter-chip.active { background:#6d28d9; border-color:#6d28d9; color:#fff; }
 
+  .ainews-date-tabs { display:flex; flex-wrap:wrap; gap:6px; overflow-x:auto; padding-bottom:2px; }
+  .ainews-date-tab { flex:none; display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:6px 13px; border:1px solid var(--an-line); border-bottom:2px solid var(--an-line); border-radius:8px 8px 0 0; background:#0d1727; color:#94a3b8; font:inherit; font-size:.75rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .ainews-date-tab.active { color:#f1f5f9; border-color:#3b82f6; border-bottom-color:#3b82f6; background:#132038; }
+  .ainews-date-tab-count { color:#64748b; font-size:.66rem; font-weight:800; }
+  .ainews-date-tab.active .ainews-date-tab-count { color:#93c5fd; }
+
   .ainews-empty { color:var(--text-muted); font-size:.8rem; padding:24px 4px; text-align:center; }
 
-  .ainews-date-group { display:grid; gap:8px; }
-  .ainews-date-header { color:#dbeafe; font-size:.76rem; font-weight:800; padding:4px 2px; border-bottom:1px solid var(--an-line); }
   .ainews-date-items { display:grid; gap:8px; }
 
   .ainews-item { padding:11px 12px; border-radius:10px; background:var(--an-panel); border-left:3px solid #64748b; border:1px solid var(--an-line); border-left-width:3px; }
@@ -271,5 +309,6 @@ const STYLE = `
     .ainews-hero { padding:15px; }
     .ainews-filters, .ainews-market-toggle { width:100%; }
     .ainews-market-btn { flex:1; text-align:center; }
+    .ainews-date-tabs { flex-wrap:nowrap; margin:0 -2px; padding:0 2px 4px; }
   }
 `;
