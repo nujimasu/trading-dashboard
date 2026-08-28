@@ -74,12 +74,15 @@ def _parse_affected_tickers(value: Any) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     for item in parsed:
         if isinstance(item, str):
-            out.append({"ticker": item, "reason": ""})
+            ticker = item
+            reason = ""
         elif isinstance(item, dict) and item.get("ticker"):
-            out.append({
-                "ticker": str(item["ticker"]),
-                "reason": str(item.get("reason") or ""),
-            })
+            ticker = str(item["ticker"])
+            reason = str(item.get("reason") or "")
+        else:
+            continue
+        # 東証銘柄は日本語社名を添える（画面ではコードより社名の方が判別しやすい）
+        out.append({"ticker": ticker, "name": JP_TICKER_NAMES.get(ticker, ""), "reason": reason})
     return out
 
 
@@ -368,10 +371,12 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
         ca = _iso(r["created_at"])
         latest_news_date = nd if latest_news_date is None or nd > latest_news_date else latest_news_date
         latest_created_at = ca if latest_created_at is None or ca > latest_created_at else latest_created_at
+        ticker = r["ticker"] or None
         items.append({
             "news_date": nd,
             "category": r["category"],
-            "ticker": r["ticker"] or None,
+            "ticker": ticker,
+            "ticker_name": JP_TICKER_NAMES.get(ticker, "") if ticker else "",
             "headline": r["headline"],
             "summary_ja": r["summary_ja"],
             "sentiment": r["sentiment"] or "neutral",

@@ -221,8 +221,9 @@ def test_affected_tickers_accepts_new_object_format():
     from backend.routes.ai_map import _parse_affected_tickers
     raw = '[{"ticker":"AMD","reason":"サーバーCPUで需要が重なるため"},{"ticker":"8035.T","reason":"製造装置への設備投資が波及"}]'
     assert _parse_affected_tickers(raw) == [
-        {"ticker": "AMD", "reason": "サーバーCPUで需要が重なるため"},
-        {"ticker": "8035.T", "reason": "製造装置への設備投資が波及"},
+        {"ticker": "AMD", "name": "", "reason": "サーバーCPUで需要が重なるため"},
+        # 東証銘柄には JP_TICKER_NAMES から日本語社名が入る
+        {"ticker": "8035.T", "name": "東京エレクトロン", "reason": "製造装置への設備投資が波及"},
     ]
 
 
@@ -230,8 +231,8 @@ def test_affected_tickers_accepts_legacy_string_format():
     """旧形式 ["AMD"] も壊れず読める（reason は空文字）。"""
     from backend.routes.ai_map import _parse_affected_tickers
     assert _parse_affected_tickers('["AMD","ARM"]') == [
-        {"ticker": "AMD", "reason": ""},
-        {"ticker": "ARM", "reason": ""},
+        {"ticker": "AMD", "name": "", "reason": ""},
+        {"ticker": "ARM", "name": "", "reason": ""},
     ]
 
 
@@ -244,4 +245,4 @@ def test_affected_tickers_handles_broken_input():
     assert _parse_affected_tickers("これはJSONではない") == []
     assert _parse_affected_tickers('{"ticker":"AMD"}') == []          # 配列でない
     assert _parse_affected_tickers('[{"reason":"tickerが無い"}]') == []  # ticker欠落は捨てる
-    assert _parse_affected_tickers('[{"ticker":"AMD"}]') == [{"ticker": "AMD", "reason": ""}]
+    assert _parse_affected_tickers('[{"ticker":"AMD"}]') == [{"ticker": "AMD", "name": "", "reason": ""}]

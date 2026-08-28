@@ -74,7 +74,7 @@ function affectedTickersHtml(entries) {
       <div class="ainews-affected-list">
         ${entries.map(e => `
           <div class="ainews-affected-row">
-            <a class="ainews-affected-chip" href="${tvUrl(e.ticker)}" target="_blank" rel="noopener">${escapeHtml(e.ticker)}</a>
+            <a class="ainews-affected-chip" href="${tvUrl(e.ticker)}" target="_blank" rel="noopener" title="${escapeHtml(e.ticker)}">${escapeHtml(e.name || e.ticker)}</a>
             ${e.reason ? `<span class="ainews-affected-reason">${escapeHtml(e.reason)}</span>` : ""}
           </div>
         `).join("")}
@@ -88,7 +88,9 @@ function newsItemHtml(item) {
     <div class="ainews-item ainews-sent-${escapeHtml(item.sentiment)}" data-category="${escapeHtml(item.category)}">
       <div class="ainews-item-head">
         <span class="ainews-cat-tag">${escapeHtml(item.category_label || item.category)}</span>
-        ${item.ticker ? `<span class="ainews-ticker">${escapeHtml(item.ticker)}</span>` : `<span class="ainews-ticker ainews-overview">総括</span>`}
+        ${item.ticker
+          ? `<span class="ainews-ticker">${escapeHtml(item.ticker_name || item.ticker)}${item.ticker_name ? `<span class="ainews-ticker-code">${escapeHtml(item.ticker)}</span>` : ""}</span>`
+          : `<span class="ainews-ticker ainews-overview">総括</span>`}
         <span class="ainews-sentiment" title="ニュースの論調">${SENTIMENT_LABEL[item.sentiment] || "中立"}</span>
       </div>
       <div class="ainews-headline">${escapeHtml(item.headline)}</div>
@@ -250,6 +252,7 @@ const STYLE = `
   .ainews-item-head { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:4px; }
   .ainews-cat-tag { color:#93c5fd; background:rgba(59,130,246,.14); border-radius:999px; padding:2px 8px; font-size:.64rem; font-weight:750; }
   .ainews-ticker { color:#dbeafe; font-weight:800; font-size:.74rem; }
+  .ainews-ticker-code { margin-left:5px; color:#64748b; font-weight:600; font-size:.62rem; }
   .ainews-overview { color:#c4b5fd; }
   .ainews-sentiment { margin-left:auto; color:#64748b; font-size:.64rem; }
   .ainews-headline { font-weight:750; font-size:.82rem; }
