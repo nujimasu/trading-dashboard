@@ -201,6 +201,16 @@ def init_db():
             timing TEXT DEFAULT '', updated_at TIMESTAMPTZ DEFAULT NOW()
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS ai_profiles (
+            ticker TEXT PRIMARY KEY, market TEXT NOT NULL DEFAULT 'us',
+            category TEXT NOT NULL DEFAULT '', company_name TEXT DEFAULT '',
+            business TEXT DEFAULT '', revenue TEXT DEFAULT '',
+            strengths TEXT DEFAULT '', sensitivities TEXT DEFAULT '',
+            related_tickers TEXT DEFAULT '[]', source_url TEXT DEFAULT '',
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        )
+        """,
         "CREATE INDEX IF NOT EXISTS idx_ai_news_date ON ai_news (news_date DESC)",
     ]
     for statement in statements:

@@ -162,7 +162,7 @@ function tickerRowHtml(t) {
       <td class="aimap-num ${toneClass(t.chg_1d_pct)}">${signed(t.chg_1d_pct)}%</td>
       <td class="aimap-num ${toneClass(t.return_pct)}">${signed(t.return_pct)}%</td>
       <td class="aimap-spark-cell">${sparklinePath(t.spark || [], 84, 26)}</td>
-      <td class="aimap-badges-cell">${swing}${earn}</td>
+      <td class="aimap-badges-cell">${swing}${earn}<button type="button" class="aimap-profile-link" data-profile-ticker="${escapeHtml(t.ticker)}" title="この銘柄の解説を見る">📚</button></td>
     </tr>
   `;
 }
@@ -243,6 +243,15 @@ function renderComparisonChart(container, categories) {
     if (chartEl.clientWidth > 0) chart.applyOptions({ width: chartEl.clientWidth });
   });
   resizeObserver.observe(chartEl);
+}
+
+function goToProfilePage(ticker) {
+  try {
+    window.sessionStorage.setItem("ai-profiles-open-ticker", ticker);
+  } catch {
+    /* sessionStorageが使えない環境は無視（解説ページはトップから開く） */
+  }
+  document.querySelector('.nav-item[data-section="ai-profiles"]')?.click();
 }
 
 function goToNewsPage(categoryId, market) {
@@ -338,6 +347,13 @@ export async function renderAiSectorMap(container) {
   container.querySelectorAll(".aimap-news-link").forEach(btn => {
     btn.addEventListener("click", () => goToNewsPage(btn.dataset.newsCat, market));
   });
+
+  container.querySelectorAll(".aimap-profile-link").forEach(btn => {
+    btn.addEventListener("click", event => {
+      event.stopPropagation();
+      goToProfilePage(btn.dataset.profileTicker);
+    });
+  });
 }
 
 const STYLE = `
@@ -420,6 +436,8 @@ const STYLE = `
   .aimap-no-data { color:#64748b; font-size:.72rem; }
   .aimap-earn-badge { display:inline-flex; align-items:center; border-radius:999px; padding:2px 6px; font-size:.62rem; background:rgba(148,163,184,.12); color:#cbd5e1; white-space:nowrap; }
   .aimap-swing-badge { background:rgba(59,130,246,.14); color:#93c5fd; }
+  .aimap-profile-link { min-height:22px; padding:1px 6px; border:1px solid #3b4a63; border-radius:999px; background:#0d1727; color:#cbd5e1; font:inherit; font-size:.66rem; cursor:pointer; }
+  .aimap-profile-link:hover { border-color:#7dd3fc; background:#132038; }
 
   @media (max-width:720px) {
     .aimap-hero { padding:15px; }

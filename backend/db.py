@@ -101,6 +101,14 @@ else:
             ticker TEXT PRIMARY KEY, earnings_date TEXT NOT NULL,
             timing TEXT DEFAULT '', updated_at TEXT DEFAULT (datetime('now'))
         );
+        CREATE TABLE IF NOT EXISTS ai_profiles (
+            ticker TEXT PRIMARY KEY, market TEXT NOT NULL DEFAULT 'us',
+            category TEXT NOT NULL DEFAULT '', company_name TEXT DEFAULT '',
+            business TEXT DEFAULT '', revenue TEXT DEFAULT '',
+            strengths TEXT DEFAULT '', sensitivities TEXT DEFAULT '',
+            related_tickers TEXT DEFAULT '[]', source_url TEXT DEFAULT '',
+            updated_at TEXT DEFAULT (datetime('now'))
+        );
         CREATE INDEX IF NOT EXISTS idx_ai_news_date ON ai_news (news_date DESC);
         """)
         swing_columns = {

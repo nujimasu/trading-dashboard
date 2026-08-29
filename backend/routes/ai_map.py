@@ -404,3 +404,70 @@ def ai_map_news(days: int = Query(7, ge=1, le=30)) -> dict[str, Any]:
         "categories": categories,
         "items": items,
     }
+
+
+@router.get("/api/ai-map/profiles")
+def ai_map_profiles() -> dict[str, Any]:
+    """銘柄解説（ai_profiles）を市場・カテゴリー構成に沿って返す。
+
+    解説は四半期更新の静的コンテンツなので、価格系のようなキャッシュは持たない
+    （件数が80件程度と小さく、1クエリで済むため）。
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT ticker, market, category, company_name, business, revenue,
+               strengths, sensitivities, related_tickers, source_url, updated_at
+        FROM ai_profiles
+        """
+    )
+    rows = {r["ticker"]: dict(r) for r in cur.fetchall()}
+    conn.close()
+
+    latest_updated = None
+    for row in rows.values():
+        stamp = _iso(row.get("updated_at"))
+        if stamp and (latest_updated is None or stamp > latest_updated):
+            latest_updated = stamp
+
+    # config のカテゴリー順・銘柄順をそのまま画面の並び順にする（DBの並びには依存しない）
+    categories = []
+    for market, category_map in (("us", AI_CATEGORY_MAP), ("jp", JP_AI_CATEGORY_MAP)):
+        for cid, cat in category_map.items():
+            entries = []
+            for ticker in cat["tickers"]:
+                row = rows.get(ticker)
+                if row is None:
+                    # 解説がまだ生成されていない銘柄。画面側で「準備中」を出せるようにする
+                    entries.append({
+                        "ticker": ticker,
+                        "name": JP_TICKER_NAMES.get(ticker, ""),
+                        "pending": True,
+                    })
+                    continue
+                entries.append({
+                    "ticker": ticker,
+                    "name": row.get("company_name") or JP_TICKER_NAMES.get(ticker, ""),
+                    "business": row.get("business") or "",
+                    "revenue": row.get("revenue") or "",
+                    "strengths": row.get("strengths") or "",
+                    "sensitivities": row.get("sensitivities") or "",
+                    "related_tickers": _parse_affected_tickers(row.get("related_tickers")),
+                    "source_url": row.get("source_url") or "",
+                    "tv_url": _tv_url(ticker),
+                    "pending": False,
+                })
+            categories.append({
+                "id": cid,
+                "market": market,
+                "label": cat["label"],
+                "short_label": cat.get("short", cat["label"]),
+                "tickers": entries,
+            })
+
+    return {
+        "updated_at": latest_updated,
+        "total": len(rows),
+        "categories": categories,
+    }
