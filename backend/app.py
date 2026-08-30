@@ -67,6 +67,17 @@ def create_app() -> FastAPI:
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
+    # フロントエンドは History API でルーティングするため、
+    # /api・/css・/js 以外の未知パスは index.html を返して SPA に処理を委ねる
+    # （ページごとの URL をリロードしてもホームに戻らないようにするため）。
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        if full_path.startswith(("api/", "css/", "js/")):
+            return Response(status_code=404)
+        resp = FileResponse(str(FRONTEND_DIR / "index.html"))
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
+
     return app
 
 

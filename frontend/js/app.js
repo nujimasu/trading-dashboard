@@ -21,11 +21,29 @@ const SECTIONS = [
 
 let currentSection = null;
 
+function pathForSection(id) {
+  return id === "swing" ? "/" : `/${id}`;
+}
+
+function sectionForPath(pathname) {
+  const clean = pathname.replace(/\/+$/, "") || "/";
+  if (clean === "/") return "swing";
+  const id = clean.slice(1);
+  return SECTIONS.some(item => item.id === id) ? id : "swing";
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   buildSidebar();
   buildSections();
   loadPipelineStatus();
-  navigate("swing");
+
+  const initialId = sectionForPath(window.location.pathname);
+  navigate(initialId, { push: false });
+  history.replaceState({ section: initialId }, "", pathForSection(initialId));
+
+  window.addEventListener("popstate", () => {
+    navigate(sectionForPath(window.location.pathname), { push: false });
+  });
 
   const toggle = document.getElementById("menu-toggle");
   const sidebar = document.getElementById("sidebar");
@@ -72,9 +90,13 @@ function buildSections() {
   ).join("");
 }
 
-function navigate(id) {
+function navigate(id, { push = true } = {}) {
   if (currentSection === id) return;
   currentSection = id;
+
+  if (push) {
+    history.pushState({ section: id }, "", pathForSection(id));
+  }
 
   document.querySelectorAll(".nav-item").forEach(element => {
     element.classList.toggle("active", element.dataset.section === id);
