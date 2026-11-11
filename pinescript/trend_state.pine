@@ -1,5 +1,5 @@
 //@version=6
-// [版: 2026-11-11 r6 / 短縮版]  ← この表示があれば最新版
+// [版: 2026-11-11 r7 / 短縮版]  ← この表示があれば最新版
 // トレンド現在地 (D1 Trend State)
 // 日足で「ロング候補／ショート候補／触らない」を5段階で表示する（売買シグナルではない）。
 // 5=🟢上昇トレンド 4=🟡上昇の失速 3=⚪レンジ 2=🔵下降の失速 1=🔴下降トレンド
@@ -60,8 +60,13 @@ volDnCol = input.color(#ef4444, "陰線", inline = "vc", group = grpV)
 
 // ── 表示 ──
 grpD = "表示"
-showBg = input.bool(true, "背景色で状態を表示", group = grpD, tooltip = "緑＝上昇トレンド／黄＝上昇の失速／灰＝レンジ／青＝下降の失速／赤＝下降トレンド")
-bgTransp = input.int(90, "背景の透明度", minval = 50, maxval = 98, group = grpD)
+showBg = input.bool(true, "背景色で状態を表示", group = grpD, tooltip = "色は下の5色、濃さは「背景の透明度」で調整する。")
+bgTransp = input.int(90, "背景の透明度", minval = 0, maxval = 100, group = grpD, tooltip = "大きいほど薄い。100で透明。下の色ごとの透明度ではなく、こちらが背景に使われる。")
+cUp = input.color(#22c55e, "上昇", inline = "c1", group = grpD)
+cUpW = input.color(#f59e0b, "上昇の失速", inline = "c1", group = grpD)
+cRng = input.color(#94a3b8, "レンジ", inline = "c1", group = grpD)
+cDnW = input.color(#3b82f6, "下降の失速", inline = "c2", group = grpD)
+cDn = input.color(#ef4444, "下降", inline = "c2", group = grpD, tooltip = "5段階の色。背景・テーブル・地合いの表示に使う。")
 showSwing = input.bool(true, "押し安値・戻り高値のライン", group = grpD)
 showPivots = input.bool(false, "山・谷の印", group = grpD)
 showTable = input.bool(true, "状態テーブル", group = grpD)
@@ -78,7 +83,7 @@ f_last(p, occ) => ta.valuewhen(not na(p), p, occ)
 f_cls(up, dn, ba, be, wb, wbe) => up ? (ba and not wb ? 5 : 4) : dn ? (be and not wbe ? 1 : 2) : (ba and not wb ? 2 : be and not wbe ? 4 : 3)
 f_state(c, f, m, s, sl, fd, plv, phv) => na(sl) or na(m) or na(f) ? na : f_cls(sl > flatPct, sl < -flatPct, c > m and f > m and m > s and c > s and (not needFastDir or fd > 0), c < m and f < m and m < s and c < s and (not needFastDir or fd < 0), (c < f and fd <= 0) or (not na(plv) and c < plv), (c > f and fd >= 0) or (not na(phv) and c > phv))
 f_mktState() => f_state(close, f_ma(close, fastLen, fastType), f_ma(close, midLen, midType), f_ma(close, slowLen, slowType), f_slope(f_ma(close, slowLen, slowType), slopeLen), f_dir(f_ma(close, fastLen, fastType), fastSlopeLen), f_last(ta.pivotlow(low, pivotK, pivotK), 0), f_last(ta.pivothigh(high, pivotK, pivotK), 0))
-f_sCol(s) => s == 5 ? #22c55e : s == 4 ? #f59e0b : s == 3 ? #94a3b8 : s == 2 ? #3b82f6 : s == 1 ? #ef4444 : color.gray
+f_sCol(s) => s == 5 ? cUp : s == 4 ? cUpW : s == 3 ? cRng : s == 2 ? cDnW : s == 1 ? cDn : color.gray
 f_sName(s) => s == 5 ? "🟢 上昇トレンド" : s == 4 ? "🟡 上昇の失速" : s == 3 ? "⚪ レンジ" : s == 2 ? "🔵 下降の失速" : s == 1 ? "🔴 下降トレンド" : "データ不足"
 f_sAct(s) => s == 5 ? "ロング候補" : s == 4 ? "下降転換に警戒・新規ロングは控える" : s == 3 ? "方向感なし・触らない" : s == 2 ? "上昇転換の兆し・新規ショートは控える" : s == 1 ? "ショート候補" : "長期線の計算に必要な本数が足りない"
 f_dirText(d) => d > 0 ? "上向き" : d < 0 ? "下向き" : "横ばい"
