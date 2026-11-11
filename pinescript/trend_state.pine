@@ -40,13 +40,13 @@ fastType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "fast", gr
 fastCol  = input.color(#facc15, "", inline = "fast", group = grpMa,
    tooltip = "早期警戒に使う線。既定は 20EMA。\n\n終値がこの線を割り、かつこの線が横ばい〜下向きになると「上昇の失速」側に倒れる。\n\n値動きの荒い銘柄で判定が頻繁に切り替わるときは 25〜30 に伸ばす。")
 midLen   = input.int(50, "中期線", minval = 2, maxval = 500, inline = "mid", group = grpMa)
-midType  = input.string("SMA", "", options = ["EMA", "SMA"], inline = "mid", group = grpMa)
-midCol   = input.color(#a855f7, "", inline = "mid", group = grpMa,
-   tooltip = "中期の流れを見る線。既定は 50SMA（米国株で最も一般的な「50日線」）。\n\n上昇トレンドと判定するには、終値と短期線がこの線より上にある必要がある。")
+midType  = input.string("EMA", "", options = ["EMA", "SMA"], inline = "mid", group = grpMa)
+midCol   = input.color(#9c27b0, "", inline = "mid", group = grpMa,
+   tooltip = "中期の流れを見る線。既定は 50EMA。米国のメディアなどで言う「50日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\n上昇トレンドと判定するには、終値と短期線がこの線より上にある必要がある。")
 slowLen  = input.int(200, "長期線", minval = 2, maxval = 500, inline = "slow", group = grpMa)
-slowType = input.string("SMA", "", options = ["EMA", "SMA"], inline = "slow", group = grpMa)
-slowCol  = input.color(#06b6d4, "", inline = "slow", group = grpMa,
-   tooltip = "大きな流れを決める線。既定は 200SMA（米国株で一般的な「200日線」）。\n\nこの線の「傾き」で、上昇・下降・横ばいの大枠を決める。価格が上か下かより、向きのほうを重視している。\n\n■ EMA と SMA\nEMA は直近の足を重く見るので反応が早いがダマシも増える。SMA は反応が遅いが、多くの参加者が見ている節目になりやすい。")
+slowType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "slow", group = grpMa)
+slowCol  = input.color(#00bcd4, "", inline = "slow", group = grpMa,
+   tooltip = "大きな流れを決める線。既定は 200EMA。米国のメディアなどで言う「200日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\nこの線の「傾き」で、上昇・下降・横ばいの大枠を決める。価格が上か下かより、向きのほうを重視している。\n\n■ EMA と SMA\nEMA は直近の足を重く見るので反応が早いがダマシも増える。SMA は反応が遅いが、多くの参加者が見ている節目になりやすい。")
 maLabels = input.bool(true, "右端に種別と期間のラベルを出す", group = grpMa)
 
 // ── 入力：判定 ───────────────────────────────────────────────────────────────
