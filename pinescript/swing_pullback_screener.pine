@@ -4,6 +4,8 @@
 //
 // trading-dashboard の backend/services/swing_screener.py をそのまま移植したもの。
 // 判定条件・しきい値・優先順位はすべて Python 実装と一致させてある。
+// ※ 例外: 押し目判定 EMA の期間だけは入力で変更できる。既定の 20 のときに
+//   Python 実装と一致する。20 以外にするとダッシュボードの結果とは一致しない。
 //
 // 【重要】日足チャート専用。
 //   EMA20 / ADX / RS / 出来高判定はすべて「日足バー」で定義されているため、
@@ -37,6 +39,10 @@ minDollarVol= input.float(20.0, "最低売買代金（百万ドル・60日中央
 minPrice    = input.float(5.0,  "最低株価（ドル）", minval = 0.0, group = grpFilter,
    tooltip = "この株価未満の銘柄を候補から外す。既定は 5ドル。\n\n低位株は値動きの1ティックが相対的に大きく、テクニカルの形が崩れやすいため。")
 
+grpDip = "押し目判定"
+dipEmaLen = input.int(20, "押し目判定 EMA の期間", minval = 5, maxval = 100, group = grpDip,
+   tooltip = "日足の押し目判定に使う EMA の期間。安値がこの EMA〜EMA×1.02 の帯に触れ、終値が EMA より上なら「押し目」とみなす。既定は 20。\n\n■ 注意\n既定の 20 のときだけ、ダッシュボード（Python 実装）の判定と一致する。値を変えるとダッシュボードの候補とは別物になる。\n\n浅い押し目を拾いたいときは 10〜15、深めの押し目を待ちたいときは 30〜50 に。")
+
 grpRs = "相対強度"
 rsSymbol = input.symbol("AMEX:SPY", "比較対象（RS の基準）", group = grpRs,
    tooltip = "相対強度（RS）を測る基準となる銘柄。既定は S&P500 連動の SPY。\n\nRS は「この銘柄の3ヶ月/6ヶ月リターン − 基準のリターン」で、プラスなら市場平均より強いことを意味する。\n\n■ フィルタではない\nRS は候補の絞り込みには使わず、表示と並び替えのためだけに計算している。実測で、ADX の後に RS で絞っても候補が8%しか減らず、フィルタとしてはほとんど効かなかったため。\n\nセクター内の相対強度を見たいときは、ここを XLK（テクノロジー）などのセクターETFに変えるとよい。")
@@ -68,7 +74,7 @@ MA_LEN_5 = 200
 
 grpMa = "移動平均線"
 maType   = input.string("EMA", "種別", options = ["EMA", "SMA"], group = grpMa,
-   tooltip = "5本すべての計算方法を切り替える。\n\n■ SMA（単純移動平均）\n期間内の終値をそのまま平均する。古い足も新しい足も重みは同じ。線が滑らかで、多くの市場参加者が見ている節目として機能しやすい。反面、価格の変化への反応は遅れる。\n「みんなが意識する水準」を測りたいとき（例: 200日線）に向く。\n\n■ EMA（指数移動平均）\n直近の足ほど重みを大きくする。価格の変化に早く追随するが、その分ダマシも増える。\n押し目の反発点など、足元の勢いを測りたいときに向く。\n\n■ 見分け方\n同じ期間なら EMA のほうが常に価格の近くを走る。上昇中は SMA より上、下落中は SMA より下に来る。\n\n※ スクリーニングの押し目判定に使う EMA20 は、この設定と無関係に常に EMA で固定。ここを SMA にしても判定結果は変わらない。")
+   tooltip = "5本すべての計算方法を切り替える。\n\n■ SMA（単純移動平均）\n期間内の終値をそのまま平均する。古い足も新しい足も重みは同じ。線が滑らかで、多くの市場参加者が見ている節目として機能しやすい。反面、価格の変化への反応は遅れる。\n「みんなが意識する水準」を測りたいとき（例: 200日線）に向く。\n\n■ EMA（指数移動平均）\n直近の足ほど重みを大きくする。価格の変化に早く追随するが、その分ダマシも増える。\n押し目の反発点など、足元の勢いを測りたいときに向く。\n\n■ 見分け方\n同じ期間なら EMA のほうが常に価格の近くを走る。上昇中は SMA より上、下落中は SMA より下に来る。\n\n※ スクリーニングの押し目判定に使う EMA（既定 20）は、この設定と無関係に常に EMA で固定。ここを SMA にしても判定結果は変わらない。期間は「押し目判定」グループで変更する。")
 maLabels = input.bool(true, "右端に期間ラベルを出す", group = grpMa,
    tooltip = "各線の右端に「EMA 25」のようなラベルを、その線と同じ色で表示する。\n\n線が5本あるとどれがどの期間か分からなくなるため、既定でオンにしてある。チャートをすっきりさせたいときはオフに。")
 
@@ -77,7 +83,7 @@ maOn1  = input.bool(false, "① 5",   inline = "ma1", group = grpMa,
 maCol1 = input.color(#ffffff, "", inline = "ma1", group = grpMa)
 
 maOn2  = input.bool(true,  "② 25",  inline = "ma2", group = grpMa,
-   tooltip = "25期間の移動平均。約1ヶ月強にあたる短期線。上昇トレンド中の浅い押し目はこの線付近で止まりやすい。\n\n※ スクリーニングの押し目判定はこれではなく EMA20（黄色の線と帯）を使う。")
+   tooltip = "25期間の移動平均。約1ヶ月強にあたる短期線。上昇トレンド中の浅い押し目はこの線付近で止まりやすい。\n\n※ スクリーニングの押し目判定はこれではなく、押し目判定 EMA（既定 20・黄色の線と帯）を使う。")
 maCol2 = input.color(#e91e63, "", inline = "ma2", group = grpMa)
 
 maOn3  = input.bool(true,  "③ 50",  inline = "ma3", group = grpMa,
@@ -118,8 +124,8 @@ showTable   = input.bool(true, "判定テーブル", group = grpView,
    tooltip = "各条件の合否と実数値を一覧で表示する。ダッシュボードの1行分をチャート上に出したもの。\n\n最上段に総合判定（✅候補 / ❌候補外）、以下に W1パーフェクトオーダー・D1押し目・ダウ理論・ADX・RS・売買代金・出来高判定などが並ぶ。")
 showMarker  = input.bool(true, "条件成立マーカー", group = grpView,
    tooltip = "すべての条件を満たした日に、ローソク足の下に印を出す。\n\n▲「候補」＝その日に新しく条件が揃った\n○（小さい丸）＝前日から条件が続いている\n背景の薄い緑＝条件成立中\n\n過去に何回発火したかを目で追えるので、この銘柄との相性を確認できる。")
-showEmaBand = input.bool(true, "20EMA と押し目帯", group = grpView,
-   tooltip = "押し目判定の基準そのものを描く。\n\n黄色い線＝日足 EMA20\n塗りつぶし＝EMA20 〜 EMA20×1.02 の帯\n\n安値がこの帯に入ると「タッチ」とみなす。あとどれくらい下がれば候補になるかが目で見て分かる。\n\n※ この EMA20 は移動平均線グループの設定とは無関係に固定。")
+showEmaBand = input.bool(true, "押し目判定 EMA と押し目帯", group = grpView,
+   tooltip = "押し目判定の基準そのものを描く。\n\n黄色い線＝日足の押し目判定 EMA（既定 20）\n塗りつぶし＝EMA 〜 EMA×1.02 の帯\n\n安値がこの帯に入ると「タッチ」とみなす。あとどれくらい下がれば候補になるかが目で見て分かる。\n\n※ この EMA は移動平均線グループの設定とは無関係。期間は「押し目判定」グループで変更する。")
 showDow     = input.bool(true, "ダウ理論の山谷", group = grpView,
    tooltip = "ダウ理論の判定根拠を描く。\n\n▽（赤）＝確定した山（前後5日で最も高い）\n△（緑）＝確定した谷（前後5日で最も安い）\n点線＝直近2つの山どうし・谷どうしを結んだ線\n\n両方の点線が右上がりなら「上昇」、両方が右下がりなら「下降」、片方だけなら「中立」。\n\n※ 印は5日遅れて確定する。直近5本には印が付かない。")
 tablePos    = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView,
@@ -127,7 +133,7 @@ tablePos    = input.string("右上", "テーブルの位置", options = ["右上
 
 // ── 定数（Python 実装と同じ値）──────────────────────────────────────────────
 PIVOT_K            = 5      // ダウ理論のピボット（前後5日）
-TOUCH_TOLERANCE    = 1.02   // 20EMA へのタッチ許容（+2%）
+TOUCH_TOLERANCE    = 1.02   // 押し目判定 EMA へのタッチ許容（+2%）
 TOUCH_WINDOW       = 3      // タッチを遡って見る営業日数
 RANGE_WINDOW       = 60     // 価格位置を測るレンジ（終値ベース）
 VOL_SMA_LEN        = 50     // 出来高の平均期間
@@ -167,18 +173,18 @@ f_weeklyState() =>
 // 2. D1 押し目
 //    直近3営業日のいずれかで安値が 20EMA×1.02 以内、かつ現在の終値が 20EMA の上
 // =============================================================================
-ema20 = ta.ema(close, 20)
+dipEma = ta.ema(close, dipEmaLen)
 
-touchNow  = low       <= ema20     * TOUCH_TOLERANCE
-touch1    = low[1]    <= ema20[1]  * TOUCH_TOLERANCE
-touch2    = low[2]    <= ema20[2]  * TOUCH_TOLERANCE
+touchNow  = low       <= dipEma     * TOUCH_TOLERANCE
+touch1    = low[1]    <= dipEma[1]  * TOUCH_TOLERANCE
+touch2    = low[2]    <= dipEma[2]  * TOUCH_TOLERANCE
 touchedAny = touchNow or touch1 or touch2
 // タッチした最も新しいバーが何営業日前か（当日 = 1）
 touchDaysAgo = touchNow ? 1 : touch1 ? 2 : touch2 ? 3 : na
 
-aboveEma = not na(ema20) and close > ema20
+aboveEma = not na(dipEma) and close > dipEma
 dipOk    = aboveEma and touchedAny
-emaDist  = na(ema20) or ema20 == 0 ? na : close / ema20 - 1.0
+emaDist  = na(dipEma) or dipEma == 0 ? na : close / dipEma - 1.0
 
 bounced = close > open   // 🟢陽線引け / 🔴陰線引け
 
@@ -316,9 +322,9 @@ newSignal = allOk and not allOk[1]
 // 9. 描画
 // =============================================================================
 // 20EMA と押し目帯（安値がこの帯に入ればタッチ扱い）
-emaPlot  = plot(showEmaBand ? ema20 : na, "20EMA｜押し目判定の基準線", color = color.new(#facc15, 0), linewidth = 2)
-bandPlot = plot(showEmaBand ? ema20 * TOUCH_TOLERANCE : na, "押し目帯の上端｜20EMA×1.02・安値がここに触れるとタッチ", color = color.new(#facc15, 60), linewidth = 1)
-fill(emaPlot, bandPlot, color = color.new(#facc15, 88), title = "押し目帯の塗り｜20EMA〜×1.02")
+emaPlot  = plot(showEmaBand ? dipEma : na, "押し目判定EMA｜既定20・押し目判定の基準線", color = color.new(#facc15, 0), linewidth = 2)
+bandPlot = plot(showEmaBand ? dipEma * TOUCH_TOLERANCE : na, "押し目帯の上端｜EMA×1.02・安値がここに触れるとタッチ", color = color.new(#facc15, 60), linewidth = 1)
+fill(emaPlot, bandPlot, color = color.new(#facc15, 88), title = "押し目帯の塗り｜EMA〜×1.02")
 
 // ダウ理論の山谷
 plotshape(showDow ? ph : na, "確定ピボット高値▽｜前後5日で最も高い・ダウ理論の山", shape.triangledown, location.absolute, color.new(#ef4444, 20), offset = -PIVOT_K, size = size.tiny)
@@ -494,11 +500,11 @@ if showTable and barstate.islast
     r += 1
 
     // D1 押し目
-    dipText = dipOk ? "✅ タッチ " + str.tostring(touchDaysAgo) + "日目" : aboveEma ? "❌ 3日以内のタッチなし" : "❌ 終値が20EMA以下"
+    dipText = dipOk ? "✅ タッチ " + str.tostring(touchDaysAgo) + "日目" : aboveEma ? "❌ 3日以内のタッチなし" : "❌ 終値が" + str.tostring(dipEmaLen) + "EMA以下"
     f_row(r, "D1 押し目", dipText, dipOk ? green : red)
     r += 1
 
-    f_row(r, "20EMA乖離", f_pct(emaDist), gray)
+    f_row(r, str.tostring(dipEmaLen) + "EMA乖離", f_pct(emaDist), gray)
     r += 1
 
     f_row(r, "状態", bounced ? "🟢 陽線引け" : "🔴 陰線引け", bounced ? green : red)
