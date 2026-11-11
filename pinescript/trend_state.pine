@@ -37,51 +37,37 @@ indicator("トレンド現在地 (D1 Trend State)", shorttitle = "Trend State", 
 grpMa = "移動平均線（判定に使う3本）"
 fastLen  = input.int(20, "短期線", minval = 2, maxval = 500, inline = "fast", group = grpMa)
 fastType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "fast", group = grpMa)
-fastCol  = input.color(#facc15, "", inline = "fast", group = grpMa,
-   tooltip = "早期警戒に使う線。既定は 20EMA。\n\n終値がこの線を割り、かつこの線が横ばい〜下向きになると「上昇の失速」側に倒れる。\n\n値動きの荒い銘柄で判定が頻繁に切り替わるときは 25〜30 に伸ばす。")
+fastCol  = input.color(#facc15, "", inline = "fast", group = grpMa, tooltip = "早期警戒に使う線。既定は 20EMA。\n\n終値がこの線を割り、かつこの線が横ばい〜下向きになると「上昇の失速」側に倒れる。\n\n値動きの荒い銘柄で判定が頻繁に切り替わるときは 25〜30 に伸ばす。")
 midLen   = input.int(50, "中期線", minval = 2, maxval = 500, inline = "mid", group = grpMa)
 midType  = input.string("EMA", "", options = ["EMA", "SMA"], inline = "mid", group = grpMa)
-midCol   = input.color(#9c27b0, "", inline = "mid", group = grpMa,
-   tooltip = "中期の流れを見る線。既定は 50EMA。米国のメディアなどで言う「50日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\n上昇トレンドと判定するには、終値と短期線がこの線より上にある必要がある。")
+midCol   = input.color(#9c27b0, "", inline = "mid", group = grpMa, tooltip = "中期の流れを見る線。既定は 50EMA。米国のメディアなどで言う「50日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\n上昇トレンドと判定するには、終値と短期線がこの線より上にある必要がある。")
 slowLen  = input.int(200, "長期線", minval = 2, maxval = 500, inline = "slow", group = grpMa)
 slowType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "slow", group = grpMa)
-slowCol  = input.color(#00bcd4, "", inline = "slow", group = grpMa,
-   tooltip = "大きな流れを決める線。既定は 200EMA。米国のメディアなどで言う「200日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\nこの線の「傾き」で、上昇・下降・横ばいの大枠を決める。価格が上か下かより、向きのほうを重視している。\n\n■ EMA と SMA\nEMA は直近の足を重く見るので反応が早いがダマシも増える。SMA は反応が遅いが、多くの参加者が見ている節目になりやすい。")
+slowCol  = input.color(#00bcd4, "", inline = "slow", group = grpMa, tooltip = "大きな流れを決める線。既定は 200EMA。米国のメディアなどで言う「200日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\nこの線の「傾き」で、上昇・下降・横ばいの大枠を決める。価格が上か下かより、向きのほうを重視している。\n\n■ EMA と SMA\nEMA は直近の足を重く見るので反応が早いがダマシも増える。SMA は反応が遅いが、多くの参加者が見ている節目になりやすい。")
 maLabels = input.bool(true, "右端に種別と期間のラベルを出す", group = grpMa)
 
 // ── 入力：判定 ───────────────────────────────────────────────────────────────
 grpJudge = "判定"
-slopeLen = input.int(20, "長期線・中期線の傾きを測る期間（本）", minval = 5, maxval = 100, group = grpJudge,
-   tooltip = "長期線が「何本前と比べて」上がっているか下がっているかを測る。既定は 20本（約1ヶ月）。")
-flatPct  = input.float(0.5, "長期線を「横ばい」とみなす幅（%）", minval = 0.0, maxval = 10.0, step = 0.1, group = grpJudge,
-   tooltip = "上の期間で長期線がこの幅より大きく上がっていれば「上向き」、下がっていれば「下向き」、その間なら「横ばい」とみなす。既定は ±0.5%。\n\n参考：S&P500 が年10%上がると、200日線は1ヶ月でおよそ0.8%上がる。\n\n横ばい（レンジ）判定が多すぎるときは小さく、少なすぎるときは大きくする。")
-fastSlopeLen = input.int(5, "短期線の向きを測る期間（本）", minval = 1, maxval = 20, group = grpJudge,
-   tooltip = "短期線が何本前より上か下かで向きを決める。既定は 5本（約1週間）。")
-pivotK   = input.int(5, "山・谷の確定に使う本数（前後）", minval = 2, maxval = 20, group = grpJudge,
-   tooltip = "前後この本数の中で最も高い足を「山」、最も安い足を「谷」とする。既定は 5（押し目スクリーナーと同じ）。\n\n直近の谷＝押し安値、直近の山＝戻り高値として使う。終値が押し安値を割ると、上昇側の早期警戒になる。\n\n※ 山と谷はこの本数だけ遅れて確定する。")
+slopeLen = input.int(20, "長期線・中期線の傾きを測る期間（本）", minval = 5, maxval = 100, group = grpJudge, tooltip = "長期線が「何本前と比べて」上がっているか下がっているかを測る。既定は 20本（約1ヶ月）。")
+flatPct  = input.float(0.5, "長期線を「横ばい」とみなす幅（%）", minval = 0.0, maxval = 10.0, step = 0.1, group = grpJudge, tooltip = "上の期間で長期線がこの幅より大きく上がっていれば「上向き」、下がっていれば「下向き」、その間なら「横ばい」とみなす。既定は ±0.5%。\n\n参考：S&P500 が年10%上がると、200日線は1ヶ月でおよそ0.8%上がる。\n\n横ばい（レンジ）判定が多すぎるときは小さく、少なすぎるときは大きくする。")
+fastSlopeLen = input.int(5, "短期線の向きを測る期間（本）", minval = 1, maxval = 20, group = grpJudge, tooltip = "短期線が何本前より上か下かで向きを決める。既定は 5本（約1週間）。")
+pivotK   = input.int(5, "山・谷の確定に使う本数（前後）", minval = 2, maxval = 20, group = grpJudge, tooltip = "前後この本数の中で最も高い足を「山」、最も安い足を「谷」とする。既定は 5（押し目スクリーナーと同じ）。\n\n直近の谷＝押し安値、直近の山＝戻り高値として使う。終値が押し安値を割ると、上昇側の早期警戒になる。\n\n※ 山と谷はこの本数だけ遅れて確定する。")
 
 // ── 入力：地合い・決算 ───────────────────────────────────────────────────────
 grpMkt = "地合い・決算"
 showMkt   = input.bool(true, "地合い（比較銘柄の状態）を表示", group = grpMkt)
-mktSymbol = input.symbol("AMEX:SPY", "地合いを見る銘柄", group = grpMkt,
-   tooltip = "この銘柄にも同じ5段階の判定をかけて、テーブルに表示する。既定は S&P500 連動の SPY。\n\n個別株は相場全体と同じ方向に動きやすいため、個別株がロング候補でも地合いが下降なら慎重に、という使い方を想定している。判定そのものには影響しない。\n\nセクターの地合いを見たいときは XLK などのセクターETFに変える。")
+mktSymbol = input.symbol("AMEX:SPY", "地合いを見る銘柄", group = grpMkt, tooltip = "この銘柄にも同じ5段階の判定をかけて、テーブルに表示する。既定は S&P500 連動の SPY。\n\n個別株は相場全体と同じ方向に動きやすいため、個別株がロング候補でも地合いが下降なら慎重に、という使い方を想定している。判定そのものには影響しない。\n\nセクターの地合いを見たいときは XLK などのセクターETFに変える。")
 showEarn  = input.bool(true, "次の決算日を表示", group = grpMkt)
-earnWarnDays = input.int(14, "決算が近いとみなす日数（暦日）", minval = 1, maxval = 60, group = grpMkt,
-   tooltip = "次の決算日までこの日数以内なら、テーブルの決算欄を黄色で強調する。既定は 14日。\n\n数日〜数週間保有するなら、決算をまたぐかどうかをエントリー前に決めておくこと。\n\n※ 決算予定日は TradingView のデータ（earnings.future_time）を使う。データがない銘柄は「データなし」と出る。")
+earnWarnDays = input.int(14, "決算が近いとみなす日数（暦日）", minval = 1, maxval = 60, group = grpMkt, tooltip = "次の決算日までこの日数以内なら、テーブルの決算欄を黄色で強調する。既定は 14日。\n\n数日〜数週間保有するなら、決算をまたぐかどうかをエントリー前に決めておくこと。\n\n※ 決算予定日は TradingView のデータ（earnings.future_time）を使う。データがない銘柄は「データなし」と出る。")
 
 // ── 入力：表示 ───────────────────────────────────────────────────────────────
 grpView = "表示"
-showBg     = input.bool(true, "背景色で状態を表示", group = grpView,
-   tooltip = "5段階の状態をチャートの背景色で塗り分ける。過去のどこで状態が切り替わったかが一目で分かる。\n\n緑＝上昇トレンド／黄＝上昇の失速／灰＝レンジ／青＝下降の失速／赤＝下降トレンド")
-bgTransp   = input.int(90, "背景の透明度", minval = 50, maxval = 98, group = grpView,
-   tooltip = "大きいほど薄くなる。ローソク足が見づらいときは上げる。")
-showSwing  = input.bool(true, "押し安値・戻り高値のライン", group = grpView,
-   tooltip = "直近の確定した谷（押し安値）と山（戻り高値）に水平線を引く。\n\n上昇中は押し安値を終値で割ると早期警戒、下降中は戻り高値を終値で上抜くと早期警戒になる。")
-showPivots = input.bool(false, "山・谷の印", group = grpView,
-   tooltip = "確定した山（▽）と谷（△）に印を付ける。押し目スクリーナーと一緒に表示すると印が重なるので、既定はオフ。")
+showBg     = input.bool(true, "背景色で状態を表示", group = grpView, tooltip = "5段階の状態をチャートの背景色で塗り分ける。過去のどこで状態が切り替わったかが一目で分かる。\n\n緑＝上昇トレンド／黄＝上昇の失速／灰＝レンジ／青＝下降の失速／赤＝下降トレンド")
+bgTransp   = input.int(90, "背景の透明度", minval = 50, maxval = 98, group = grpView, tooltip = "大きいほど薄くなる。ローソク足が見づらいときは上げる。")
+showSwing  = input.bool(true, "押し安値・戻り高値のライン", group = grpView, tooltip = "直近の確定した谷（押し安値）と山（戻り高値）に水平線を引く。\n\n上昇中は押し安値を終値で割ると早期警戒、下降中は戻り高値を終値で上抜くと早期警戒になる。")
+showPivots = input.bool(false, "山・谷の印", group = grpView, tooltip = "確定した山（▽）と谷（△）に印を付ける。押し目スクリーナーと一緒に表示すると印が重なるので、既定はオフ。")
 showTable  = input.bool(true, "状態テーブル", group = grpView)
-tablePos   = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView,
-   tooltip = "押し目スクリーナーと一緒に使うときは、テーブルが重ならないよう別の位置にする。")
+tablePos   = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView, tooltip = "押し目スクリーナーと一緒に使うときは、テーブルが重ならないよう別の位置にする。")
 
 // ── 定数 ─────────────────────────────────────────────────────────────────────
 // 状態コード
