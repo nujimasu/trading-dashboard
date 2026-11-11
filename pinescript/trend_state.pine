@@ -1,344 +1,275 @@
 //@version=6
-// [版: 2026-11-11 r3 / 1設定=1行]  ← この表示があれば最新版
+// [版: 2026-11-11 r4 / インデントなし版]  ← この表示があれば最新版
+// =============================================================================
 // トレンド現在地 (D1 Trend State)
 //
 // 日足チャートで「いまロング候補か／ショート候補か／触らないほうがいいか」を
 // 5段階で表示する。厳密な売買シグナルではなく、現在地を把握するためのもの。
 //
 // 【5段階】
-//   🟢 上昇トレンド   … ロング候補
-//   🟡 上昇の失速     … 下降転換に警戒。新規ロングは控える
-//   ⚪ レンジ         … 方向感なし。触らない
-//   🔵 下降の失速     … 上昇転換の兆し。新規ショートは控える
-//   🔴 下降トレンド   … ショート候補
+// 🟢 上昇トレンド … ロング候補
+// 🟡 上昇の失速   … 下降転換に警戒。新規ロングは控える
+// ⚪ レンジ       … 方向感なし。触らない
+// 🔵 下降の失速   … 上昇転換の兆し。新規ショートは控える
+// 🔴 下降トレンド … ショート候補
 //
 // 【判定の考え方】（docs/trend-judgment-guide.md の3段階に対応）
-//   1) 長期線の傾きで「大きな流れ」を決める（上向き／横ばい／下向き）
-//   2) 価格と 短期・中期・長期 の並び順が、その流れに沿っているかを見る
-//   3) 早期警戒（短期線割れ＋短期線が横ばい〜下向き、または押し安値割れ）が
-//      出ていないかを見る
+// 1) 長期線の傾きで大きな流れを決める（上向き／横ばい／下向き）
+// 2) 価格と 短期・中期・長期 の並び順が、その流れに沿っているかを見る
+// 3) 早期警戒（短期線割れ＋短期線が横ばい〜下向き、または押し安値割れ）を見る
 //
-//   長期線 上向き  : 並びが上昇順で警戒なし → 上昇トレンド。それ以外 → 上昇の失速
-//   長期線 下向き  : 並びが下降順で警戒なし → 下降トレンド。それ以外 → 下降の失速
-//   長期線 横ばい  : 上昇順で警戒なし → 下降の失速（上昇転換の兆し）
-//                    下降順で警戒なし → 上昇の失速（下降転換に警戒）
-//                    どちらでもない   → レンジ
+// 長期線 上向き : 上昇順で警戒なし → 上昇トレンド。それ以外 → 上昇の失速
+// 長期線 下向き : 下降順で警戒なし → 下降トレンド。それ以外 → 下降の失速
+// 長期線 横ばい : 上昇順で警戒なし → 下降の失速（上昇転換の兆し）
+//                 下降順で警戒なし → 上昇の失速（下降転換に警戒）
+//                 どちらでもない   → レンジ
 //
 // 【注意】
-//   ・日足チャート専用。他の時間軸に乗せるとテーブルに警告を出す。
-//   ・判定は終値ベース。取引時間中は足が確定していないため判定が変わりうる。
-//     判断は日足の確定後に行うこと。
-//   ・山と谷（押し安値・戻り高値）は前後 N 本で確定するため、N 本遅れて出る。
+// ・日足チャート専用。他の時間軸ではテーブルに警告を出す。
+// ・判定は終値ベース。取引時間中は足が確定していないため判定が変わりうる。
+// ・山と谷（押し安値・戻り高値）は前後 N 本で確定するため、N 本遅れて出る。
+//
+// 【このファイルの書き方について】
+// TradingView のスマホアプリのエディタは、貼り付け時に「前の行の字下げ」を
+// 次の行に足してしまう。字下げのある行（if ブロックや複数行の関数）が
+// 1つでもあると壊れるため、すべての行を字下げなし・1文1行で書いてある。
+// 行を分割したり、if ブロックを追加したりしないこと。
 // =============================================================================
-
-indicator("トレンド現在地 (D1 Trend State)", shorttitle = "Trend State", overlay = true, max_lines_count = 20, max_labels_count = 20)
+indicator("トレンド現在地 (D1 Trend State)", shorttitle = "Trend State", overlay = true, max_lines_count = 10, max_labels_count = 10)
 
 // ── 入力：移動平均線 ─────────────────────────────────────────────────────────
 grpMa = "移動平均線（判定に使う3本）"
-fastLen  = input.int(20, "短期線", minval = 2, maxval = 500, inline = "fast", group = grpMa)
+fastLen = input.int(20, "短期線", minval = 2, maxval = 500, inline = "fast", group = grpMa)
 fastType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "fast", group = grpMa)
-fastCol  = input.color(#facc15, "", inline = "fast", group = grpMa, tooltip = "早期警戒に使う線。既定は 20EMA。\n\n終値がこの線を割り、かつこの線が横ばい〜下向きになると「上昇の失速」側に倒れる。\n\n値動きの荒い銘柄で判定が頻繁に切り替わるときは 25〜30 に伸ばす。")
-midLen   = input.int(50, "中期線", minval = 2, maxval = 500, inline = "mid", group = grpMa)
-midType  = input.string("EMA", "", options = ["EMA", "SMA"], inline = "mid", group = grpMa)
-midCol   = input.color(#9c27b0, "", inline = "mid", group = grpMa, tooltip = "中期の流れを見る線。既定は 50EMA。米国のメディアなどで言う「50日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\n上昇トレンドと判定するには、終値と短期線がこの線より上にある必要がある。")
-slowLen  = input.int(200, "長期線", minval = 2, maxval = 500, inline = "slow", group = grpMa)
+fastCol = input.color(#facc15, "", inline = "fast", group = grpMa, tooltip = "早期警戒に使う線。既定は 20EMA。\n\n終値がこの線を割り、かつこの線が横ばい〜下向きになると「上昇の失速」側に倒れる。\n\n値動きの荒い銘柄で判定が頻繁に切り替わるときは 25〜30 に伸ばす。")
+midLen = input.int(50, "中期線", minval = 2, maxval = 500, inline = "mid", group = grpMa)
+midType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "mid", group = grpMa)
+midCol = input.color(#9c27b0, "", inline = "mid", group = grpMa, tooltip = "中期の流れを見る線。既定は 50EMA。米国のメディアなどで言う「50日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\n上昇トレンドと判定するには、終値と短期線がこの線より上にある必要がある。")
+slowLen = input.int(200, "長期線", minval = 2, maxval = 500, inline = "slow", group = grpMa)
 slowType = input.string("EMA", "", options = ["EMA", "SMA"], inline = "slow", group = grpMa)
-slowCol  = input.color(#00bcd4, "", inline = "slow", group = grpMa, tooltip = "大きな流れを決める線。既定は 200EMA。米国のメディアなどで言う「200日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\nこの線の「傾き」で、上昇・下降・横ばいの大枠を決める。価格が上か下かより、向きのほうを重視している。\n\n■ EMA と SMA\nEMA は直近の足を重く見るので反応が早いがダマシも増える。SMA は反応が遅いが、多くの参加者が見ている節目になりやすい。")
+slowCol = input.color(#00bcd4, "", inline = "slow", group = grpMa, tooltip = "大きな流れを決める線。既定は 200EMA。米国のメディアなどで言う「200日線」は SMA のことが多いので、合わせたいときは SMA に切り替える。\n\nこの線の「傾き」で、上昇・下降・横ばいの大枠を決める。価格が上か下かより、向きのほうを重視している。")
+showMaLines = input.bool(true, "3本の線を表示する", group = grpMa, tooltip = "押し目スクリーナーと一緒に使うと線が重なるので、そのときはオフにする。オフにしても判定には影響しない。")
 maLabels = input.bool(true, "右端に種別と期間のラベルを出す", group = grpMa)
 
 // ── 入力：判定 ───────────────────────────────────────────────────────────────
 grpJudge = "判定"
 slopeLen = input.int(20, "長期線・中期線の傾きを測る期間（本）", minval = 5, maxval = 100, group = grpJudge, tooltip = "長期線が「何本前と比べて」上がっているか下がっているかを測る。既定は 20本（約1ヶ月）。")
-flatPct  = input.float(0.5, "長期線を「横ばい」とみなす幅（%）", minval = 0.0, maxval = 10.0, step = 0.1, group = grpJudge, tooltip = "上の期間で長期線がこの幅より大きく上がっていれば「上向き」、下がっていれば「下向き」、その間なら「横ばい」とみなす。既定は ±0.5%。\n\n参考：S&P500 が年10%上がると、200日線は1ヶ月でおよそ0.8%上がる。\n\n横ばい（レンジ）判定が多すぎるときは小さく、少なすぎるときは大きくする。")
+flatPct = input.float(0.5, "長期線を「横ばい」とみなす幅（%）", minval = 0.0, maxval = 10.0, step = 0.1, group = grpJudge, tooltip = "上の期間で長期線がこの幅より大きく上がっていれば「上向き」、下がっていれば「下向き」、その間なら「横ばい」とみなす。既定は ±0.5%。\n\n参考：S&P500 が年10%上がると、200日線は1ヶ月でおよそ0.8%上がる。\n\n横ばい（レンジ）判定が多すぎるときは小さく、少なすぎるときは大きくする。")
 fastSlopeLen = input.int(5, "短期線の向きを測る期間（本）", minval = 1, maxval = 20, group = grpJudge, tooltip = "短期線が何本前より上か下かで向きを決める。既定は 5本（約1週間）。")
-pivotK   = input.int(5, "山・谷の確定に使う本数（前後）", minval = 2, maxval = 20, group = grpJudge, tooltip = "前後この本数の中で最も高い足を「山」、最も安い足を「谷」とする。既定は 5（押し目スクリーナーと同じ）。\n\n直近の谷＝押し安値、直近の山＝戻り高値として使う。終値が押し安値を割ると、上昇側の早期警戒になる。\n\n※ 山と谷はこの本数だけ遅れて確定する。")
+pivotK = input.int(5, "山・谷の確定に使う本数（前後）", minval = 2, maxval = 20, group = grpJudge, tooltip = "前後この本数の中で最も高い足を「山」、最も安い足を「谷」とする。既定は 5（押し目スクリーナーと同じ）。\n\n直近の谷＝押し安値、直近の山＝戻り高値として使う。終値が押し安値を割ると、上昇側の早期警戒になる。\n\n※ 山と谷はこの本数だけ遅れて確定する。")
 
 // ── 入力：地合い・決算 ───────────────────────────────────────────────────────
 grpMkt = "地合い・決算"
-showMkt   = input.bool(true, "地合い（比較銘柄の状態）を表示", group = grpMkt)
-mktSymbol = input.symbol("AMEX:SPY", "地合いを見る銘柄", group = grpMkt, tooltip = "この銘柄にも同じ5段階の判定をかけて、テーブルに表示する。既定は S&P500 連動の SPY。\n\n個別株は相場全体と同じ方向に動きやすいため、個別株がロング候補でも地合いが下降なら慎重に、という使い方を想定している。判定そのものには影響しない。\n\nセクターの地合いを見たいときは XLK などのセクターETFに変える。")
-showEarn  = input.bool(true, "次の決算日を表示", group = grpMkt)
-earnWarnDays = input.int(14, "決算が近いとみなす日数（暦日）", minval = 1, maxval = 60, group = grpMkt, tooltip = "次の決算日までこの日数以内なら、テーブルの決算欄を黄色で強調する。既定は 14日。\n\n数日〜数週間保有するなら、決算をまたぐかどうかをエントリー前に決めておくこと。\n\n※ 決算予定日は TradingView のデータ（earnings.future_time）を使う。データがない銘柄は「データなし」と出る。")
+showMkt = input.bool(true, "地合い（比較銘柄の状態）を表示", group = grpMkt)
+mktSymbol = input.symbol("AMEX:SPY", "地合いを見る銘柄", group = grpMkt, tooltip = "この銘柄にも同じ5段階の判定をかけて、テーブルに表示する。既定は S&P500 連動の SPY。判定そのものには影響しない。\n\nセクターの地合いを見たいときは XLK などのセクターETFに変える。")
+showEarn = input.bool(true, "次の決算日を表示", group = grpMkt)
+earnWarnDays = input.int(14, "決算が近いとみなす日数（暦日）", minval = 1, maxval = 60, group = grpMkt, tooltip = "次の決算日までこの日数以内なら、テーブルの決算欄を黄色で強調する。既定は 14日。\n\n※ 決算予定日は TradingView のデータ（earnings.future_time）を使う。データがない銘柄は「データなし」と出る。")
 
 // ── 入力：表示 ───────────────────────────────────────────────────────────────
 grpView = "表示"
-showBg     = input.bool(true, "背景色で状態を表示", group = grpView, tooltip = "5段階の状態をチャートの背景色で塗り分ける。過去のどこで状態が切り替わったかが一目で分かる。\n\n緑＝上昇トレンド／黄＝上昇の失速／灰＝レンジ／青＝下降の失速／赤＝下降トレンド")
-bgTransp   = input.int(90, "背景の透明度", minval = 50, maxval = 98, group = grpView, tooltip = "大きいほど薄くなる。ローソク足が見づらいときは上げる。")
-showSwing  = input.bool(true, "押し安値・戻り高値のライン", group = grpView, tooltip = "直近の確定した谷（押し安値）と山（戻り高値）に水平線を引く。\n\n上昇中は押し安値を終値で割ると早期警戒、下降中は戻り高値を終値で上抜くと早期警戒になる。")
+showBg = input.bool(true, "背景色で状態を表示", group = grpView, tooltip = "緑＝上昇トレンド／黄＝上昇の失速／灰＝レンジ／青＝下降の失速／赤＝下降トレンド")
+bgTransp = input.int(90, "背景の透明度", minval = 50, maxval = 98, group = grpView, tooltip = "大きいほど薄くなる。ローソク足が見づらいときは上げる。")
+showSwing = input.bool(true, "押し安値・戻り高値のライン", group = grpView, tooltip = "直近の確定した谷（押し安値）と山（戻り高値）に水平線を引く。")
 showPivots = input.bool(false, "山・谷の印", group = grpView, tooltip = "確定した山（▽）と谷（△）に印を付ける。押し目スクリーナーと一緒に表示すると印が重なるので、既定はオフ。")
-showTable  = input.bool(true, "状態テーブル", group = grpView)
-tablePos   = input.string("右上", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView, tooltip = "押し目スクリーナーと一緒に使うときは、テーブルが重ならないよう別の位置にする。")
+showTable = input.bool(true, "状態テーブル", group = grpView)
+tablePos = input.string("右下", "テーブルの位置", options = ["右上", "右下", "左上", "左下"], group = grpView, tooltip = "押し目スクリーナーと一緒に使うときは、テーブルが重ならないよう別の位置にする。")
 
 // ── 定数 ─────────────────────────────────────────────────────────────────────
-// 状態コード
-ST_UP      = 5   // 上昇トレンド
-ST_UP_WEAK = 4   // 上昇の失速（下降転換に警戒）
-ST_RANGE   = 3   // レンジ
-ST_DN_WEAK = 2   // 下降の失速（上昇転換の兆し）
-ST_DN      = 1   // 下降トレンド
-
-COL_UP      = #22c55e
+// 状態コード: 5=上昇トレンド 4=上昇の失速 3=レンジ 2=下降の失速 1=下降トレンド
+COL_UP = #22c55e
 COL_UP_WEAK = #f59e0b
-COL_RANGE   = #94a3b8
+COL_RANGE = #94a3b8
 COL_DN_WEAK = #3b82f6
-COL_DN      = #ef4444
-
-isDaily = timeframe.isdaily
-
-// =============================================================================
-// 1. 計算
-// =============================================================================
-f_ma(src, len, typ) =>
-    // 両方を毎回計算してから選ぶ（ta.* を条件分岐の中で呼ぶと計算がずれるため）
-    s = ta.sma(src, len)
-    e = ta.ema(src, len)
-    typ == "SMA" ? s : e
-
-f_dir(v, len) =>
-    na(v) or na(v[len]) ? 0 : v > v[len] ? 1 : v < v[len] ? -1 : 0
-
-// チャートの銘柄と地合い銘柄の両方に同じ判定をかけるため、関数にまとめる
-f_calc() =>
-    fastV = f_ma(close, fastLen, fastType)
-    midV  = f_ma(close, midLen,  midType)
-    slowV = f_ma(close, slowLen, slowType)
-
-    slowSlope = na(slowV) or na(slowV[slopeLen]) or slowV[slopeLen] == 0 ? na : (slowV / slowV[slopeLen] - 1.0) * 100.0
-    fastDir   = f_dir(fastV, fastSlopeLen)
-    midDir    = f_dir(midV, slopeLen)
-
-    // 山と谷（直近2つずつ）
-    ph = ta.pivothigh(high, pivotK, pivotK)
-    pl = ta.pivotlow(low,  pivotK, pivotK)
-    var float phOld = na
-    var float phNew = na
-    var int   phBar = na
-    var float plOld = na
-    var float plNew = na
-    var int   plBar = na
-    if not na(ph)
-        phOld := phNew
-        phNew := ph
-        phBar := bar_index - pivotK
-    if not na(pl)
-        plOld := plNew
-        plNew := pl
-        plBar := bar_index - pivotK
-
-    dowReady = not na(phOld) and not na(phNew) and not na(plOld) and not na(plNew)
-    dowDir   = not dowReady ? 0 : (phNew > phOld and plNew > plOld) ? 1 : (phNew < phOld and plNew < plOld) ? -1 : 0
-
-    brokeLow  = not na(plNew) and close < plNew   // 押し安値割れ
-    brokeHigh = not na(phNew) and close > phNew   // 戻り高値超え
-
-    ready     = not na(slowSlope) and not na(midV) and not na(fastV)
-    slowUp    = ready and slowSlope >  flatPct
-    slowDown  = ready and slowSlope < -flatPct
-    bullAlign = ready and close > midV and fastV > midV and midV > slowV and close > slowV
-    bearAlign = ready and close < midV and fastV < midV and midV < slowV and close < slowV
-
-    // 早期警戒（ガイドの①）
-    fastBreakDn = ready and close < fastV and fastDir <= 0
-    fastBreakUp = ready and close > fastV and fastDir >= 0
-    warnBull = fastBreakDn or brokeLow
-    warnBear = fastBreakUp or brokeHigh
-
-    int state = na
-    if ready
-        if slowUp
-            state := bullAlign and not warnBull ? ST_UP : ST_UP_WEAK
-        else if slowDown
-            state := bearAlign and not warnBear ? ST_DN : ST_DN_WEAK
-        else
-            state := bullAlign and not warnBull ? ST_DN_WEAK : bearAlign and not warnBear ? ST_UP_WEAK : ST_RANGE
-
-    [state, fastV, midV, slowV, slowSlope, fastDir, midDir, plNew, plBar, phNew, phBar, dowDir, dowReady, brokeLow, brokeHigh, bullAlign, bearAlign, fastBreakDn, fastBreakUp, slowUp, slowDown]
-
-[state, fastV, midV, slowV, slowSlope, fastDir, midDir, plNew, plBar, phNew, phBar, dowDir, dowReady, brokeLow, brokeHigh, bullAlign, bearAlign, fastBreakDn, fastBreakUp, slowUp, slowDown] = f_calc()
-
-// 地合い銘柄（既定 SPY）に同じ判定をかける
-f_market() =>
-    [s, f1, m1, sl, ss, fd, md, pl1, pb1, ph1, hb1, dd, dr, bl, bh, ba, be, fbd, fbu, su, sd] = f_calc()
-    [s, close, sl, ss]
-
-[mktState, mktClose, mktSlow, mktSlope] = request.security(mktSymbol, "D", f_market(), lookahead = barmerge.lookahead_off)
-
-// 次の決算日
-nextEarn     = earnings.future_time
-hasEarn      = not na(nextEarn)
-daysToEarn   = hasEarn ? (nextEarn - timenow) / 86400000.0 : na
-earnSoon     = hasEarn and daysToEarn >= 0 and daysToEarn <= earnWarnDays
+COL_DN = #ef4444
+COL_NONE = color.new(color.white, 100)
 
 // =============================================================================
-// 2. 表示用の文字と色
+// 1. 関数（すべて1行）
 // =============================================================================
-f_stateColor(s) =>
-    switch s
-        5 => COL_UP
-        4 => COL_UP_WEAK
-        3 => COL_RANGE
-        2 => COL_DN_WEAK
-        1 => COL_DN
-        => color.gray
+// 両方を毎回計算してから選ぶ（ta.* を条件付きで呼ぶと計算がずれるため）
+f_pick(typ, s, e) => typ == "SMA" ? s : e
+f_ma(src, len, typ) => f_pick(typ, ta.sma(src, len), ta.ema(src, len))
+f_slope(v, n) => na(v) or na(v[n]) or v[n] == 0 ? na : (v / v[n] - 1.0) * 100.0
+f_dir(v, n) => na(v) or na(v[n]) ? 0 : v > v[n] ? 1 : v < v[n] ? -1 : 0
+f_last(p, occ) => ta.valuewhen(not na(p), p, occ)
+// 状態の分類。up/dn=長期線の向き、ba/be=上昇順/下降順、wb/wbe=上昇側/下降側の早期警戒
+f_cls(up, dn, ba, be, wb, wbe) => up ? (ba and not wb ? 5 : 4) : dn ? (be and not wbe ? 1 : 2) : (ba and not wb ? 2 : be and not wbe ? 4 : 3)
+f_state(c, f, m, s, sl, fd, plv, phv) => na(sl) or na(m) or na(f) ? na : f_cls(sl > flatPct, sl < -flatPct, c > m and f > m and m > s and c > s, c < m and f < m and m < s and c < s, (c < f and fd <= 0) or (not na(plv) and c < plv), (c > f and fd >= 0) or (not na(phv) and c > phv))
+// 地合い銘柄用：上と同じ判定を1つの式で行う
+f_mktState() => f_state(close, f_ma(close, fastLen, fastType), f_ma(close, midLen, midType), f_ma(close, slowLen, slowType), f_slope(f_ma(close, slowLen, slowType), slopeLen), f_dir(f_ma(close, fastLen, fastType), fastSlopeLen), f_last(ta.pivotlow(low, pivotK, pivotK), 0), f_last(ta.pivothigh(high, pivotK, pivotK), 0))
 
-f_stateName(s) =>
-    switch s
-        5 => "🟢 上昇トレンド"
-        4 => "🟡 上昇の失速"
-        3 => "⚪ レンジ"
-        2 => "🔵 下降の失速"
-        1 => "🔴 下降トレンド"
-        => "データ不足"
-
-f_stateAction(s) =>
-    switch s
-        5 => "ロング候補"
-        4 => "下降転換に警戒・新規ロングは控える"
-        3 => "方向感なし・触らない"
-        2 => "上昇転換の兆し・新規ショートは控える"
-        1 => "ショート候補"
-        => "長期線の計算に必要な本数が足りない"
-
+f_stateColor(s) => s == 5 ? COL_UP : s == 4 ? COL_UP_WEAK : s == 3 ? COL_RANGE : s == 2 ? COL_DN_WEAK : s == 1 ? COL_DN : color.gray
+f_stateName(s) => s == 5 ? "🟢 上昇トレンド" : s == 4 ? "🟡 上昇の失速" : s == 3 ? "⚪ レンジ" : s == 2 ? "🔵 下降の失速" : s == 1 ? "🔴 下降トレンド" : "データ不足"
+f_stateAction(s) => s == 5 ? "ロング候補" : s == 4 ? "下降転換に警戒・新規ロングは控える" : s == 3 ? "方向感なし・触らない" : s == 2 ? "上昇転換の兆し・新規ショートは控える" : s == 1 ? "ショート候補" : "長期線の計算に必要な本数が足りない"
 f_dirText(d) => d > 0 ? "上向き" : d < 0 ? "下向き" : "横ばい"
+f_lineText(v, d) => na(v) ? "—" : (close > v ? "価格が上" : "価格が下") + "・" + f_dirText(d)
+
+// =============================================================================
+// 2. 計算（チャートの銘柄）
+// =============================================================================
+fastV = f_ma(close, fastLen, fastType)
+midV = f_ma(close, midLen, midType)
+slowV = f_ma(close, slowLen, slowType)
+slowSlope = f_slope(slowV, slopeLen)
+fastDir = f_dir(fastV, fastSlopeLen)
+midDir = f_dir(midV, slopeLen)
+
+phRaw = ta.pivothigh(high, pivotK, pivotK)
+plRaw = ta.pivotlow(low, pivotK, pivotK)
+phNew = f_last(phRaw, 0)
+phOld = f_last(phRaw, 1)
+plNew = f_last(plRaw, 0)
+plOld = f_last(plRaw, 1)
+phBar = ta.valuewhen(not na(phRaw), bar_index - pivotK, 0)
+plBar = ta.valuewhen(not na(plRaw), bar_index - pivotK, 0)
+
+dowReady = not na(phOld) and not na(phNew) and not na(plOld) and not na(plNew)
+dowDir = not dowReady ? 0 : (phNew > phOld and plNew > plOld) ? 1 : (phNew < phOld and plNew < plOld) ? -1 : 0
+brokeLow = not na(plNew) and close < plNew
+brokeHigh = not na(phNew) and close > phNew
+
+ready = not na(slowSlope) and not na(midV) and not na(fastV)
+slowUp = ready and slowSlope > flatPct
+slowDown = ready and slowSlope < -flatPct
+bullAlign = ready and close > midV and fastV > midV and midV > slowV and close > slowV
+bearAlign = ready and close < midV and fastV < midV and midV < slowV and close < slowV
+fastBreakDn = ready and close < fastV and fastDir <= 0
+fastBreakUp = ready and close > fastV and fastDir >= 0
+
+state = f_state(close, fastV, midV, slowV, slowSlope, fastDir, plNew, phNew)
+sCol = f_stateColor(state)
+
+// 地合い銘柄（既定 SPY）
+[mktState, mktClose, mktSlow] = request.security(mktSymbol, "D", [f_mktState(), close, f_ma(close, slowLen, slowType)], lookahead = barmerge.lookahead_off)
+
+// 次の決算日（earnings.future_time は series float の UNIX ミリ秒。データがなければ na）
+nextEarn = earnings.future_time
+hasEarn = not na(nextEarn)
+daysToEarn = hasEarn ? (nextEarn - timenow) / 86400000.0 : na
+earnSoon = hasEarn and daysToEarn >= 0 and daysToEarn <= earnWarnDays
 
 // =============================================================================
 // 3. 描画
 // =============================================================================
-plot(fastV, "短期線", color = fastCol, linewidth = 2)
-plot(midV,  "中期線", color = midCol,  linewidth = 2)
-plot(slowV, "長期線", color = slowCol, linewidth = 2)
+plot(showMaLines ? fastV : na, "短期線", color = fastCol, linewidth = 2)
+plot(showMaLines ? midV : na, "中期線", color = midCol, linewidth = 2)
+plot(showMaLines ? slowV : na, "長期線", color = slowCol, linewidth = 2)
+plot(state, "状態コード", display = display.data_window)
+bgcolor(showBg and not na(state) ? color.new(sCol, bgTransp) : na, title = "状態の背景色")
+plotshape(showPivots ? phRaw : na, "山▽", shape.triangledown, location.absolute, color.new(#ef4444, 20), offset = -pivotK, size = size.tiny)
+plotshape(showPivots ? plRaw : na, "谷△", shape.triangleup, location.absolute, color.new(#22c55e, 20), offset = -pivotK, size = size.tiny)
 
-bgcolor(showBg and not na(state) ? color.new(f_stateColor(state), bgTransp) : na, title = "状態の背景色")
+// 右端の期間ラベル（毎本位置を更新する。最後の足の位置が残る）
+var label lblFast = label.new(na, na, "", style = label.style_label_left, size = size.small)
+var label lblMid = label.new(na, na, "", style = label.style_label_left, size = size.small)
+var label lblSlow = label.new(na, na, "", style = label.style_label_left, size = size.small)
+showMaLbl = showMaLines and maLabels
+label.set_xy(lblFast, bar_index + 3, fastV)
+label.set_xy(lblMid, bar_index + 3, midV)
+label.set_xy(lblSlow, bar_index + 3, slowV)
+label.set_text(lblFast, showMaLbl ? fastType + " " + str.tostring(fastLen) : "")
+label.set_text(lblMid, showMaLbl ? midType + " " + str.tostring(midLen) : "")
+label.set_text(lblSlow, showMaLbl ? slowType + " " + str.tostring(slowLen) : "")
+label.set_textcolor(lblFast, showMaLbl ? fastCol : COL_NONE)
+label.set_textcolor(lblMid, showMaLbl ? midCol : COL_NONE)
+label.set_textcolor(lblSlow, showMaLbl ? slowCol : COL_NONE)
+label.set_color(lblFast, showMaLbl ? color.new(fastCol, 82) : COL_NONE)
+label.set_color(lblMid, showMaLbl ? color.new(midCol, 82) : COL_NONE)
+label.set_color(lblSlow, showMaLbl ? color.new(slowCol, 82) : COL_NONE)
 
-phMark = ta.pivothigh(high, pivotK, pivotK)
-plMark = ta.pivotlow(low,  pivotK, pivotK)
-plotshape(showPivots ? phMark : na, "山▽", shape.triangledown, location.absolute, color.new(#ef4444, 20), offset = -pivotK, size = size.tiny)
-plotshape(showPivots ? plMark : na, "谷△", shape.triangleup,   location.absolute, color.new(#22c55e, 20), offset = -pivotK, size = size.tiny)
-
-// 右端のラベルと、押し安値・戻り高値のライン
-var label lblFast = na
-var label lblMid  = na
-var label lblSlow = na
-var line  lnLow   = na
-var line  lnHigh  = na
-var label lblLow  = na
-var label lblHigh = na
-
-f_maLabel(lbl, value, typ, len, col) =>
-    label.delete(lbl)
-    maLabels and not na(value) ? label.new(bar_index + 3, value, typ + " " + str.tostring(len), color = color.new(col, 82), textcolor = col, style = label.style_label_left, size = size.small) : na
-
-if barstate.islast
-    lblFast := f_maLabel(lblFast, fastV, fastType, fastLen, fastCol)
-    lblMid  := f_maLabel(lblMid,  midV,  midType,  midLen,  midCol)
-    lblSlow := f_maLabel(lblSlow, slowV, slowType, slowLen, slowCol)
-
-    line.delete(lnLow)
-    line.delete(lnHigh)
-    label.delete(lblLow)
-    label.delete(lblHigh)
-    if showSwing
-        if not na(plNew) and not na(plBar)
-            lnLow  := line.new(plBar, plNew, bar_index + 8, plNew, color = color.new(#22c55e, 20), width = 1, style = line.style_dashed)
-            lblLow := label.new(bar_index + 8, plNew, "押し安値 " + str.tostring(plNew, format.mintick) + (brokeLow ? "（割れ）" : ""), color = color.new(#22c55e, 85), textcolor = #22c55e, style = label.style_label_left, size = size.small)
-        if not na(phNew) and not na(phBar)
-            lnHigh  := line.new(phBar, phNew, bar_index + 8, phNew, color = color.new(#ef4444, 20), width = 1, style = line.style_dashed)
-            lblHigh := label.new(bar_index + 8, phNew, "戻り高値 " + str.tostring(phNew, format.mintick) + (brokeHigh ? "（上抜け）" : ""), color = color.new(#ef4444, 85), textcolor = #ef4444, style = label.style_label_left, size = size.small)
+// 押し安値・戻り高値のライン
+var line lnLow = line.new(na, na, na, na, color = COL_NONE, width = 1, style = line.style_dashed)
+var line lnHigh = line.new(na, na, na, na, color = COL_NONE, width = 1, style = line.style_dashed)
+var label lblLow = label.new(na, na, "", style = label.style_label_left, size = size.small)
+var label lblHigh = label.new(na, na, "", style = label.style_label_left, size = size.small)
+line.set_xy1(lnLow, plBar, plNew)
+line.set_xy2(lnLow, bar_index + 8, plNew)
+line.set_xy1(lnHigh, phBar, phNew)
+line.set_xy2(lnHigh, bar_index + 8, phNew)
+line.set_color(lnLow, showSwing ? color.new(#22c55e, 20) : COL_NONE)
+line.set_color(lnHigh, showSwing ? color.new(#ef4444, 20) : COL_NONE)
+label.set_xy(lblLow, bar_index + 8, plNew)
+label.set_xy(lblHigh, bar_index + 8, phNew)
+label.set_text(lblLow, showSwing and not na(plNew) ? "押し安値 " + str.tostring(plNew, format.mintick) + (brokeLow ? "（割れ）" : "") : "")
+label.set_text(lblHigh, showSwing and not na(phNew) ? "戻り高値 " + str.tostring(phNew, format.mintick) + (brokeHigh ? "（上抜け）" : "") : "")
+label.set_textcolor(lblLow, showSwing ? #22c55e : COL_NONE)
+label.set_textcolor(lblHigh, showSwing ? #ef4444 : COL_NONE)
+label.set_color(lblLow, showSwing ? color.new(#22c55e, 85) : COL_NONE)
+label.set_color(lblHigh, showSwing ? color.new(#ef4444, 85) : COL_NONE)
 
 // =============================================================================
-// 4. 状態テーブル
+// 4. 状態テーブル（毎本書き換える。表示されるのは最後の足の内容）
 // =============================================================================
 tablePosition = tablePos == "右上" ? position.top_right : tablePos == "右下" ? position.bottom_right : tablePos == "左上" ? position.top_left : position.bottom_left
-var table infoTable = table.new(tablePosition, 2, 16, border_width = 1, frame_width = 1, frame_color = color.new(#2a3a54, 0), border_color = color.new(#2a3a54, 0))
+var table infoTable = table.new(tablePosition, 2, 13, border_width = 1, frame_width = 1, frame_color = color.new(#2a3a54, 0), border_color = color.new(#2a3a54, 0))
 
-f_row(int r, string k, string v, color vc) =>
-    table.cell(infoTable, 0, r, k, text_color = color.new(#94a3b8, 0), text_size = size.tiny, text_halign = text.align_left,  bgcolor = color.new(#111c30, 0))
-    table.cell(infoTable, 1, r, v, text_color = vc,                    text_size = size.tiny, text_halign = text.align_right, bgcolor = color.new(#111c30, 0))
+T_KEY = color.new(#94a3b8, 0)
+T_BG = color.new(#111c30, 0)
+T_GREEN = color.new(#86efac, 0)
+T_RED = color.new(#fca5a5, 0)
+T_GRAY = color.new(#cbd5e1, 0)
+T_AMBER = color.new(#fde68a, 0)
+tOn = showTable
+tBg = tOn ? T_BG : COL_NONE
+tKey = tOn ? T_KEY : COL_NONE
+f_c(color c) => showTable ? c : COL_NONE
+f_t(string s) => showTable ? s : ""
 
-f_lineText(v, d) =>
-    na(v) ? "—" : (close > v ? "価格が上" : "価格が下") + "・" + f_dirText(d)
-
-if showTable and barstate.islast
-    green = color.new(#86efac, 0)
-    red   = color.new(#fca5a5, 0)
-    gray  = color.new(#cbd5e1, 0)
-    amber = color.new(#fde68a, 0)
-    sCol  = f_stateColor(state)
-
-    table.cell(infoTable, 0, 0, syminfo.ticker, text_color = color.new(#f8fafc, 0), text_size = size.normal, text_halign = text.align_left, bgcolor = color.new(sCol, 55))
-    table.cell(infoTable, 1, 0, f_stateName(state), text_color = color.new(#f8fafc, 0), text_size = size.small, text_halign = text.align_right, bgcolor = color.new(sCol, 55))
-
-    r = 1
-    f_row(r, "判断", f_stateAction(state), color.new(sCol, 0))
-    r += 1
-
-    if not isDaily
-        f_row(r, "⚠️ 時間軸", "日足で使ってください", amber)
-        r += 1
-    if barstate.isrealtime and not barstate.isconfirmed
-        f_row(r, "⚠️ 足", "日足が未確定（判定は変わりうる）", amber)
-        r += 1
-
-    // 長期線は傾きの数値も出す
-    slowText = na(slowV) ? "—" : (close > slowV ? "価格が上" : "価格が下") + "・" + (slowUp ? "上向き" : slowDown ? "下向き" : "横ばい") + "（" + (na(slowSlope) ? "—" : (slowSlope >= 0 ? "+" : "") + str.tostring(slowSlope, "#.##") + "%") + "）"
-    f_row(r, "短期 " + fastType + str.tostring(fastLen), f_lineText(fastV, fastDir), na(fastV) ? gray : close > fastV ? green : red)
-    r += 1
-    f_row(r, "中期 " + midType + str.tostring(midLen), f_lineText(midV, midDir), na(midV) ? gray : close > midV ? green : red)
-    r += 1
-    f_row(r, "長期 " + slowType + str.tostring(slowLen), slowText, slowUp ? green : slowDown ? red : gray)
-    r += 1
-
-    alignText = bullAlign ? "上昇順（価格>短期>中期>長期）" : bearAlign ? "下降順（価格<短期<中期<長期）" : "混在"
-    f_row(r, "並び順", alignText, bullAlign ? green : bearAlign ? red : gray)
-    r += 1
-
-    dowText = not dowReady ? "不明" : dowDir > 0 ? "上昇（高値・安値とも切り上げ）" : dowDir < 0 ? "下降（高値・安値とも切り下げ）" : "中立"
-    f_row(r, "ダウ理論", dowText, dowDir > 0 ? green : dowDir < 0 ? red : gray)
-    r += 1
-
-    f_row(r, "押し安値", na(plNew) ? "—" : str.tostring(plNew, format.mintick) + (brokeLow ? "（終値で割れ）" : ""), brokeLow ? red : gray)
-    r += 1
-    f_row(r, "戻り高値", na(phNew) ? "—" : str.tostring(phNew, format.mintick) + (brokeHigh ? "（終値で上抜け）" : ""), brokeHigh ? green : gray)
-    r += 1
-
-    // 早期警戒の中身（上昇側の警戒は上昇・横ばいの流れのとき、下降側の警戒は下降の流れのときだけ出す）
-    bearCtx  = slowDown or bearAlign
-    warnText = ""
-    if fastBreakDn and not bearCtx
-        warnText += "短期線割れ＋短期線が下向き/横ばい "
-    if brokeLow and not bearCtx
-        warnText += "押し安値割れ "
-    if fastBreakUp and bearCtx
-        warnText += "短期線超え＋短期線が上向き/横ばい "
-    if brokeHigh and bearCtx
-        warnText += "戻り高値超え "
-    f_row(r, "早期警戒", warnText == "" ? "なし" : warnText, warnText == "" ? gray : amber)
-    r += 1
-
-    if showMkt
-        mktText = f_stateName(mktState) + (na(mktSlow) ? "" : mktClose > mktSlow ? "（長期線の上）" : "（長期線の下）")
-        mktParts = str.split(mktSymbol, ":")
-        f_row(r, "地合い " + array.get(mktParts, array.size(mktParts) - 1), mktText, color.new(f_stateColor(mktState), 0))
-        r += 1
-
-    if showEarn
-        earnText = not hasEarn ? "データなし" : str.format_time(int(nextEarn), "yyyy-MM-dd", "America/New_York") + (daysToEarn >= 0 ? "（あと" + str.tostring(math.ceil(daysToEarn)) + "日）" : "")
-        f_row(r, "次の決算", earnText, earnSoon ? amber : gray)
-        r += 1
+// 0行目：銘柄と状態
+table.cell(infoTable, 0, 0, f_t(syminfo.ticker), text_color = f_c(color.new(#f8fafc, 0)), text_size = size.normal, text_halign = text.align_left, bgcolor = f_c(color.new(sCol, 55)))
+table.cell(infoTable, 1, 0, f_t(f_stateName(state)), text_color = f_c(color.new(#f8fafc, 0)), text_size = size.small, text_halign = text.align_right, bgcolor = f_c(color.new(sCol, 55)))
+// 1行目：判断
+table.cell(infoTable, 0, 1, f_t("判断"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 1, f_t(f_stateAction(state)), text_color = f_c(color.new(sCol, 0)), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 2行目：注意（時間軸・未確定足）
+noteText = not timeframe.isdaily ? "⚠️ 日足で使ってください" : barstate.isrealtime and not barstate.isconfirmed ? "⚠️ 日足が未確定（判定は変わりうる）" : "なし"
+table.cell(infoTable, 0, 2, f_t("注意"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 2, f_t(noteText), text_color = f_c(noteText == "なし" ? T_GRAY : T_AMBER), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 3〜5行目：3本の線
+slowText = na(slowV) ? "—" : (close > slowV ? "価格が上" : "価格が下") + "・" + (slowUp ? "上向き" : slowDown ? "下向き" : "横ばい") + "（" + (na(slowSlope) ? "—" : (slowSlope >= 0 ? "+" : "") + str.tostring(slowSlope, "#.##") + "%") + "）"
+table.cell(infoTable, 0, 3, f_t("短期 " + fastType + str.tostring(fastLen)), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 3, f_t(f_lineText(fastV, fastDir)), text_color = f_c(na(fastV) ? T_GRAY : close > fastV ? T_GREEN : T_RED), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+table.cell(infoTable, 0, 4, f_t("中期 " + midType + str.tostring(midLen)), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 4, f_t(f_lineText(midV, midDir)), text_color = f_c(na(midV) ? T_GRAY : close > midV ? T_GREEN : T_RED), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+table.cell(infoTable, 0, 5, f_t("長期 " + slowType + str.tostring(slowLen)), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 5, f_t(slowText), text_color = f_c(slowUp ? T_GREEN : slowDown ? T_RED : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 6行目：並び順
+alignText = bullAlign ? "上昇順（価格>短期>中期>長期）" : bearAlign ? "下降順（価格<短期<中期<長期）" : "混在"
+table.cell(infoTable, 0, 6, f_t("並び順"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 6, f_t(alignText), text_color = f_c(bullAlign ? T_GREEN : bearAlign ? T_RED : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 7行目：ダウ理論
+dowText = not dowReady ? "不明" : dowDir > 0 ? "上昇（高値・安値とも切り上げ）" : dowDir < 0 ? "下降（高値・安値とも切り下げ）" : "中立"
+table.cell(infoTable, 0, 7, f_t("ダウ理論"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 7, f_t(dowText), text_color = f_c(dowDir > 0 ? T_GREEN : dowDir < 0 ? T_RED : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 8〜9行目：押し安値・戻り高値
+table.cell(infoTable, 0, 8, f_t("押し安値"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 8, f_t(na(plNew) ? "—" : str.tostring(plNew, format.mintick) + (brokeLow ? "（終値で割れ）" : "")), text_color = f_c(brokeLow ? T_RED : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+table.cell(infoTable, 0, 9, f_t("戻り高値"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 9, f_t(na(phNew) ? "—" : str.tostring(phNew, format.mintick) + (brokeHigh ? "（終値で上抜け）" : "")), text_color = f_c(brokeHigh ? T_GREEN : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 10行目：早期警戒（上昇側は上昇・横ばいの流れのとき、下降側は下降の流れのときだけ出す）
+bearCtx = slowDown or bearAlign
+warnText = (fastBreakDn and not bearCtx ? "短期線割れ＋短期線が下向き/横ばい " : "") + (brokeLow and not bearCtx ? "押し安値割れ " : "") + (fastBreakUp and bearCtx ? "短期線超え＋短期線が上向き/横ばい " : "") + (brokeHigh and bearCtx ? "戻り高値超え " : "")
+table.cell(infoTable, 0, 10, f_t("早期警戒"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 10, f_t(warnText == "" ? "なし" : warnText), text_color = f_c(warnText == "" ? T_GRAY : T_AMBER), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 11行目：地合い
+mktName = array.get(str.split(mktSymbol, ":"), -1)
+mktText = not showMkt ? "（オフ）" : f_stateName(mktState) + (na(mktSlow) ? "" : mktClose > mktSlow ? "（長期線の上）" : "（長期線の下）")
+table.cell(infoTable, 0, 11, f_t("地合い " + mktName), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 11, f_t(mktText), text_color = f_c(showMkt ? color.new(f_stateColor(mktState), 0) : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
+// 12行目：次の決算
+earnText = not showEarn ? "（オフ）" : not hasEarn ? "データなし" : str.format_time(int(nextEarn), "yyyy-MM-dd", "America/New_York") + (daysToEarn >= 0 ? "（あと" + str.tostring(math.ceil(daysToEarn)) + "日）" : "")
+table.cell(infoTable, 0, 12, f_t("次の決算"), text_color = tKey, text_size = size.tiny, text_halign = text.align_left, bgcolor = tBg)
+table.cell(infoTable, 1, 12, f_t(earnText), text_color = f_c(showEarn and earnSoon ? T_AMBER : T_GRAY), text_size = size.tiny, text_halign = text.align_right, bgcolor = tBg)
 
 // =============================================================================
 // 5. アラート
-//    アラート作成時は「足の確定ごとに1回」を選ぶこと（取引時間中のブレを避けるため）
+// アラート作成時は「足の確定ごとに1回」を選ぶこと（取引時間中のブレを避けるため）
 // =============================================================================
 prevState = nz(state[1], 0)
-changed   = not na(state) and state != prevState and prevState != 0
-
-alertcondition(changed and state == ST_UP,      "上昇トレンドになった",       "{{ticker}}: 日足の状態が「上昇トレンド（ロング候補）」になりました（{{close}}）")
-alertcondition(changed and state == ST_UP_WEAK, "上昇の失速になった",         "{{ticker}}: 日足の状態が「上昇の失速（下降転換に警戒）」になりました（{{close}}）")
-alertcondition(changed and state == ST_RANGE,   "レンジになった",             "{{ticker}}: 日足の状態が「レンジ（触らない）」になりました（{{close}}）")
-alertcondition(changed and state == ST_DN_WEAK, "下降の失速になった",         "{{ticker}}: 日足の状態が「下降の失速（上昇転換の兆し）」になりました（{{close}}）")
-alertcondition(changed and state == ST_DN,      "下降トレンドになった",       "{{ticker}}: 日足の状態が「下降トレンド（ショート候補）」になりました（{{close}}）")
-
-// 「alert() 関数の呼び出しのみ」でアラートを作ると、変化前→変化後の両方が入った通知が届く
-if changed
-    alert(syminfo.ticker + ": " + f_stateName(prevState) + " → " + f_stateName(state) + "（" + str.tostring(close, format.mintick) + "）", alert.freq_once_per_bar_close)
+changed = not na(state) and state != prevState and prevState != 0
+alertcondition(changed, "状態が変わった（すべて）", '{{ticker}}: 日足の状態が変わりました。現在の状態コード {{plot("状態コード")}}（5=上昇トレンド 4=上昇の失速 3=レンジ 2=下降の失速 1=下降トレンド）終値 {{close}}')
+alertcondition(changed and state == 5, "上昇トレンドになった", "{{ticker}}: 日足の状態が「上昇トレンド（ロング候補）」になりました（{{close}}）")
+alertcondition(changed and state == 4, "上昇の失速になった", "{{ticker}}: 日足の状態が「上昇の失速（下降転換に警戒）」になりました（{{close}}）")
+alertcondition(changed and state == 3, "レンジになった", "{{ticker}}: 日足の状態が「レンジ（触らない）」になりました（{{close}}）")
+alertcondition(changed and state == 2, "下降の失速になった", "{{ticker}}: 日足の状態が「下降の失速（上昇転換の兆し）」になりました（{{close}}）")
+alertcondition(changed and state == 1, "下降トレンドになった", "{{ticker}}: 日足の状態が「下降トレンド（ショート候補）」になりました（{{close}}）")
