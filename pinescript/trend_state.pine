@@ -1,5 +1,5 @@
 //@version=6
-// [版: 2026-11-11 r9 / PC版]  ← この表示があれば最新版
+// [版: 2026-11-11 r10 / PC版]  ← この表示があれば最新版
 // =============================================================================
 // トレンド現在地 (D1 Trend State)
 //
@@ -12,6 +12,13 @@
 //   3 ⚪ レンジ       … 方向感なし。触らない
 //   2 🔵 下降の失速   … 上昇転換の兆し。新規ショートは控える
 //   1 🔴 下降トレンド … ショート候補
+//   ＋ 転換の初動（上の5段階より優先して表示。オフにできる）
+//   6 🚀 上昇転換の初動 … 下降・レンジから切り返し始めた。試し玉の候補
+//   7 🔻 下降転換の初動 … 上昇・レンジから崩れ始めた。ロングの縮小・ショートの試し玉候補
+//   初動のサイン（直近 N 本以内に2つ以上で成立。上昇側。下降側はその逆）
+//     a) 出来高を伴う窓：前日の高値より上で寄り付いて上で引け、出来高が平均の2倍以上、短期線・中期線の上
+//     b) 戻り高値の上抜け：終値で直近の山を上に抜けた
+//     c) 長期線の回復：長期線が上向きでないときに、終値で長期線の上に戻った
 //
 // 【判定の考え方】（docs/trend-judgment-guide.md の3段階に対応）
 //   1) 長期線（⑤）の傾きで大きな流れを決める（上向き／横ばい／下向き）
@@ -101,6 +108,18 @@ volLoc   = input.string("ローソク足の上下", "印の位置", options = ["
 volUpCol = input.color(#22c55e, "陽線の印", inline = "vc", group = grpV)
 volDnCol = input.color(#ef4444, "陰線の印", inline = "vc", group = grpV)
 
+// ── 入力：転換の初動 ─────────────────────────────────────────────────────────
+grpE = "転換の初動（早めの検知）"
+useEarly = input.bool(true, "転換の初動を判定する", group = grpE,
+   tooltip = "長期線の向きが変わる前に、切り返し・崩れの初動を検知して「🚀 上昇転換の初動」「🔻 下降転換の初動」として表示する。5段階の表示より優先される。\n\n【上昇側のサイン】\na) 出来高を伴う窓：前日の高値より上で寄り付いて上で引け、出来高が平均の下の倍率以上、終値が短期線・中期線の上\nb) 戻り高値の上抜け：終値で直近の山を上に抜けた\nc) 長期線の回復：長期線が上向きでないときに、終値で長期線の上に戻った\n下降側はすべてその逆。\n\n【成立条件】下の期間内にサインが必要数以上出ていて、終値が短期線の上（下降側は下）にあること。上昇側は今の状態が下降・下降の失速・レンジのときだけ、下降側は上昇・上昇の失速・レンジのときだけ判定する。\n\n【注意】早く出る分ダマシも多い。試し玉は小さく入り、損切り（窓の下端・直近安値の下）を必ず決めておくこと。")
+earlyWindow  = input.int(5, "サインを数える期間（本）", minval = 1, maxval = 20, group = grpE,
+   tooltip = "直近この本数以内に出たサインを数える。既定は 5本（約1週間）。")
+earlyMin     = input.int(2, "必要なサインの数（1〜3）", minval = 1, maxval = 3, group = grpE,
+   tooltip = "既定は 2。1にすると早く出るがダマシが増え、3にすると確実だが遅く・少なくなる。")
+earlyVolMult = input.float(2.0, "窓のサインに必要な出来高（平均の何倍）", minval = 1.0, maxval = 10.0, step = 0.1, group = grpE,
+   tooltip = "平均の期間は「出来高の急増」グループの設定を使う。既定は 2.0倍。")
+showEarlyMk  = input.bool(true, "初動が出た日に印を付ける", group = grpE)
+
 // ── 入力：表示 ───────────────────────────────────────────────────────────────
 grpD = "表示"
 showBg   = input.bool(true, "背景色で状態を表示", group = grpD,
@@ -118,6 +137,10 @@ cDnW = input.color(#3b82f6, "🔵 下降の失速", group = grpD,
    tooltip = "【条件】次のどちらか。\nA. 長期線が下向きだが、「下降トレンド」の②〜④のどれかを満たさない\nB. 長期線が横ばい（既定：±0.5% 以内）で、「上昇トレンド」の②〜④をすべて満たす（下降からの上昇転換の途中）\n\n→ 上昇転換の兆し。新規ショートは控える")
 cDn  = input.color(#ef4444, "🔴 下降トレンド", group = grpD,
    tooltip = "【条件】次をすべて満たす。\n① 長期線（⑤）が下向き（既定：20本前より -0.5% 未満）\n② 下降順：終値 < 中期線、短期線 < 中期線 < 長期線、終値 < 長期線\n③ 短期線（②）が下向き（「トレンド判定に短期線の向きを含める」がオンのとき）\n④ 下降側の早期警戒がない\n　・終値が短期線を超え、かつ短期線が横ばい〜上向き、ではない\n　・終値が戻り高値を上抜けていない\n\n→ ショート候補\n\n※ 長期線の計算に必要な本数が足りないときは「データ不足」となり、背景は塗らない。")
+cEarlyUp = input.color(#14b8a6, "🚀 上昇転換の初動", group = grpD,
+   tooltip = "【条件】「転換の初動」グループの設定で、上昇側のサインが期間内に必要数以上出ていて、終値が短期線の上。今の状態が下降・下降の失速・レンジのときだけ出る。\n\n→ 試し玉の候補（小さく入り、損切りは窓の下端・直近安値の下）。🟢 に変わるか、最初の押し目で買い増しを検討。")
+cEarlyDn = input.color(#d946ef, "🔻 下降転換の初動", group = grpD,
+   tooltip = "【条件】下降側のサインが期間内に必要数以上出ていて、終値が短期線の下。今の状態が上昇・上昇の失速・レンジのときだけ出る。\n\n→ ロングは利確・縮小を検討。ショートの試し玉候補。")
 showSwing  = input.bool(true, "押し安値・戻り高値のライン", group = grpD,
    tooltip = "直近の確定した谷（押し安値）と山（戻り高値）に水平線を引く。\n\n上昇中は押し安値を終値で割ると早期警戒、下降中は戻り高値を終値で上抜くと早期警戒になる。")
 showPivots = input.bool(false, "山・谷の印", group = grpD,
@@ -181,6 +204,8 @@ f_sCol(s) =>
         3 => cRng
         2 => cDnW
         1 => cDn
+        6 => cEarlyUp
+        7 => cEarlyDn
         => color.gray
 
 f_sName(s) =>
@@ -190,6 +215,8 @@ f_sName(s) =>
         3 => "⚪ レンジ"
         2 => "🔵 下降の失速"
         1 => "🔴 下降トレンド"
+        6 => "🚀 上昇転換の初動"
+        7 => "🔻 下降転換の初動"
         => "データ不足"
 
 f_sAct(s) =>
@@ -199,7 +226,11 @@ f_sAct(s) =>
         3 => "方向感なし・触らない"
         2 => "上昇転換の兆し・新規ショートは控える"
         1 => "ショート候補"
+        6 => "試し玉の候補（小さく・損切り必須）"
+        7 => "ロングは縮小を検討・ショートの試し玉候補"
         => "長期線の計算に必要な本数が足りない"
+
+f_sig(on, name) => on ? name + " " : ""
 
 f_dirText(d) => d > 0 ? "上向き" : d < 0 ? "下向き" : "横ばい"
 
@@ -242,8 +273,7 @@ bearAlign   = ready and close < midV and fastV < midV and midV < slowV and close
 fastBreakDn = ready and close < fastV and fastDir <= 0
 fastBreakUp = ready and close > fastV and fastDir >= 0
 
-state = f_state(close, fastV, midV, slowV, slowSlope, fastDir, plNew, phNew)
-sCol  = f_sCol(state)
+baseState = f_state(close, fastV, midV, slowV, slowSlope, fastDir, plNew, phNew)
 
 // 地合い銘柄（既定 SPY）
 [mktState, mktClose, mktSlow] = request.security(mktSymbol, "D", f_mktState(), lookahead = barmerge.lookahead_off)
@@ -254,6 +284,29 @@ volRatio  = na(volAvg) or volAvg <= 0 ? na : volume / volAvg
 volSpike2 = not na(volRatio) and volRatio >= volMult2
 volSpike1 = not na(volRatio) and volRatio >= volMult1 and not volSpike2
 volUpBar  = close >= open
+
+// 転換の初動（各サインがその日に起きたか → 直近 N 本以内に何個出たか）
+f_recent(ev) => nz(ta.barssince(ev), 9999) < earlyWindow
+gapUpEv  = open > high[1] and close > high[1] and not na(volRatio) and volRatio >= earlyVolMult and close > fastV and close > midV
+gapDnEv  = open < low[1]  and close < low[1]  and not na(volRatio) and volRatio >= earlyVolMult and close < fastV and close < midV
+pivUpEv  = brokeHigh and not brokeHigh[1]
+pivDnEv  = brokeLow and not brokeLow[1]
+slowUpEv = not na(slowV) and close > slowV and close[1] <= slowV[1] and not slowUp
+slowDnEv = not na(slowV) and close < slowV and close[1] >= slowV[1] and not slowDown
+gapUpR   = f_recent(gapUpEv)
+gapDnR   = f_recent(gapDnEv)
+pivUpR   = f_recent(pivUpEv)
+pivDnR   = f_recent(pivDnEv)
+slowUpR  = f_recent(slowUpEv)
+slowDnR  = f_recent(slowDnEv)
+upCount  = (gapUpR ? 1 : 0) + (pivUpR ? 1 : 0) + (slowUpR ? 1 : 0)
+dnCount  = (gapDnR ? 1 : 0) + (pivDnR ? 1 : 0) + (slowDnR ? 1 : 0)
+earlyUp  = useEarly and not na(fastV) and upCount >= earlyMin and close > fastV and (baseState == 1 or baseState == 2 or baseState == 3)
+earlyDn  = useEarly and not na(fastV) and dnCount >= earlyMin and close < fastV and (baseState == 5 or baseState == 4 or baseState == 3)
+
+// 表示に使う状態（初動を優先。両方同時に出たときは初動を出さない）
+state = earlyUp and not earlyDn ? 6 : earlyDn and not earlyUp ? 7 : baseState
+sCol  = f_sCol(state)
 
 // 次の決算日（earnings.future_time は series float の UNIX ミリ秒。データがなければ na）
 nextEarn   = earnings.future_time
@@ -285,6 +338,10 @@ plotshape(vNear and volSpike2 and volUpBar,     "出来高特大・陽線", shap
 plotshape(vNear and volSpike2 and not volUpBar, "出来高特大・陰線", shape.diamond, location.abovebar, volDnCol, size = size.small)
 plotshape(vBottom and volSpike1, "出来高急増・下端", shape.diamond, location.bottom, volUpBar ? volUpCol : volDnCol, size = size.tiny)
 plotshape(vBottom and volSpike2, "出来高特大・下端", shape.diamond, location.bottom, volUpBar ? volUpCol : volDnCol, size = size.small)
+
+// 転換の初動が出た日の印
+plotshape(showEarlyMk and state == 6 and nz(state[1]) != 6, "上昇転換の初動", shape.labelup,   location.belowbar, cEarlyUp, text = "初動", textcolor = color.white, size = size.small)
+plotshape(showEarlyMk and state == 7 and nz(state[1]) != 7, "下降転換の初動", shape.labeldown, location.abovebar, cEarlyDn, text = "初動", textcolor = color.white, size = size.small)
 
 // 右端の期間ラベルと、押し安値・戻り高値のライン（最後の足でだけ描き直す）
 var label lbMa1  = na
@@ -384,6 +441,10 @@ if showTable and barstate.islast
     f_row(r, "早期警戒", warn == "" ? "なし" : warn, warn == "" ? N : A)
     r += 1
 
+    if useEarly
+        earlyText = upCount >= dnCount and upCount > 0 ? "上昇側 " + str.tostring(upCount) + "/3：" + f_sig(gapUpR, "窓+出来高") + f_sig(pivUpR, "戻り高値超え") + f_sig(slowUpR, "長期線回復") : dnCount > 0 ? "下降側 " + str.tostring(dnCount) + "/3：" + f_sig(gapDnR, "窓+出来高") + f_sig(pivDnR, "押し安値割れ") + f_sig(slowDnR, "長期線割れ") : "サインなし"
+        f_row(r, "転換の初動（" + str.tostring(earlyWindow) + "本内）", earlyText, state == 6 ? cEarlyUp : state == 7 ? cEarlyDn : upCount + dnCount > 0 ? A : N)
+        r += 1
     if showMkt
         f_row(r, "地合い " + array.get(str.split(mktSymbol, ":"), -1), f_sName(mktState) + (na(mktSlow) ? "" : mktClose > mktSlow ? "（長期線の上）" : "（長期線の下）"), f_sCol(mktState))
         r += 1
@@ -403,12 +464,14 @@ if showTable and barstate.islast
 prevState = nz(state[1], 0)
 changed   = not na(state) and state != prevState and prevState != 0
 
-alertcondition(changed,                "状態が変わった（すべて）", '{{ticker}}: 日足の状態が変わりました。状態コード {{plot("状態コード")}}（5=上昇 4=上昇の失速 3=レンジ 2=下降の失速 1=下降）終値 {{close}}')
+alertcondition(changed,                "状態が変わった（すべて）", '{{ticker}}: 日足の状態が変わりました。状態コード {{plot("状態コード")}}（5=上昇 4=上昇の失速 3=レンジ 2=下降の失速 1=下降 6=上昇転換の初動 7=下降転換の初動）終値 {{close}}')
 alertcondition(changed and state == 5, "上昇トレンドになった",     "{{ticker}}: 上昇トレンド（ロング候補）になりました（{{close}}）")
 alertcondition(changed and state == 4, "上昇の失速になった",       "{{ticker}}: 上昇の失速（下降転換に警戒）になりました（{{close}}）")
 alertcondition(changed and state == 3, "レンジになった",           "{{ticker}}: レンジ（触らない）になりました（{{close}}）")
 alertcondition(changed and state == 2, "下降の失速になった",       "{{ticker}}: 下降の失速（上昇転換の兆し）になりました（{{close}}）")
 alertcondition(changed and state == 1, "下降トレンドになった",     "{{ticker}}: 下降トレンド（ショート候補）になりました（{{close}}）")
+alertcondition(changed and state == 6, "上昇転換の初動が出た",     "{{ticker}}: 上昇転換の初動が出ました（試し玉の候補）（{{close}}）")
+alertcondition(changed and state == 7, "下降転換の初動が出た",     "{{ticker}}: 下降転換の初動が出ました（ロング縮小を検討）（{{close}}）")
 alertcondition(volSpike1 or volSpike2, "出来高が急増した",         "{{ticker}}: 出来高が平均を大きく上回りました（出来高 {{volume}}、終値 {{close}}）")
 
 // 「alert() 関数の呼び出しのみ」でアラートを作ると、変化前 → 変化後 が文章で届く
